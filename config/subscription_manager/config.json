@@ -1,0 +1,20 @@
+{
+    "brokers": {
+        "France": {
+            "session": "58a74ef6-07c1-41e3-888b-e576a7140712",
+            "host": "globalbroker.meteo.fr",
+            "port": 443,
+            "username": "everyone",
+            "password": "everyone",
+            "protocol": "websockets"
+        }
+    },
+    "topics": {
+        "cache/a/wis2/+/data/core/weather/surface-based-observations/synop": "surface/synop"
+    },
+    "flask_host": "0.0.0.0",
+    "flask_port": 5001,
+    "cache-blacklist": [
+        "wis2.ncm.gov.sa"
+    ]
+}

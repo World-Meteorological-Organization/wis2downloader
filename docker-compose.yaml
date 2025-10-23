@@ -1,0 +1,102 @@
+x-env-file: &default-env
+   default.env
+
+x-logging: &default-logging
+  options:
+    max-size: "10M"
+    max-file: "2"
+
+x-logging-loki: &loki-logging
+  logging:
+    driver: loki
+    options:
+      loki-url: "http://localhost:3100/loki/api/v1/push"
+      mode: "non-blocking"
+      max-buffer-size: "10M"
+      loki-retries: 5
+      max-size: "10M"
+      max-file: "2"
+
+
+services:
+  loki:
+    container_name: loki
+    image: grafana/loki:latest
+    restart: always
+    command:
+      - -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - loki-data:/loki
+      - ./config/loki/loki-config.yml:/etc/loki/loki-config.yml
+    <<: *loki-logging
+
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    restart: always
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=10d'
+      - '--log.level=warn'
+
+  # Databases / message queues
+  redis:
+    container_name: redis
+    restart: always
+    build:
+      context: ./containers/redis
+      dockerfile: Dockerfile
+    logging: *default-logging
+
+
+  # Task handling
+  celery:
+    restart: always
+    build:
+      context: .
+      dockerfile: ./containers/celery/Dockerfile
+    volumes:
+      - "./downloads/:/data"
+      - "./:/local"
+      - "prometheus-metrics-data:/tmp/prometheus_metrics"
+    env_file: *default-env
+    environment:
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_metrics
+    tty: true
+    depends_on:
+      - redis
+    deploy:
+      replicas: 1
+    logging: *default-logging
+
+
+  # Main application
+  subscription-manager:
+    container_name: subscription-manager
+    restart: always
+    build:
+      context: .
+      dockerfile: ./containers/subscription_manager/Dockerfile
+    ports:
+      - "5002:5001"
+    volumes:
+      - "./downloads/:/data"
+      - "./:/local/app"
+      - "./config/subscription_manager/:/app/config/"
+      - "prometheus-metrics-data:/tmp/prometheus_metrics"
+    env_file: *default-env
+    environment:
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_metrics
+    tty: true
+    depends_on:
+      - redis
+    logging: *default-logging
+
+volumes:
+  loki-data:
+  prometheus-data:
+  prometheus-metrics-data:
