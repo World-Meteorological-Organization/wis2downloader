@@ -96,6 +96,17 @@ services:
       - redis
     logging: *default-logging
 
+  wis2downloader-ui:
+      image: zauberzeug/nicegui:latest
+      ports:
+        - 8080:8080
+      volumes:
+        - ./containers/app:/app # mounting local app directory
+      environment:
+        - PUID=0 # change this to your user id
+        - PGID=0 # change this to your group id
+        - STORAGE_SECRET="change-this-to-yor-own-private-secret"
+
 volumes:
   loki-data:
   prometheus-data:
