@@ -2,22 +2,22 @@ import logging
 import os
 import threading
 import time
+from uuid import uuid4
 
 from .command_listener import CommandListener
 from .subscriber import Subscriber
 
 LOGGER = logging.getLogger(__name__)
-LOG_LEVEL = os.getenv("LOG_LEVEL","DEBUG").upper()
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()
 LOGGER.setLevel(LOG_LEVEL)
 
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 COMMAND_CHANNEL = "subscription_commands"
+
 
 def run_manager():
     broker_config = {
         'host': os.getenv("GLOBAL_BROKER_HOST"),
-        'port': int(os.getenv("GLOBAL_BROKER_PORT")),
+        'port': int(os.getenv("GLOBAL_BROKER_PORT", 443)),
         'uid': os.getenv("GLOBAL_BROKER_USERNAME", "everyone"),
         'pwd': os.getenv("GLOBAL_BROKER_PASSWORD", "everyone"),
         'protocol': os.getenv("MQTT_PROTOCOL", "websockets"),
@@ -31,10 +31,8 @@ def run_manager():
     mqtt_subscriber = Subscriber(**broker_config)
 
     redis_listener = CommandListener(
-        subscriber = mqtt_subscriber,
-        host = REDIS_HOST,
-        port = REDIS_PORT,
-        channel = COMMAND_CHANNEL
+        subscriber=mqtt_subscriber,
+        channel=COMMAND_CHANNEL
     )
 
     mqtt_thread = threading.Thread(target=mqtt_subscriber.start, daemon = True)

@@ -177,17 +177,18 @@ services:
     restart: always
     build:
       context: .
-      dockerfile: ./containers/subscription_manager/Dockerfile
+      dockerfile: ./containers/subscriber/Dockerfile
+    env_file: *default-env
     environment:
       GLOBAL_BROKER_HOST: globalbroker.meteo.fr
       GLOBAL_BROKER_PORT: 443
-      GLOBAL_BROKER_USERNAME: ${GLOBAL_BROKER_USERNAME}
-      GLOBAL_BROKER_PASSWORD: ${GLOBAL_BROKER_PASSWORD}
-      GLOBAL_BROKER_PROTOCOL: websockets
+      GLOBAL_BROKER_USERNAME: everyone
+      GLOBAL_BROKER_PASSWORD: everyone
+      MQTT_PROTOCOL: websockets
     depends_on:
-      - redis-primary
-      - redis-replica-1
-      - redis-replica-2
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
     logging: *default-logging
 
 

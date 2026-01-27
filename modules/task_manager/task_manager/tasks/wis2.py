@@ -6,20 +6,19 @@ from dateutil.relativedelta import relativedelta
 from functools import wraps
 import importlib
 import json
+import magic
+import mimetypes
 import os
 from pathlib import Path
 from prometheus_client import Counter, Gauge
-import redis
 import time
 import urllib3
 from urllib.parse import urlsplit
 
 from task_manager.worker import app as app
 
-from redis.sentinel import Sentinel
-
-from functools import lru_cache
-
+# Import shared Redis client
+from shared import get_redis_client
 
 LOGGER = get_task_logger(__name__)
 
@@ -36,50 +35,11 @@ LOCK_EXPIRE = int(os.getenv("REDIS_MESSAGE_LOCK", 300))
 _pool = urllib3.PoolManager()
 hash_module = importlib.import_module("hashlib")
 
-SENTINEL_HOSTS_STR = os.getenv('REDIS_SENTINEL_HOSTS')
-MASTER_NAME = os.getenv('REDIS_PRIMARY_NAME', 'redis-primary')
-REDIS_DB = int(os.getenv('REDIS_DATABASE', 0))
-
-# 2. Parse the Sentinel host string into a list of tuples
-# e.g., "host1:port1,host2:port2" -> [('host1', 26379), ('host2', 26379)]
-SENTINEL_HOSTS = []
-if SENTINEL_HOSTS_STR:
-    for pair in SENTINEL_HOSTS_STR.split(','):
-        host, port = pair.split(':')
-        SENTINEL_HOSTS.append((host, int(port)))
-
-
-
-_sentinel = None
-_redis_client = None
-
-@lru_cache(maxsize=1)
-def get_redis_client():
-    """
-    Initializes and returns the Redis master client via Sentinel.
-    Uses lru_cache to ensure the connection is only established once.
-    """
-    global _sentinel, _redis_client
-    if _redis_client is None:
-        print(f"Connecting to Redis Sentinel at: {SENTINEL_HOSTS}")
-        try:
-            _sentinel = Sentinel(SENTINEL_HOSTS,
-                                 socket_timeout=1,
-                                 socket_connect_timeout=1,
-                                 retry_on_timeout=True)
-            _redis_client = _sentinel.master_for(MASTER_NAME, db=REDIS_DB)
-            # Test connection
-            _redis_client.ping()
-            print("Successfully connected to Redis master.")
-        except Exception as e:
-            print(f"Error connecting to Redis Sentinel: {e}")
-            # In a critical failure scenario, raise the error or use a fallback
-            raise ConnectionError(f"Could not connect to Redis: {e}")
-
-    return _redis_client
 
 TRACKER = "wis2:notifications:data:tracker"
 
+mimetypes.add_type('application/bufr', '.bufr')
+mimetypes.add_type('application/grib', '.grib')
 
 # define some metrics for prometheus
 
@@ -98,20 +58,20 @@ NOTIFICATIONS_SKIPPED = Counter(
 DOWNLOADS_FAILED = Counter(
     'failed_downloads',
     'Total number of failed downloads.',
-    ['cache', 'centre_id', 'topic', 'reason', 'file_type']
+    ['cache', 'centre_id', 'topic', 'reason', 'media_type']
 )
 
 
 DOWNLOADS_TOTAL_FILES = Counter(
     'downloads_total_files',
     'Total number of files downloaded.',
-    ['broker', 'cache', 'centre_id', 'topic', 'file_type']
+    ['broker', 'cache', 'centre_id', 'topic', 'media_type']
 )
 
 DOWNLOADS_TOTAL_BYTES = Counter(
     'downloads_total_bytes',
     'Total number of bytes downloaded.',
-    ['broker', 'cache', 'centre_id', 'topic', 'file_type']
+    ['broker', 'cache', 'centre_id', 'topic', 'media_type']
 )
 
 
@@ -158,6 +118,18 @@ def get_status(key, type):
         LOGGER.error(f"Redis error in get_status: {e}")
 
     return status
+
+def guess_file_type(data):
+    mime = magic.from_buffer(data, mime=True)
+    if mime == 'application/octet-stream':  # we need to manually guess for BUFR, GRIB, etc
+        if len(data) >= 4:
+            header = data[0:4].decode('utf-8', errors='ignore')
+            if header == 'BUFR':
+                mime = 'application/bufr'
+            elif header == 'GRIB':
+                mime = 'application/grib'
+    ext = mimetypes.guess_extension(mime)
+    return mime, ext
 
 
 def _select_download_link(links):
@@ -208,7 +180,7 @@ def metrics_collector(func):
         error_class = result.get('error_class','')
         centre_id = result.get('centre_id','')
         file_size = result.get('actual_filesize',0)
-        file_type = result.get('file_type','')
+        media_type = result.get('media_type','')
 
         try:
 
@@ -234,7 +206,7 @@ def metrics_collector(func):
                     cache=global_cache,
                     centre_id=centre_id,
                     topic=topic,
-                    file_type=file_type,
+                    media_type=media_type,
                     reason=error_class
                 ).inc()
 
@@ -244,7 +216,7 @@ def metrics_collector(func):
                     cache=global_cache,
                     centre_id=centre_id,
                     topic=topic,
-                    file_type = file_type
+                    media_type = media_type
                 ).inc()
 
                 DOWNLOADS_TOTAL_FILES.labels(
@@ -252,7 +224,7 @@ def metrics_collector(func):
                     cache=global_cache,
                     centre_id='total',
                     topic='total',
-                    file_type = file_type
+                    media_type = media_type
                 ).inc()
 
                 DOWNLOADS_TOTAL_BYTES.labels(
@@ -260,7 +232,7 @@ def metrics_collector(func):
                     cache=global_cache,
                     centre_id='total',
                     topic=topic,
-                    file_type=file_type
+                    media_type=media_type
                 ).inc(file_size)
 
 
@@ -269,7 +241,7 @@ def metrics_collector(func):
                     cache=global_cache,
                     centre_id='total',
                     topic='total',
-                    file_type=file_type
+                    media_type=media_type
                 ).inc(file_size)
         except Exception as e:
             LOGGER.error(f"Error collecting metrics: {e}", exc_info=True)
@@ -299,7 +271,7 @@ def download_from_wis2(self, job):
         'reason': None,
         'error_class': None,
         'filepath': None,
-        'file_type': None,
+        'media_type': None,
         'save': False,
         'expected_hash': None,
         'actual_hash': None,
@@ -327,8 +299,8 @@ def download_from_wis2(self, job):
     centre_id = topic_parts[3] if len(topic_parts) > 3 and topic_parts[2] == 'wis2' else 'unknown'
     result['centre_id'] = centre_id
 
-    file_type = 'unknown'
-    result['file_type'] = file_type
+    media_type = 'unknown'
+    result['media_type'] = media_type
 
     # get identifiers (incl. file hash if present)
     message_id = job.get('payload',{}).get('id')
@@ -378,11 +350,11 @@ def download_from_wis2(self, job):
 
         # get file_type from filename extension, this doesn't always work
         # hence later we also check the file header for GRIB or BUFR.
-        if download_url:
-            filename = os.path.basename(urlsplit(download_url).path)
-            if '.' in filename:
-                file_type = filename.split('.')[-1]
-                result['file_type'] = file_type
+        #if download_url:
+        #    filename = os.path.basename(urlsplit(download_url).path)
+            # if '.' in filename:
+            #     file_type = filename.split('.')[-1]
+            #     result['media_type'] = file_type
 
         # check we have a download URL
         if not download_url:
@@ -458,18 +430,9 @@ def download_from_wis2(self, job):
         data = response.data
         result['actual_filesize'] = len(data)
 
-        # update filetype
-        if len(data) >= 4:
-            header = data[0:4].decode('utf-8', errors='ignore')
-            if header == 'BUFR':
-                file_type = 'bufr'
-            elif header == 'GRIB': # GRIB is often represented by 'GRIB' or 'GRB'
-                file_type = 'grib'
 
-        if file_type == 'bufr4':  # chnage to bufr cor consistency
-            file_type = 'bufr'
-
-        result['file_type'] = file_type
+        file_type, _ = guess_file_type(data)
+        result['media_type'] = file_type
 
         # hash verification
         hash_props = job['payload']['properties'].get('integrity',{})

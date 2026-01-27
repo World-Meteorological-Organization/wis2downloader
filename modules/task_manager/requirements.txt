@@ -5,3 +5,4 @@ redis
 celery[redis,gevent]
 prometheus_client>=0.20.0
 certifi>=2024.2.2
+python-magic>=0.4.27

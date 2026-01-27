@@ -3,6 +3,7 @@ from datetime import datetime
 from fnmatch import fnmatch
 import json
 import logging
+import magic
 import os
 import ssl
 
@@ -49,6 +50,8 @@ class Subscriber():
         LOGGER.info(f"Connecting (Host: {host}, port: {port}, session: {session}) ...")
 
         try:
+            LOGGER.warning(f"Connecting to {host}:{port}")
+            LOGGER.warning(f"uid:{uid}, pwd:{pwd}")
             self.client.connect(host, port)
         except Exception as e:
             LOGGER.error(f"Failed to connect to {host}: {e}")

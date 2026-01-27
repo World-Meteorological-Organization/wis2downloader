@@ -12,11 +12,13 @@ from prometheus_client import Counter, Gauge
 from task_manager.worker import app as celery_app
 import sys
 from flask_cors import CORS
-# Update import for Sentinel functionality
-from redis.sentinel import Sentinel
 from redis.exceptions import ConnectionError
-import redis
-from functools import lru_cache
+
+# Import shared Redis client
+from shared import get_redis_client
+
+# Import config loader from package
+from . import load_config
 
 
 # set up logging
@@ -73,11 +75,8 @@ def normalise_path(userpath: str) -> str | None:
 # Load config
 CONFIG = load_config()
 
-# Initialise subscribers and topics
-# init_subscribers(CONFIG)
-
-# Persist config
-# persist_config(CONFIG)
+# Redis pub/sub channel for subscription commands
+COMMAND_CHANNEL = "subscription_commands"
 
 # Now set up flask app
 FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -86,44 +85,8 @@ if FLASK_SECRET_KEY == 'dev':
 app = Flask(__name__, instance_relative_config=True)
 app.config.from_mapping(SECRET_KEY=FLASK_SECRET_KEY)
 
-# --- Redis Sentinel Client Setup for Application Use (e.g., Metrics) ---
-SENTINEL_HOSTS_STR = os.getenv('REDIS_SENTINEL_HOSTS')
-MASTER_NAME = os.getenv('REDIS_PRIMARY_NAME', 'redis-primary')
-REDIS_DB = int(os.getenv('REDIS_DATABASE', 0))
+# Redis key for storing subscriptions
 GLOBAL_SUBSCRIPTION_KEY = "global:all_subscriptions"
-SENTINEL_HOSTS = []
-if SENTINEL_HOSTS_STR:
-    for pair in SENTINEL_HOSTS_STR.split(','):
-        host, port = pair.split(':')
-        SENTINEL_HOSTS.append((host, int(port)))
-
-_sentinel = None
-_redis_client = None
-
-@lru_cache(maxsize=1)
-def get_redis_client():
-    """
-    Initializes and returns the Redis master client via Sentinel.
-    Uses lru_cache to ensure the connection is only established once.
-    """
-    global _sentinel, _redis_client
-    if _redis_client is None:
-        print(f"Connecting to Redis Sentinel at: {SENTINEL_HOSTS}")
-        try:
-            _sentinel = Sentinel(SENTINEL_HOSTS,
-                                 socket_timeout=1,
-                                 socket_connect_timeout=1,
-                                 retry_on_timeout=True)
-            _redis_client = _sentinel.master_for(MASTER_NAME, db=REDIS_DB)
-            # Test connection
-            _redis_client.ping()
-            print("Successfully connected to Redis master.")
-        except Exception as e:
-            print(f"Error connecting to Redis Sentinel: {e}")
-            # In a critical failure scenario, raise the error or use a fallback
-            raise ConnectionError(f"Could not connect to Redis: {e}")
-
-    return _redis_client
 
 
 
@@ -215,17 +178,15 @@ def list_subscriptions():
 # POST (add) new subscription
 @app.post('/subscriptions')
 def add_subscription():
-    # First parse the request query
     data = get_json()
-    # Get location (target) where we want to save the data for this topic
-    target = normalise_path(data.get('target', ''))
-    LOGGER.error(target)
 
-    # Next we need to normalise the topic,
+    # Get and validate topic
     topic = normalise_topic(data.get('topic'))
-    # Now check  we have topic
     if topic is None:
         return jsonify({"error": "No topic provided"}), 400
+
+    # Get location (target) where we want to save the data for this topic
+    target = normalise_path(data.get('target', ''))
 
     command = {
         "action": "subscribe",
@@ -234,25 +195,16 @@ def add_subscription():
         "filters": []
     }
 
+    # Publish command to subscriber via Redis
     if not publish_command(command, COMMAND_CHANNEL):
         return jsonify({"error": "Failed to queue subscription command, Redis service unavailable"}), 503
 
-    # now persist
+    # Persist subscription to Redis
     if not persist_subscription(topic, target, command.get("filters")):
         return jsonify({"error": "Failed to persist subscription to redis"}), 503
 
-    # Now iterate over subscribers and add new subscription
-    # Todo - check we are now already subscribed.
-    subscriptions = {}
-    #for subscriber, item in SUBSCRIBERS.items():
-    #    subscriptions[subscriber] = item.subscribe(topic, target)
-
-    # Now update config settings and save
-    #CONFIG.setdefault('topics', {})[topic] = target
-    #persist_config(CONFIG)
-
-    # Now create response
-    response = jsonify(subscriptions)
+    # Create response
+    response = jsonify({"status": "accepted", "topic": topic, "target": target})
     response.status_code = 202
     response.headers['Location'] = url_for('get_subscription', topic=topic)
     return response
@@ -284,21 +236,23 @@ def get_subscription(topic):
 def delete_subscription(topic):
     topic = unquote(topic)
     if not topic:
-        return "No topic passed"
-    if topic not in CONFIG['topics']:
-        LOGGER.warning(
-            f"topic {topic} not found, trying to unsubscribe anyway")
+        return jsonify({"error": "No topic provided"}), 400
 
-    subscriptions = {}
-    for broker, item in SUBSCRIBERS.items():
-        subscriptions[broker] = item.unsubscribe(topic)
-    LOGGER.info(f"Removing {topic}")
-    LOGGER.info(json.dumps(CONFIG, indent=4))
-    if topic in CONFIG['topics']:
-        del CONFIG['topics'][topic]
-    persist_config(CONFIG)
-    return Response(response=json.dumps(subscriptions), status=200,
-                    mimetype="application/json")
+    # Publish unsubscribe command to subscriber via Redis
+    command = {"action": "unsubscribe", "topic": topic}
+    if not publish_command(command, COMMAND_CHANNEL):
+        return jsonify({"error": "Failed to queue unsubscribe command"}), 503
+
+    # Remove subscription from Redis
+    try:
+        redis_client = get_redis_client()
+        redis_client.hdel(GLOBAL_SUBSCRIPTION_KEY, topic)
+        LOGGER.info(f"Removed subscription: {topic}")
+    except Exception as e:
+        LOGGER.error(f"Failed to remove subscription from Redis: {e}")
+        return jsonify({"error": "Failed to remove subscription"}), 503
+
+    return jsonify({"status": "deleted", "topic": topic}), 200
 
 
 # Swagger end point
@@ -366,4 +320,3 @@ def health_check():
 def run():
     app.run(debug=True, host=CONFIG['flask_host'],
             port=CONFIG['flask_port'], use_reloader=False)
-    shutdown()

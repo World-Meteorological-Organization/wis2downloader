@@ -1,24 +1,7 @@
 {
     "brokers": {
-        "France": {
-            "session": "1bdfe765-0b28-4cc2-9e0c-6cff4a1f69ef",
-            "host": "globalbroker.meteo.fr",
-            "port": 443,
-            "username": "everyone",
-            "password": "everyone",
-            "protocol": "websockets"
-        },
-        "Brazil": {
-            "session": "2e24963c-9092-4c5d-aa99-b6c825d801c9",
-            "host": "globalbroker.inmet.gov.br",
-            "port": 443,
-            "username": "everyone",
-            "password": "everyone",
-            "protocol": "websockets"
-        }
     },
     "topics": {
-        "cache/a/wis2/+/data/core/weather/surface-based-observations/#": "surface-obs"
     },
     "flask_host": "0.0.0.0",
     "flask_port": 5001,

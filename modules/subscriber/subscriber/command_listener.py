@@ -1,24 +1,25 @@
 import threading
-import redis
 import json
 import time
 import logging
+import os
 
-from .redis_utils import get_redis_client
+import redis
+from shared import get_redis_client
 
 
 LOGGER = logging.getLogger(__name__)
-LOG_LEVEL = os.getenv("LOG_LEVEL","DEBUG").upper()
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()
 LOGGER.setLevel(LOG_LEVEL)
 
 
 class CommandListener(threading.Thread):
-    def __init__(self, subscriber: 'Subscriber', host: str='localhost',
-                 port: int = 6379, channel: str = 'subscription_commands'):
+    def __init__(self, subscriber: 'Subscriber',
+                 channel: str = 'subscription_commands'):
         # initialise thread as daemon
         super().__init__(daemon=True)
         self.subscriber = subscriber
-        self.redis = redis.Redis(host=host, port=port, decode_responses=True)
+        self.redis = get_redis_client()
         self.pubsub = self.redis.pubsub(ignore_subscribe_messages=True)
         self.channel = channel
         self.stop_event = threading.Event()
@@ -57,7 +58,7 @@ class CommandListener(threading.Thread):
             if action == 'subscribe':
                 self.subscriber.subscribe(topic, save_path)
                 LOGGER.info(f'Subscribed to new topic: {topic}, save path = {save_path}')
-            if action == 'unsubscribe':
+            elif action == 'unsubscribe':
                 self.subscriber.unsubscribe(topic)
                 LOGGER.info(f'Unsubscribed from {topic}')
             else:
