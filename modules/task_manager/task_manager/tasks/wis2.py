@@ -1,8 +1,6 @@
 import base64
-from celery import Task, current_task
 from celery.utils.log import get_task_logger
 import datetime as dt
-from dateutil.relativedelta import relativedelta
 from functools import wraps
 import importlib
 import json
@@ -115,8 +113,6 @@ def get_status(key, type):
 
     try:
         redis_client = get_redis_client()
-        #sentinel = Sentinel(SENTINEL_HOSTS, socket_timeout=1)
-        #redis_client = sentinel.master_for(MASTER_NAME, db=REDIS_DB)
         if redis_client.hexists(tracker_id, 'status'):
             status = redis_client.hget(tracker_id, 'status')
             status = status.decode('utf-8')
@@ -362,14 +358,6 @@ def download_from_wis2(self, job):
         download_url, expected_length, overwrite = _select_download_link(job['payload']['links'])
         result['download_url'] = download_url
 
-        # get file_type from filename extension, this doesn't always work
-        # hence later we also check the file header for GRIB or BUFR.
-        #if download_url:
-        #    filename = os.path.basename(urlsplit(download_url).path)
-            # if '.' in filename:
-            #     file_type = filename.split('.')[-1]
-            #     result['media_type'] = file_type
-
         # check we have a download URL
         if not download_url:
             result['status'] = STATUS_FAILED
@@ -486,9 +474,7 @@ def download_from_wis2(self, job):
         result['save'] = True
         result['status'] = STATUS_SUCCESS
 
-        # update metrics
-
-        LOGGER.warning(result)
+        LOGGER.debug(result)
         return result
 
     except Exception as e:

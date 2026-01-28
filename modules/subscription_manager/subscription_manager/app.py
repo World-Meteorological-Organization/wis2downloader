@@ -6,12 +6,9 @@ from urllib.parse import unquote
 import yaml
 import time
 from flask import Flask, request, jsonify, url_for, Response, render_template
-from prometheus_client import generate_latest, REGISTRY, CollectorRegistry, \
-    multiprocess
+from prometheus_client import generate_latest, CollectorRegistry, multiprocess
 from prometheus_client import Counter, Gauge
-from task_manager.worker import app as celery_app
 import sys
-from flask_cors import CORS
 from redis.exceptions import ConnectionError
 
 # Import shared Redis client

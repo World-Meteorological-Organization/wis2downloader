@@ -51,7 +51,6 @@ class Subscriber():
 
         try:
             LOGGER.warning(f"Connecting to {host}:{port}")
-            LOGGER.warning(f"uid:{uid}, pwd:{pwd}")
             self.client.connect(host, port)
         except Exception as e:
             LOGGER.error(f"Failed to connect to {host}: {e}")
