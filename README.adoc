@@ -60,7 +60,7 @@ WIS2 Downloader subscribes to MQTT topics on WIS2 Global Brokers, receives notif
 [source,bash]
 ----
 # Clone and start
-git clone <repository-url>
+git clone https://github.com/wmo-im/wis2downloader-refactor.git
 cd wis2downloader-refactor
 cp default.env .env  # Customize if needed
 docker-compose up -d
