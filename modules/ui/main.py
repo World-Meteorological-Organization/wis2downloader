@@ -5,26 +5,31 @@ import httpx
 from nicegui import app, ui, binding, context
 import json
 import copy
+from shared import setup_logging
 
-json_sraps = {
+# Set up logging
+setup_logging()  # Configure root logger
+LOGGER = setup_logging(__name__)
+
+json_scrapes = {
     "CMA": {},
     "DWD": {},
     "ECCC": {}
 }
 
-def scrap_all():
+def scrape_all():
     with httpx.Client() as client:
         for url in [("https://gdc.wis.cma.cn","CMA"), ("https://wis2.dwd.de/gdc", "DWD"), ("https://wis2-gdc.weather.gc.ca", "ECCC")]:
             try:
                 response = client.get(str(url[0]) + f'/collections/wis2-discovery-metadata/items?limit=2000&f=json', timeout=5)
             except Exception as e:
-                print(f"Error fetching data from {url[0]}: {e}")
+                LOGGER.error(f"Error fetching data from {url[0]}: {e}")
                 response = None
-                json_sraps[url[1]] = {}
+                json_scrapes[url[1]] = {}
                 continue
-            json_scrap = response.json()
-            json_sraps[url[1]] = json_scrap
-scrap_all_task = ui.run(scrap_all())
+            json_scrape = response.json()
+            json_scrapes[url[1]] = json_scrape
+scrape_all_task = ui.run( scrape_all())
 
 SUBSCRIPTION_MANAGER = "http://subscription-manager:5001"
 app.colors(base_100="#FFFFFF",
@@ -46,7 +51,7 @@ def home_page():
         def __init__(self, value):
             self.value = value
 
-    tree = Tree(value= 5)
+    tree = Tree(value= None)
 
     class Page:
         home = ui.element()
@@ -116,13 +121,13 @@ def home_page():
             content_card.set_visibility(True)
             for child in content_card.descendants():
                 child.delete()
-            tree.value = 5
+            tree.value = None
             tree.selected_topics = []
             page.left_sidebar.clear()
             page.right_sidebar.clear()
             label = ui.label("Please select a source GDC.").style('margin-left: 10px; font-weight: bold;').style('color: black;')
             if e.value == 'tree':
-                url = radio1 = ui.radio({"CMA":'CMA', "DWD":'DWD', "ECCC":"ECCC" }).props('inline').on('update:model-value', lambda e: scrap_topics_tree(url.value))
+                url = radio1 = ui.radio({"CMA":'CMA', "DWD":'DWD', "ECCC":"ECCC" }).props('inline').on('update:model-value', lambda e: scrape_topics_tree(url.value))
             else:
                 url = radio1 = ui.radio({"CMA":'CMA', "DWD":'DWD', "ECCC":"ECCC" }).props('inline').on('update:model-value', lambda e: make_search_page(e.sender, url.value))
 
@@ -185,7 +190,6 @@ def home_page():
             return True
         if 'geometry' in feature and feature['geometry'] is not None:
             coordinates = feature['geometry']['coordinates'][0]
-            print(coordinates)
             if isinstance(coordinates, list) and isinstance(coordinates[0], list):
                 pass
             else:
@@ -209,7 +213,7 @@ def home_page():
                 if child.tag in ["results_column", "results_label"]:
                     child.delete()
                     ui.update()
-            json = copy.deepcopy(json_sraps[gdc])
+            json = copy.deepcopy(json_scrapes[gdc])
             features = [feature for feature in json['features'] if filter_feature(feature, query)]
             features = [feature for feature in features if filter_by_data_policy(feature, data_policy)]
             features = [feature for feature in features if filter_by_keywords(feature, keywords)]
@@ -225,7 +229,7 @@ def home_page():
             #         features.append(feature)
             tree.features = {}
             tree.selected_topics = []
-            tree.value = 5
+            tree.value = None
             for item in json['features']:
                 for link in item['links']:
                     if "channel" in link and link["channel"].startswith('cache/'):
@@ -270,18 +274,13 @@ def home_page():
                                     selector.text = "Deselect"
                                 break   
 
-    async def scrap_topics_tree(gdc):
+    async def scrape_topics_tree(gdc):
         with page.content_card:
-            json = json_sraps[gdc]
+            json = json_scrapes[gdc]
             ui.update()
             tree.features = {}
             dicc = {}
-            # for item in json['features']:
-            #     if "wmo:topicHierarchy" in item['properties']:
-            #         print("Processing topic:", item['properties']['wmo:topicHierarchy'])
-            #         dicc = put_in_dicc(dicc, item['properties']['wmo:topicHierarchy'], item['properties']['wmo:topicHierarchy'])
             for item in json['features']:
-                # if len(item['links']) > 0 and "channel" in item['links'][0] and item['links'][0]["channel"].startswith('cache/'):
                 for link in item['links']:
                     if "channel" in link and link["channel"].startswith('cache/'):
                         if link["channel"] not in tree.features:
@@ -289,7 +288,7 @@ def home_page():
                         tree.features[link["channel"]].append(item)
                         dicc = put_in_dicc(dicc, link["channel"], link["channel"])
                         break  
-            if not isinstance(tree.value, int):
+            if tree.value is not None:
                 for ancestor in tree.value.ancestors():
                     ancestor.delete()
                     break
@@ -359,7 +358,6 @@ def home_page():
                     map = ui.leaflet()
                     location = map.generic_layer(name='polygon',args=coordinates)
                     map.on('init', lambda e: map.run_map_method('fitBounds', [coordinates[0][0], coordinates[0][2]]))
-                    # map.run_map_method('fitBounds', [coordinates[0][0], coordinates[0][2]])
             ui.button("Close").on('click', lambda: dialog.close())
         dialog.open()
 
