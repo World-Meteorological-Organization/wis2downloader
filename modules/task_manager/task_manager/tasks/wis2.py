@@ -47,6 +47,7 @@ DEFAULT_ACCEPTED_MEDIA_TYPES = [
                         'application/bufr', 'application/grib',  # WMO formats
                         'application/x-hdf', 'application/x-hdf5', 'application/x-netcdf', 'application/x-netcdf4',  # scientific formats
                         'text/plain', 'text/html', 'text/xml', 'text/csv', 'text/tab-separated-values',  # text based formats
+                        'application/octet-stream',
                         ]
 
 # define some metrics for prometheus
