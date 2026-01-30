@@ -26,8 +26,8 @@ WIS2 Downloader is a distributed system with four main components:
 │            │  (commands)               │                         │
 │            ▼                           ▼                         │
 │   ┌──────────────────────────────────────────────┐              │
-│   │           Redis Sentinel Cluster             │              │
-│   │     (Primary + Replicas + Sentinels)         │              │
+│   │                   Redis                      │              │
+│   │          (State + Task Queue)                │              │
 │   └──────────────────────────────────────────────┘              │
 │            │                           │                         │
 │            │  Task Queue               │  Results                │
@@ -57,7 +57,7 @@ modules/
 │   └── shared/
 │       ├── __init__.py
 │       ├── logging.py      # Centralized logging
-│       └── redis_client.py # Sentinel-aware Redis client
+│       └── redis_client.py # Redis client singleton
 │
 ├── subscriber/             # MQTT subscriber service
 │   └── subscriber/
@@ -96,7 +96,7 @@ Provides common utilities used across all services.
 ----
 from shared import get_redis_client
 
-# Get Sentinel-aware Redis client (singleton)
+# Get Redis client (singleton)
 redis = get_redis_client()
 
 # Use like normal Redis client
@@ -106,10 +106,9 @@ redis.get('key')
 
 The client:
 
-* Connects via Redis Sentinel for high availability
-* Falls back to direct connection if no Sentinels configured
+* Connects directly to Redis server
 * Caches connection (singleton pattern)
-* Auto-reconnects on failover
+* Includes retry logic for transient failures
 
 ==== Logging
 
@@ -275,10 +274,6 @@ Celery workers for downloading and processing files.
 app = Celery('tasks',
              broker=CELERY_BROKER_URL,
              result_backend=CELERY_RESULT_BACKEND)
-
-# Sentinel-specific options
-app.conf.broker_transport_options = CELERY_BROKER_TRANSPORT_OPTIONS
-app.conf.result_backend_transport_options = CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS
 
 # Auto-discover tasks
 app.autodiscover_tasks(['task_manager.tasks', 'task_manager.tasks.wis2'])
@@ -505,22 +500,6 @@ docker-compose logs -f subscriber celery
 ls -la downloads/test/
 ----
 
-=== Testing Redis Failover
-
-[source,bash]
-----
-# 1. Watch logs
-docker-compose logs -f subscriber celery
-
-# 2. In another terminal, stop primary
-docker-compose stop redis-primary
-
-# 3. Observe failover in logs (should complete in ~5 seconds)
-
-# 4. Restart primary (becomes replica)
-docker-compose start redis-primary
-----
-
 == Development Setup
 
 === Local Development
@@ -590,7 +569,7 @@ docker exec -it wis2downloader-refactor-celery-1 \
 [source,bash]
 ----
 # Connect to Redis
-docker exec -it redis-primary redis-cli
+docker exec -it redis redis-cli
 
 # List subscriptions
 HGETALL global:all_subscriptions

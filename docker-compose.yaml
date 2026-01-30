@@ -69,104 +69,17 @@ services:
 
   # Databases / message queues
 
-  redis-primary:
-    container_name: redis-primary
+  redis:
+    container_name: redis
     build:
       context: ./containers/redis/
       dockerfile: Dockerfile
     restart: always
     command: ["redis-server", "--appendonly", "yes", "--protected-mode", "no"]
     volumes:
-      - redis-primary-data:/data
+      - redis-data:/data
     networks:
-      redis-net:
-        ipv4_address: 172.28.0.10
-    logging: *default-logging
-
-  redis-replica-1:
-    container_name: redis-replica-1
-    build:
-      context: ./containers/redis/
-      dockerfile: Dockerfile
-    restart: always
-    command: ["redis-server", "--replicaof", "172.28.0.10", "6379", "--protected-mode", "no"]
-    depends_on:
-      - redis-primary
-    volumes:
-      - redis-replica-1-data:/data
-    networks:
-      redis-net:
-        ipv4_address: 172.28.0.11
-    logging: *default-logging
-
-  redis-replica-2:
-    container_name: redis-replica-2
-    build:
-      context: ./containers/redis/
-      dockerfile: Dockerfile
-    restart: always
-    command: ["redis-server", "--replicaof", "172.28.0.10", "6379", "--protected-mode", "no"]
-    depends_on:
-      - redis-primary
-    volumes:
-      - redis-replica-2-data:/data
-    networks:
-      redis-net:
-        ipv4_address: 172.28.0.12
-    logging: *default-logging
-
-  redis-sentinel-1:
-    container_name: redis-sentinel-1
-    build:
-      context: ./containers/redis-sentinel/
-      dockerfile: Dockerfile
-    restart: always
-    command: ["redis-sentinel","/usr/local/etc/redis/sentinel.conf"]
-    ports:
-      - "26379:26379"
-    depends_on:
-      - redis-primary
-      - redis-replica-1
-      - redis-replica-2
-    networks:
-      redis-net:
-        ipv4_address: 172.28.0.20
-    logging: *default-logging
-
-  redis-sentinel-2:
-    container_name: redis-sentinel-2
-    build:
-      context: ./containers/redis-sentinel/
-      dockerfile: Dockerfile
-    restart: always
-    command: ["redis-sentinel","/usr/local/etc/redis/sentinel.conf"]
-    ports:
-      - "26380:26379"
-    depends_on:
-      - redis-primary
-      - redis-replica-1
-      - redis-replica-2
-    networks:
-      redis-net:
-        ipv4_address: 172.28.0.21
-    logging: *default-logging
-
-  redis-sentinel-3:
-    container_name: redis-sentinel-3
-    build:
-      context: ./containers/redis-sentinel/
-      dockerfile: Dockerfile
-    restart: always
-    command: ["redis-sentinel","/usr/local/etc/redis/sentinel.conf"]
-    ports:
-      - "26381:26379"
-    depends_on:
-      - redis-primary
-      - redis-replica-1
-      - redis-replica-2
-    networks:
-      redis-net:
-        ipv4_address: 172.28.0.22
+      - redis-net
     logging: *default-logging
 
   # Task handling
@@ -184,9 +97,7 @@ services:
       - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_metrics
     tty: true
     depends_on:
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - redis-sentinel-3
+      - redis
       - subscription-manager
     networks:
       - redis-net
@@ -213,9 +124,7 @@ services:
       - FLASK_PORT=5001
     tty: true
     depends_on:
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - redis-sentinel-3
+      - redis
     networks:
       - redis-net
     logging: *default-logging
@@ -246,9 +155,7 @@ services:
       GLOBAL_BROKER_PASSWORD: everyone
       MQTT_PROTOCOL: websockets
     depends_on:
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - redis-sentinel-3
+      - redis
     networks:
       - redis-net
     logging: *default-logging
@@ -259,13 +166,8 @@ volumes:
   prometheus-data:
   prometheus-metrics-data:
   grafana-data:
-  redis-primary-data:
-  redis-replica-1-data:
-  redis-replica-2-data:
+  redis-data:
 
 networks:
   redis-net:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.28.0.0/16

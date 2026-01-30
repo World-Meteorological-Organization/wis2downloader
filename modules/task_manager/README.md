@@ -5,7 +5,7 @@ Celery tasks for downloading and processing WIS2 data.
 ## Overview
 
 This module provides:
-- Celery worker configuration with Redis Sentinel support
+- Celery worker configuration with Redis backend
 - Download tasks with deduplication, filtering, and hash verification
 - Prometheus metrics for monitoring
 - Workflow chains for task orchestration

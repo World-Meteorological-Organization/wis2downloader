@@ -124,15 +124,15 @@ docker-compose logs -f subscriber
 |===
 |Variable |Type |Default |Description
 
-|`REDIS_SENTINEL_HOSTS`
+|`REDIS_HOST`
 |string
-|_see default.env_
-|Comma-separated list of sentinel hosts (host:port)
+|`redis`
+|Redis server hostname
 
-|`REDIS_PRIMARY_NAME`
-|string
-|`redis-primary`
-|Sentinel master name
+|`REDIS_PORT`
+|integer
+|`6379`
+|Redis server port
 
 |`REDIS_DATABASE`
 |integer
@@ -158,23 +158,13 @@ docker-compose logs -f subscriber
 
 |`CELERY_BROKER_URL`
 |string
-|_sentinel URL_
+|`redis://redis:6379/0`
 |Celery broker connection string
-
-|`CELERY_BROKER_TRANSPORT_OPTIONS`
-|JSON
-|`{"master_name": "redis-primary"}`
-|Broker transport options
 
 |`CELERY_RESULT_BACKEND`
 |string
-|_sentinel URL_
+|`redis://redis:6379/1`
 |Result backend connection string
-
-|`CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS`
-|JSON
-|`{"master_name": "redis-primary"}`
-|Result backend transport options
 |===
 
 ==== Download Filtering
@@ -210,32 +200,22 @@ wis2downloader-refactor/
 └── README.adoc
 ----
 
-== High Availability
+== Scaling
 
-=== Redis Sentinel
+=== Redis
 
-The system uses Redis Sentinel for automatic failover:
+The system uses a single Redis instance for:
 
-* 1 Primary + 2 Replicas
-* 3 Sentinel instances (quorum = 2)
-* Static IPs on dedicated Docker network (172.28.0.0/16)
+* Pub/Sub messaging between services
+* Subscription state storage
+* Deduplication tracking
+* Celery task queue and results
 
-==== Failover Behavior
+For production deployments requiring high availability, consider:
 
-* Sentinel detects primary failure after 5 seconds (`down-after-milliseconds`)
-* Failover completes within 60 seconds (`failover-timeout`)
-* Applications auto-reconnect via Sentinel-aware clients
-
-==== Manual Failover
-
-[source,bash]
-----
-# Trigger manual failover
-docker exec redis-sentinel-1 redis-cli -p 26379 SENTINEL FAILOVER redis-primary
-
-# Check current master
-docker exec redis-sentinel-1 redis-cli -p 26379 SENTINEL GET-MASTER-ADDR-BY-NAME redis-primary
-----
+* Using external managed Redis (AWS ElastiCache, Azure Cache for Redis)
+* Running Redis with persistence enabled (AOF + RDB)
+* Implementing regular backups
 
 === Scaling Workers
 
@@ -275,9 +255,7 @@ Each subscriber service connects to a single WIS2 Global Broker. To receive data
       GLOBAL_BROKER_PASSWORD: everyone
       MQTT_PROTOCOL: websockets
     depends_on:
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - redis-sentinel-3
+      - redis
     networks:
       - redis-net
     logging: *default-logging
@@ -296,9 +274,7 @@ Each subscriber service connects to a single WIS2 Global Broker. To receive data
       GLOBAL_BROKER_PASSWORD: everyone
       MQTT_PROTOCOL: websockets
     depends_on:
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - redis-sentinel-3
+      - redis
     networks:
       - redis-net
     logging: *default-logging
@@ -405,10 +381,10 @@ Logs are also collected by Loki and queryable in Grafana.
 [source,bash]
 ----
 # Trigger RDB snapshot
-docker exec redis-primary redis-cli BGSAVE
+docker exec redis redis-cli BGSAVE
 
 # Copy snapshot
-docker cp redis-primary:/data/dump.rdb ./backup/
+docker cp redis:/data/dump.rdb ./backup/
 ----
 
 ==== Downloaded Files
@@ -426,10 +402,10 @@ WARNING: These operations are destructive.
 [source,bash]
 ----
 # Clear all subscriptions
-docker exec redis-primary redis-cli DEL global:all_subscriptions
+docker exec redis redis-cli DEL global:all_subscriptions
 
 # Clear deduplication cache (allows re-download of all data)
-docker exec redis-primary redis-cli KEYS "wis2:notifications:*" | xargs -r docker exec -i redis-primary redis-cli DEL
+docker exec redis redis-cli KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli DEL
 
 # Clear downloaded files
 rm -rf downloads/*
@@ -497,11 +473,11 @@ curl -s http://localhost:5002/metrics | grep queue_length
 
 === Redis Connection Errors
 
-1. Check Sentinel status:
+1. Check Redis is running:
 +
 [source,bash]
 ----
-docker exec redis-sentinel-1 redis-cli -p 26379 SENTINEL MASTER redis-primary
+docker exec redis redis-cli PING
 ----
 
 2. Verify network connectivity:

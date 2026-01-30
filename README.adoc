@@ -13,7 +13,7 @@ toc::[]
 
 WIS2 Downloader subscribes to MQTT topics on WIS2 Global Brokers, receives notification messages, and downloads the referenced data files. It features:
 
-* **High Availability** - Redis Sentinel for automatic failover
+* **Reliability** - Redis-backed state with automatic reconnection
 * **Scalability** - Celery workers for parallel downloads
 * **Deduplication** - Prevents duplicate downloads via message ID, data ID, and file hash tracking
 * **Filtering** - Filter by media type at subscription level
@@ -50,8 +50,8 @@ WIS2 Downloader subscribes to MQTT topics on WIS2 Global Brokers, receives notif
                                    └─────────────────┘
 
               ┌─────────────────────────────────┐
-              │     Redis Sentinel Cluster      │
-              │  (Primary + 2 Replicas + 3 Sen) │
+              │             Redis               │
+              │    (State + Task Queue)         │
               └─────────────────────────────────┘
 ----
 
@@ -118,9 +118,9 @@ ls -la downloads/surface-obs/
 |3000
 |Metrics visualization (admin/admin)
 
-|redis-sentinel-1/2/3
-|26379-26381
-|Redis Sentinel for high availability
+|redis
+|6379 (internal)
+|Redis for state storage and task queue
 |===
 
 == Configuration

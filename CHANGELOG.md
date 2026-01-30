@@ -1,5 +1,35 @@
 # WIS2 Downloader Refactor - Progress Log
 
+## 2026-01-30
+
+### Infrastructure Simplification - Single Redis Instance
+
+**Removed:**
+- Redis Sentinel cluster (3 sentinels)
+- Redis replicas (2 replicas)
+- Static IP network configuration (172.28.0.0/16)
+- Sentinel-specific environment variables (`REDIS_SENTINEL_HOSTS`, `REDIS_PRIMARY_NAME`)
+- Celery transport options (`CELERY_BROKER_TRANSPORT_OPTIONS`, `CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS`)
+- `/containers/redis-sentinel/` directory
+
+**Changed:**
+- `docker-compose.yaml` - Single Redis instance, simplified network
+- `default.env` - Direct Redis connection variables
+- `modules/shared/shared/redis_client.py` - Removed Sentinel support, direct connection only
+- `modules/task_manager/task_manager/worker.py` - Direct Redis URLs
+- All documentation updated to reflect single Redis architecture
+
+**Rationale:**
+Sentinel was over-engineered for most deployment scenarios. Single Redis provides:
+- Simpler configuration and debugging
+- Reduced resource usage (5 fewer containers)
+- Faster startup time
+- Easier local development
+
+For production HA, external managed Redis (AWS ElastiCache, Azure Cache) is recommended.
+
+---
+
 ## 2026-01-27
 
 ### Phase 1: Subscriber/Subscription-Manager Separation - COMPLETE

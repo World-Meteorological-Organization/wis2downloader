@@ -1,5 +1,4 @@
 from celery import Celery
-import json
 import os
 import sys
 
@@ -9,60 +8,15 @@ from shared import setup_logging
 setup_logging()  # Configure root logger
 LOGGER = setup_logging(__name__)
 
-
-# 1. Load Celery Broker URL (Sentinel list)
-CELERY_BROKER_URL = os.environ.get(
-    "CELERY_BROKER_URL", 
-    "sentinel://redis-sentinel-1:26379;sentinel://redis-sentinel-2:26379;sentinel://redis-sentinel-3:26379/0"
-)
-
-# 2. Load Celery Broker Transport Options (including 'master_name')
-CELERY_BROKER_TRANSPORT_OPTIONS_STR = os.environ.get(
-    "CELERY_BROKER_TRANSPORT_OPTIONS", 
-    '{"master_name": "redis-primary",'
-    '"socket_connect_timeout": 1,'
-    '"socket_timeout": 1,'
-    '"retry_on_timeout": true,'
-    '"retry_errors": ["BusyLoadingError"]}'
-)
-try:
-    CELERY_BROKER_TRANSPORT_OPTIONS = json.loads(CELERY_BROKER_TRANSPORT_OPTIONS_STR)
-except json.JSONDecodeError:
-    LOGGER.warning("Could not parse CELERY_BROKER_TRANSPORT_OPTIONS. Using default.")
-    CELERY_BROKER_TRANSPORT_OPTIONS = {"master_name": "redis-primary"}
-
-
-# 3. Load Celery Result Backend URL (Sentinel list)
-CELERY_RESULT_BACKEND = os.environ.get(
-    "CELERY_RESULT_BACKEND", 
-    "sentinel://redis-sentinel-1:26379;sentinel://redis-sentinel-2:26379;sentinel://redis-sentinel-3:26379/1"
-)
-
-# 4. Load Celery Result Backend Transport Options
-CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS_STR = os.environ.get(
-    "CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS", 
-    '{"master_name": "redis-primary"}'
-)
-try:
-    CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = json.loads(CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS_STR)
-except json.JSONDecodeError:
-    LOGGER.warning("Could not parse CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS. Using default.")
-    CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {"master_name": "redis-primary"}
-
-
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND",
+                                       "redis://redis:6379/1")
 # --- Celery App Setup ---
-
 app = Celery('tasks',
              broker=CELERY_BROKER_URL,
              result_backend=CELERY_RESULT_BACKEND)
 
-# Apply the Sentinel-specific options to the Celery app
-app.conf.broker_transport_options = CELERY_BROKER_TRANSPORT_OPTIONS
-app.conf.result_backend_transport_options = CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS
-
-# Optionally set LOG_LEVEL for visibility
 app.conf.worker_log_level = os.getenv("LOG_LEVEL", "DEBUG").upper()
-
 
 # Import your tasks
 app.autodiscover_tasks(['task_manager.tasks','task_manager.tasks.wis2' ])
