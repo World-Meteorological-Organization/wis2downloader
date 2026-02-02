@@ -7,21 +7,23 @@ x-logging: &default-logging
     max-file: "2"
 
 x-logging-loki: &loki-logging
-  logging:
-    driver: loki
-    options:
-      loki-url: "http://localhost:3100/loki/api/v1/push"
-      mode: "non-blocking"
-      max-buffer-size: "10M"
-      loki-retries: 5
-      max-size: "10M"
-      max-file: "2"
+  driver: loki
+  options:
+    loki-url: "http://host.docker.internal:3100/loki/api/v1/push"
+    loki-retries: "5"
+    mode: "non-blocking"
+    max-buffer-size: "4m"
+    keep-file: "true"
+    max-size: "10m"
+    max-file: "3"
 
 
 services:
   loki:
     container_name: loki
     image: grafana/loki:latest
+    ports:
+      - "3100:3100"
     restart: always
     command:
       - -config.file=/etc/loki/loki-config.yml
@@ -30,7 +32,7 @@ services:
       - ./config/loki/loki-config.yml:/etc/loki/loki-config.yml
     networks:
       - redis-net
-    <<: *loki-logging
+    logging: *default-logging
 
 
   prometheus:
@@ -46,6 +48,7 @@ services:
       - '--log.level=warn'
     networks:
       - redis-net
+    logging: *loki-logging
 
   grafana:
     container_name: grafana
@@ -65,7 +68,7 @@ services:
       - loki
     networks:
       - redis-net
-    logging: *default-logging
+    logging: *loki-logging
 
   # Databases / message queues
 
@@ -81,7 +84,7 @@ services:
       - redis-data:/data
     networks:
       - redis-net
-    logging: *default-logging
+    logging: *loki-logging
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 30s
@@ -107,7 +110,7 @@ services:
       - subscription-manager
     networks:
       - redis-net
-    logging: *default-logging
+    logging: *loki-logging
     healthcheck:
       test: [ "CMD", "celery", "inspect", "ping" ]
       interval: 30s
@@ -138,7 +141,7 @@ services:
       - redis
     networks:
       - redis-net
-    logging: *default-logging
+    logging: *loki-logging
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 30s
@@ -163,7 +166,7 @@ services:
       - redis
     networks:
       - redis-net
-    logging: *default-logging
+    logging: *loki-logging
     healthcheck:
       test: [ "CMD", "sh", "-c", "redis-cli -a $REDIS_PASSWORD EXISTS subscriber:health:globalbroker-meteo-fr | grep 1" ]
       interval: 30s
@@ -187,7 +190,7 @@ services:
       - redis
     networks:
       - redis-net
-    logging: *default-logging
+    logging: *loki-logging
     healthcheck:
       test: [ "CMD", "sh", "-c", "redis-cli -a $REDIS_PASSWORD EXISTS subscriber:health:globalbroker-inmet-gov-br | grep 1" ]
       interval: 30s

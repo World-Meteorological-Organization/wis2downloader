@@ -1,5 +1,50 @@
 # WIS2 Downloader Refactor - Progress Log
 
+## 2026-02-02
+
+### Phase 8: Security Hardening - COMPLETE
+
+**Fixed Critical/High Issues:**
+- Path traversal in downloaded filename - Added directory traversal check in `wis2.py:379-384`
+- MQTT TLS certificate not validated - Using `certifi.where()` in `subscriber.py`
+- Redis has no password protection - Added `--requirepass` and `REDIS_PASSWORD` required for all clients
+- Flask debug mode enabled in production - Controlled by `FLASK_DEBUG` env var, default false
+- Weak default Flask secret key - `FLASK_SECRET_KEY` now required, application fails if missing
+- Dynamic hash algorithm selection - Whitelist `ALLOWED_HASH_METHODS` (SHA-256/384/512, SHA3 variants)
+- Celery serialization not restricted - JSON-only serialization in `worker.py`
+- Exception details exposed - Generic error messages, details logged server-side only
+
+**Security Features Added:**
+- Hash algorithm whitelist prevents arbitrary algorithm injection
+- Path boundary checks prevent directory traversal attacks
+- MQTT TLS validation via certifi CA bundle
+- Redis authentication required for all connections
+- Atomic file operations prevent partial/corrupt writes
+
+### Phase 9: Production Readiness - COMPLETE
+
+**Fixed Issues:**
+- Missing graceful shutdown signal handlers - Added SIGTERM/SIGINT handlers in `manager.py`
+- GLOBAL_BROKER_HOST not validated - Application exits with code 1 if not set
+- Unsafe nested dictionary access - Using `.get()` chains throughout `wis2.py`
+- DATA_BASEPATH/DATA inconsistency - Standardized on `DATA_BASEPATH`
+- CACHE_EXCLUDE_LIST parsing bug - Fixed with list comprehension
+- No Celery result expiration - Added `result_expires = 86400`
+- TOCTOU race condition in file write - Atomic temp file + rename pattern
+- Missing Docker healthchecks - Added healthchecks for all services in `docker-compose.yaml`
+- Subscriber not resubscribing on restart - Added `load_persisted_subscriptions()` in `manager.py`
+- Unvalidated environment variable type conversions - Added try/except validation
+
+**Changes:**
+- `modules/shared/shared/redis_client.py` - REDIS_PASSWORD now required, fails on startup if missing
+- `modules/subscription_manager/subscription_manager/app.py` - FLASK_SECRET_KEY required
+- `modules/task_manager/task_manager/worker.py` - JSON-only serialization, result expiration
+- `modules/task_manager/task_manager/tasks/wis2.py` - Path traversal checks, hash whitelist, atomic writes
+- `modules/subscriber/subscriber/manager.py` - Signal handlers, subscription reload
+- `docker-compose.yaml` - Redis password, healthchecks for all services
+
+---
+
 ## 2026-01-30
 
 ### Infrastructure Simplification - Single Redis Instance

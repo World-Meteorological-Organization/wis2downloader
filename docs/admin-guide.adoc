@@ -31,6 +31,21 @@ Edit `.env` to configure your deployment, then start:
 docker-compose up -d
 ----
 
+=== Security Configuration
+
+IMPORTANT: Before deploying to production, you must configure these security settings in your `.env` file:
+
+1. **`REDIS_PASSWORD`** - Set a strong, unique password (required)
+2. **`FLASK_SECRET_KEY`** - Set a cryptographically random secret key (required)
+3. **`FLASK_DEBUG`** - Set to `false` for production
+4. **Grafana password** - Change from default `admin/admin` after first login
+
+The `.env` file contains sensitive credentials. Ensure it is:
+
+* Not committed to version control (add to `.gitignore`)
+* Readable only by the deployment user (`chmod 600 .env`)
+* Backed up securely
+
 === Volume Permissions
 
 The application containers run as a non-root user (`wis2`) for security. To allow containers to write downloaded files to the host filesystem, you must configure proper permissions on the `downloads/` directory.
@@ -178,8 +193,13 @@ docker-compose logs -f subscriber
 
 |`FLASK_SECRET_KEY`
 |string
-|`dev`
-|Flask session secret (change in production!)
+|_required_
+|Flask session secret key (application fails if not set)
+
+|`FLASK_DEBUG`
+|boolean
+|`false`
+|Enable Flask debug mode (set to `false` in production)
 
 |`FLASK_HOST`
 |string
@@ -250,6 +270,11 @@ docker-compose logs -f subscriber
 |`0`
 |Redis database number
 
+|`REDIS_PASSWORD`
+|string
+|_required_
+|Redis authentication password (application fails if not set)
+
 |`REDIS_TTL_SECONDS`
 |integer
 |`3600`
@@ -269,13 +294,13 @@ docker-compose logs -f subscriber
 
 |`CELERY_BROKER_URL`
 |string
-|`redis://redis:6379/0`
-|Celery broker connection string
+|`redis://:${REDIS_PASSWORD}@redis:6379/0`
+|Celery broker connection string (note password format)
 
 |`CELERY_RESULT_BACKEND`
 |string
-|`redis://redis:6379/1`
-|Result backend connection string
+|`redis://:${REDIS_PASSWORD}@redis:6379/1`
+|Result backend connection string (note password format)
 |===
 
 ==== Download Filtering
@@ -451,7 +476,9 @@ wis2_celery_queue_length
 
 === Grafana
 
-Access Grafana at `http://localhost:3000` (default: admin/admin)
+Access Grafana at `http://localhost:3000` (default credentials: admin/admin)
+
+IMPORTANT: Change the default Grafana password after first login or configure via `GF_SECURITY_ADMIN_PASSWORD` environment variable in production deployments.
 
 Pre-configured datasources:
 
@@ -492,7 +519,7 @@ Logs are also collected by Loki and queryable in Grafana.
 [source,bash]
 ----
 # Trigger RDB snapshot
-docker exec redis redis-cli BGSAVE
+docker exec redis redis-cli -a $REDIS_PASSWORD BGSAVE
 
 # Copy snapshot
 docker cp redis:/data/dump.rdb ./backup/
@@ -513,10 +540,10 @@ WARNING: These operations are destructive.
 [source,bash]
 ----
 # Clear all subscriptions
-docker exec redis redis-cli DEL global:all_subscriptions
+docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:all_subscriptions
 
 # Clear deduplication cache (allows re-download of all data)
-docker exec redis redis-cli KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli DEL
+docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli -a $REDIS_PASSWORD DEL
 
 # Clear downloaded files
 rm -rf downloads/*
@@ -588,7 +615,7 @@ curl -s http://localhost:5002/metrics | grep queue_length
 +
 [source,bash]
 ----
-docker exec redis redis-cli PING
+docker exec redis redis-cli -a $REDIS_PASSWORD PING
 ----
 
 2. Verify network connectivity:

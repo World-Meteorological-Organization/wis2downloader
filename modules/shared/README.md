@@ -42,4 +42,5 @@ redis.set('key', 'value')
 | `REDIS_HOST` | `localhost` | Redis server hostname |
 | `REDIS_PORT` | `6379` | Redis server port |
 | `REDIS_DATABASE` | `0` | Redis database number |
+| `REDIS_PASSWORD` | _required_ | Redis authentication password |
 | `LOG_LEVEL` | `DEBUG` | Logging level |

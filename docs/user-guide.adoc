@@ -270,7 +270,9 @@ curl -s http://localhost:5002/metrics | grep wis2_celery_queue_length
 
 === Grafana Dashboard
 
-Access Grafana at `http://localhost:3000` (default credentials: admin/admin) for visual monitoring.
+Access Grafana at `http://localhost:3000` for visual monitoring.
+
+NOTE: Default credentials are admin/admin. You should change the password after first login.
 
 == Common Use Cases
 

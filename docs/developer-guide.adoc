@@ -517,11 +517,13 @@ pip install -e modules/subscriber
 pip install -e modules/subscription_manager
 
 # Start Redis (single instance for dev)
-docker run -d -p 6379:6379 redis:7.2-alpine
+docker run -d -p 6379:6379 redis:7.2-alpine redis-server --requirepass devpassword
 
 # Set environment
 export REDIS_HOST=localhost
 export REDIS_PORT=6379
+export REDIS_PASSWORD=devpassword
+export FLASK_SECRET_KEY=dev-secret-key
 export LOG_LEVEL=DEBUG
 
 # Run subscription manager
@@ -568,8 +570,8 @@ docker exec -it wis2downloader-refactor-celery-1 \
 
 [source,bash]
 ----
-# Connect to Redis
-docker exec -it redis redis-cli
+# Connect to Redis (use password from environment)
+docker exec -it redis redis-cli -a $REDIS_PASSWORD
 
 # List subscriptions
 HGETALL global:all_subscriptions
@@ -580,6 +582,8 @@ LLEN celery
 # View deduplication keys
 KEYS wis2:notifications:*
 ----
+
+NOTE: All Redis commands require authentication. The `-a $REDIS_PASSWORD` flag passes the password from your environment.
 
 === MQTT Debugging
 
