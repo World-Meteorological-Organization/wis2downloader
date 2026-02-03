@@ -432,27 +432,27 @@ Metrics endpoint: `http://localhost:5002/metrics`
 |===
 |Metric |Type |Description
 
-|`wis2_notifications_total`
+|`wis2downloader_notifications_total`
 |Counter
 |Total notifications processed (labels: status)
 
-|`wis2_downloads_total`
+|`wis2downloader_downloads_total`
 |Counter
 |Successfully downloaded files (labels: cache, media_type)
 
-|`wis2_downloads_bytes_total`
+|`wis2downloader_downloads_bytes_total`
 |Counter
 |Total bytes downloaded (labels: cache, media_type)
 
-|`wis2_skipped_total`
+|`wis2downloader_skipped_total`
 |Counter
 |Skipped notifications by reason (labels: reason)
 
-|`wis2_failed_total`
+|`wis2downloader_failed_total`
 |Counter
 |Failed downloads (labels: cache, reason)
 
-|`wis2_celery_queue_length`
+|`wis2downloader_celery_queue_length`
 |Gauge
 |Current number of tasks in the Celery queue
 |===
@@ -462,19 +462,19 @@ Metrics endpoint: `http://localhost:5002/metrics`
 [source,promql]
 ----
 # Download rate per minute
-sum(rate(wis2_downloads_total[1m]))
+sum(rate(wis2downloader_downloads_total[1m]))
 
 # Downloads by cache
-sum by (cache) (rate(wis2_downloads_total[5m]))
+sum by (cache) (rate(wis2downloader_downloads_total[5m]))
 
 # Failed downloads by reason
-sum by (reason) (wis2_failed_total)
+sum by (reason) (wis2downloader_failed_total)
 
 # Bytes downloaded in last hour
-sum(increase(wis2_downloads_bytes_total[1h]))
+sum(increase(wis2downloader_downloads_bytes_total[1h]))
 
 # Queue depth
-wis2_celery_queue_length
+wis2downloader_celery_queue_length
 ----
 
 === Grafana

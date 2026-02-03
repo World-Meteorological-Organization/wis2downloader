@@ -61,31 +61,31 @@ DEFAULT_ACCEPTED_MEDIA_TYPES = [
 # define some metrics for prometheus
 
 NOTIFICATIONS_TOTAL = Counter(
-    'wis2_notifications_total',
+    'wis2downloader_notifications_total',
     'Total number of notifications processed.',
     ['status']
 )
 
 DOWNLOADS_TOTAL = Counter(
-    'wis2_downloads_total',
+    'wis2downloader_downloads_total',
     'Total number of files downloaded.',
     ['cache', 'media_type']
 )
 
 DOWNLOADS_BYTES_TOTAL = Counter(
-    'wis2_downloads_bytes_total',
+    'wis2downloader_downloads_bytes_total',
     'Total number of bytes downloaded.',
     ['cache', 'media_type']
 )
 
 SKIPPED_TOTAL = Counter(
-    'wis2_skipped_total',
+    'wis2downloader_skipped_total',
     'Total number of skipped notifications by reason.',
     ['reason']
 )
 
 FAILED_TOTAL = Counter(
-    'wis2_failed_total',
+    'wis2downloader_failed_total',
     'Total number of failed downloads by reason.',
     ['cache', 'reason']
 )
@@ -180,11 +180,11 @@ def metrics_collector(func):
     """Collect metrics for each notification processed.
 
     Metrics collected:
-    - wis2_notifications_total: Count by status (success/failed/skipped)
-    - wis2_downloads_total: Successful downloads by cache and media_type
-    - wis2_downloads_bytes_total: Bytes downloaded by cache and media_type
-    - wis2_skipped_total: Skipped notifications by reason
-    - wis2_failed_total: Failed downloads by cache and reason
+    - wis2downloader_notifications_total: Count by status (success/failed/skipped)
+    - wis2downloader_downloads_total: Successful downloads by cache and media_type
+    - wis2downloader_downloads_bytes_total: Bytes downloaded by cache and media_type
+    - wis2downloader_skipped_total: Skipped notifications by reason
+    - wis2downloader_failed_total: Failed downloads by cache and reason
     """
 
     @wraps(func)

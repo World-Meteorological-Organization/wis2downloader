@@ -335,32 +335,32 @@ GET /metrics
 |===
 |Metric |Type |Labels |Description
 
-|`wis2_notifications_total`
+|`wis2downloader_notifications_total`
 |Counter
 |status
 |Total notifications processed
 
-|`wis2_downloads_total`
+|`wis2downloader_downloads_total`
 |Counter
 |cache, media_type
 |Successfully downloaded files
 
-|`wis2_downloads_bytes_total`
+|`wis2downloader_downloads_bytes_total`
 |Counter
 |cache, media_type
 |Total bytes downloaded
 
-|`wis2_skipped_total`
+|`wis2downloader_skipped_total`
 |Counter
 |reason
 |Skipped notifications by reason
 
-|`wis2_failed_total`
+|`wis2downloader_failed_total`
 |Counter
 |cache, reason
 |Failed downloads
 
-|`wis2_celery_queue_length`
+|`wis2downloader_celery_queue_length`
 |Gauge
 |queue_name
 |Current tasks in Celery queue
@@ -375,14 +375,14 @@ curl http://localhost:5002/metrics
 
 [source,prometheus]
 ----
-# HELP wis2_downloads_total Total number of files downloaded.
-# TYPE wis2_downloads_total counter
-wis2_downloads_total{cache="example.cache.com",media_type="application/bufr"} 42.0
+# HELP wis2downloader_downloads_total Total number of files downloaded.
+# TYPE wis2downloader_downloads_total counter
+wis2downloader_downloads_total{cache="example.cache.com",media_type="application/bufr"} 42.0
 
-# HELP wis2_notifications_total Total notifications processed.
-# TYPE wis2_notifications_total counter
-wis2_notifications_total{status="success"} 42.0
-wis2_notifications_total{status="skipped"} 5.0
+# HELP wis2downloader_notifications_total Total notifications processed.
+# TYPE wis2downloader_notifications_total counter
+wis2downloader_notifications_total{status="success"} 42.0
+wis2downloader_notifications_total{status="skipped"} 5.0
 ----
 
 === OpenAPI Specification

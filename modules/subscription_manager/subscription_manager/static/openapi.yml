@@ -178,12 +178,12 @@ paths:
         Returns metrics in Prometheus text format.
 
         **Available Metrics:**
-        - `wis2_notifications_total` - Total notifications by status
-        - `wis2_downloads_total` - Successfully downloaded files by cache and media type
-        - `wis2_downloads_bytes_total` - Total bytes downloaded by cache and media type
-        - `wis2_skipped_total` - Skipped notifications by reason
-        - `wis2_failed_total` - Failed downloads by cache and reason
-        - `wis2_celery_queue_length` - Current tasks in queue
+        - `wis2downloader_notifications_total` - Total notifications by status
+        - `wis2downloader_downloads_total` - Successfully downloaded files by cache and media type
+        - `wis2downloader_downloads_bytes_total` - Total bytes downloaded by cache and media type
+        - `wis2downloader_skipped_total` - Skipped notifications by reason
+        - `wis2downloader_failed_total` - Failed downloads by cache and reason
+        - `wis2downloader_celery_queue_length` - Current tasks in queue
       operationId: getMetrics
       responses:
         "200":
@@ -193,9 +193,9 @@ paths:
               schema:
                 type: string
               example: |
-                # HELP wis2_downloads_total Total number of files downloaded.
-                # TYPE wis2_downloads_total counter
-                wis2_downloads_total{broker="globalbroker.meteo.fr",cache="example.cache.com",centre_id="fra",topic="weather",media_type="application/bufr"} 42.0
+                # HELP wis2downloader_downloads_total Total number of files downloaded.
+                # TYPE wis2downloader_downloads_total counter
+                wis2downloader_downloads_total{cache="example.cache.com",media_type="application/bufr"} 42.0
         "500":
           description: Error generating metrics
 

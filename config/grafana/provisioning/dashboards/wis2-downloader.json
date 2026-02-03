@@ -41,7 +41,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(rate(wis2_downloads_total[1m])) * 60",
+          "expr": "sum(rate(wis2downloader_downloads_total[1m])) * 60",
           "refId": "A"
         }
       ],
@@ -79,7 +79,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "wis2_celery_queue_length",
+          "expr": "wis2downloader_celery_queue_length",
           "refId": "A"
         }
       ],
@@ -113,7 +113,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(increase(wis2_downloads_bytes_total[24h]))",
+          "expr": "sum(increase(wis2downloader_downloads_bytes_total[24h]))",
           "refId": "A"
         }
       ],
@@ -151,7 +151,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(increase(wis2_failed_total[24h]))",
+          "expr": "sum(increase(wis2downloader_failed_total[24h]))",
           "refId": "A"
         }
       ],
@@ -210,7 +210,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(rate(wis2_downloads_total[5m])) * 60",
+          "expr": "sum(rate(wis2downloader_downloads_total[5m])) * 60",
           "legendFormat": "downloads/min",
           "refId": "A"
         }
@@ -262,7 +262,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "wis2_celery_queue_length",
+          "expr": "wis2downloader_celery_queue_length",
           "legendFormat": "queue depth",
           "refId": "A"
         }
@@ -314,7 +314,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by (status) (rate(wis2_notifications_total[5m])) * 60",
+          "expr": "sum by (status) (rate(wis2downloader_notifications_total[5m])) * 60",
           "legendFormat": "{{status}}",
           "refId": "A"
         }
@@ -352,7 +352,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by (cache) (increase(wis2_downloads_total[24h]))",
+          "expr": "sum by (cache) (increase(wis2downloader_downloads_total[24h]))",
           "legendFormat": "{{cache}}",
           "refId": "A"
         }
@@ -382,7 +382,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by (media_type) (increase(wis2_downloads_total[24h]))",
+          "expr": "sum by (media_type) (increase(wis2downloader_downloads_total[24h]))",
           "legendFormat": "{{media_type}}",
           "refId": "A"
         }
@@ -412,7 +412,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by (cache) (increase(wis2_downloads_bytes_total[24h]))",
+          "expr": "sum by (cache) (increase(wis2downloader_downloads_bytes_total[24h]))",
           "legendFormat": "{{cache}}",
           "refId": "A"
         }
@@ -442,7 +442,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by (media_type) (increase(wis2_downloads_bytes_total[24h]))",
+          "expr": "sum by (media_type) (increase(wis2downloader_downloads_bytes_total[24h]))",
           "legendFormat": "{{media_type}}",
           "refId": "A"
         }

@@ -259,13 +259,13 @@ View download statistics:
 [source,bash]
 ----
 # Total downloads
-curl -s http://localhost:5002/metrics | grep wis2_downloads_total
+curl -s http://localhost:5002/metrics | grep wis2downloader_downloads_total
 
 # Failed downloads
-curl -s http://localhost:5002/metrics | grep wis2_failed_total
+curl -s http://localhost:5002/metrics | grep wis2downloader_failed_total
 
 # Queue depth
-curl -s http://localhost:5002/metrics | grep wis2_celery_queue_length
+curl -s http://localhost:5002/metrics | grep wis2downloader_celery_queue_length
 ----
 
 === Grafana Dashboard
@@ -368,7 +368,7 @@ Check the skip reason in metrics:
 
 [source,bash]
 ----
-curl -s http://localhost:5002/metrics | grep wis2_skipped_total
+curl -s http://localhost:5002/metrics | grep wis2downloader_skipped_total
 ----
 
 Common reasons:

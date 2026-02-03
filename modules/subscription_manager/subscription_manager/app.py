@@ -102,7 +102,7 @@ def persist_subscription(topic, save_path, filters):
 
 CELERY_DEFAULT_QUEUE = os.getenv("CELERY_DEFAULT_QUEUE", "celery")
 CELERY_QUEUE_LENGTH = Gauge(
-    'wis2_celery_queue_length',
+    'wis2downloader_celery_queue_length',
     'Current number of tasks in the Celery default queue.',
     ['queue_name'],
     multiprocess_mode='livesum'
