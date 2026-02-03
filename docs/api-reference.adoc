@@ -335,30 +335,30 @@ GET /metrics
 |===
 |Metric |Type |Labels |Description
 
-|`wis2_notifications_received`
+|`wis2_notifications_total`
 |Counter
-|broker, cache, centre_id, topic
-|Total notifications received
-
-|`wis2_notifications_skipped`
-|Counter
-|broker, cache, centre_id, topic, reason
-|Notifications skipped
-
-|`wis2_downloads_failed`
-|Counter
-|cache, centre_id, topic, reason, media_type
-|Failed download attempts
+|status
+|Total notifications processed
 
 |`wis2_downloads_total`
 |Counter
-|broker, cache, centre_id, topic, media_type
+|cache, media_type
 |Successfully downloaded files
 
 |`wis2_downloads_bytes_total`
 |Counter
-|broker, cache, centre_id, topic, media_type
+|cache, media_type
 |Total bytes downloaded
+
+|`wis2_skipped_total`
+|Counter
+|reason
+|Skipped notifications by reason
+
+|`wis2_failed_total`
+|Counter
+|cache, reason
+|Failed downloads
 
 |`wis2_celery_queue_length`
 |Gauge
@@ -377,8 +377,12 @@ curl http://localhost:5002/metrics
 ----
 # HELP wis2_downloads_total Total number of files downloaded.
 # TYPE wis2_downloads_total counter
-wis2_downloads_total{broker="globalbroker.meteo.fr",cache="example.cache.com",centre_id="fra",topic="weather",media_type="application/bufr"} 42.0
-wis2_downloads_total{broker="globalbroker.meteo.fr",cache="total",centre_id="total",topic="total",media_type="application/bufr"} 42.0
+wis2_downloads_total{cache="example.cache.com",media_type="application/bufr"} 42.0
+
+# HELP wis2_notifications_total Total notifications processed.
+# TYPE wis2_notifications_total counter
+wis2_notifications_total{status="success"} 42.0
+wis2_notifications_total{status="skipped"} 5.0
 ----
 
 === OpenAPI Specification

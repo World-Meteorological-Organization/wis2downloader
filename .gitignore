@@ -2,9 +2,10 @@
 .DS_Store
 *.swp
 *~
+*.old
 .idea/
 .vscode/
-.idea/
+tasks.md
 ---
 
 ## Python/Flask Files and Folders ##
@@ -39,6 +40,9 @@ __pycache__/
 # Logs
 *.log
 /logs/
+
+# Downloaded data
+/downloads/
 
 # Celery
 # Celery worker state files (PID files, etc.)

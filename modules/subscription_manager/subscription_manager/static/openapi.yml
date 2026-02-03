@@ -178,11 +178,11 @@ paths:
         Returns metrics in Prometheus text format.
 
         **Available Metrics:**
-        - `wis2_notifications_received` - Total notifications received
-        - `wis2_notifications_skipped` - Notifications skipped (deduplicated/filtered)
-        - `wis2_downloads_failed` - Failed download attempts
-        - `wis2_downloads_total` - Successfully downloaded files
-        - `wis2_downloads_bytes_total` - Total bytes downloaded
+        - `wis2_notifications_total` - Total notifications by status
+        - `wis2_downloads_total` - Successfully downloaded files by cache and media type
+        - `wis2_downloads_bytes_total` - Total bytes downloaded by cache and media type
+        - `wis2_skipped_total` - Skipped notifications by reason
+        - `wis2_failed_total` - Failed downloads by cache and reason
         - `wis2_celery_queue_length` - Current tasks in queue
       operationId: getMetrics
       responses:

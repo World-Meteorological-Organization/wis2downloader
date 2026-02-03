@@ -60,34 +60,34 @@ DEFAULT_ACCEPTED_MEDIA_TYPES = [
 
 # define some metrics for prometheus
 
-NOTIFICATIONS_RECEIVED = Counter(
-    'wis2_notifications_received',
-    'Total number of notifications received.',
-    ['broker', 'cache', 'centre_id', 'topic']
+NOTIFICATIONS_TOTAL = Counter(
+    'wis2_notifications_total',
+    'Total number of notifications processed.',
+    ['status']
 )
 
-NOTIFICATIONS_SKIPPED = Counter(
-    'wis2_notifications_skipped',
-    'Total number of notifications skipped.',
-    ['broker', 'cache', 'centre_id', 'topic', 'reason']
-)
-
-DOWNLOADS_FAILED = Counter(
-    'wis2_downloads_failed',
-    'Total number of failed downloads.',
-    ['cache', 'centre_id', 'topic', 'reason', 'media_type']
-)
-
-DOWNLOADS_TOTAL_FILES = Counter(
+DOWNLOADS_TOTAL = Counter(
     'wis2_downloads_total',
     'Total number of files downloaded.',
-    ['broker', 'cache', 'centre_id', 'topic', 'media_type']
+    ['cache', 'media_type']
 )
 
-DOWNLOADS_TOTAL_BYTES = Counter(
+DOWNLOADS_BYTES_TOTAL = Counter(
     'wis2_downloads_bytes_total',
     'Total number of bytes downloaded.',
-    ['broker', 'cache', 'centre_id', 'topic', 'media_type']
+    ['cache', 'media_type']
+)
+
+SKIPPED_TOTAL = Counter(
+    'wis2_skipped_total',
+    'Total number of skipped notifications by reason.',
+    ['reason']
+)
+
+FAILED_TOTAL = Counter(
+    'wis2_failed_total',
+    'Total number of failed downloads by reason.',
+    ['cache', 'reason']
 )
 
 
@@ -177,91 +177,47 @@ def _now_utc_str() -> str:
 
 
 def metrics_collector(func):
-    # the download_from_wis function has several return points, hence, to
-    # ensure we collect metrics each one wrap in a function. Previously, some
-    # were missed or wrong.
-    #
-    # 1) Total number of notifications received, incl. split by cache, centre-id and topic
-    # 2) Number of notifications skipped due to the data already successfully having been processed
-    # 3) Number of downloads attempted
-    # 4) Number of downloads successful
-    # 5) Number of bytes downloaded
+    """Collect metrics for each notification processed.
+
+    Metrics collected:
+    - wis2_notifications_total: Count by status (success/failed/skipped)
+    - wis2_downloads_total: Successful downloads by cache and media_type
+    - wis2_downloads_bytes_total: Bytes downloaded by cache and media_type
+    - wis2_skipped_total: Skipped notifications by reason
+    - wis2_failed_total: Failed downloads by cache and reason
+    """
 
     @wraps(func)
     def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
 
-        status_code = result.get('status','')
-        global_cache = result.get('global_cache','')
-        global_broker = result.get('broker','')
-        topic = result.get('topic','')
-        reason = result.get('reason','')
-        error_class = result.get('error_class','')
-        centre_id = result.get('centre_id','')
-        file_size = result.get('actual_filesize',0)
-        media_type = result.get('media_type','')
+        status_code = result.get('status', '')
+        global_cache = result.get('global_cache', '') or 'unknown'
+        error_class = result.get('error_class', '') or 'unknown'
+        file_size = result.get('actual_filesize', 0)
+        media_type = result.get('media_type', '') or 'unknown'
 
         try:
-
-            NOTIFICATIONS_RECEIVED.labels(broker=global_broker,
-                                          cache=global_cache,
-                                          centre_id=centre_id,
-                                          topic=topic).inc()
-            # totals per broker
-            NOTIFICATIONS_RECEIVED.labels(broker=global_broker,
-                                          cache='total',
-                                          centre_id=centre_id,
-                                          topic='total').inc()
+            # Always count the notification by final status
+            NOTIFICATIONS_TOTAL.labels(status=status_code.lower()).inc()
 
             if status_code == STATUS_SKIPPED:
-                NOTIFICATIONS_SKIPPED.labels(broker=global_broker,
-                                             cache=global_cache,
-                                             centre_id=centre_id,
-                                             topic=topic,
-                                             reason=error_class).inc()
+                SKIPPED_TOTAL.labels(reason=error_class).inc()
 
             if status_code == STATUS_FAILED:
-                DOWNLOADS_FAILED.labels(
-                    cache=global_cache,
-                    centre_id=centre_id,
-                    topic=topic,
-                    media_type=media_type,
-                    reason=error_class
-                ).inc()
+                FAILED_TOTAL.labels(cache=global_cache, reason=error_class).inc()
 
             if status_code == STATUS_SUCCESS:
-                DOWNLOADS_TOTAL_FILES.labels(
-                    broker=global_broker,
+                DOWNLOADS_TOTAL.labels(
                     cache=global_cache,
-                    centre_id=centre_id,
-                    topic=topic,
-                    media_type = media_type
+                    media_type=media_type
                 ).inc()
 
-                DOWNLOADS_TOTAL_FILES.labels(
-                    broker=global_broker,
+                DOWNLOADS_BYTES_TOTAL.labels(
                     cache=global_cache,
-                    centre_id='total',
-                    topic='total',
-                    media_type = media_type
-                ).inc()
-
-                DOWNLOADS_TOTAL_BYTES.labels(
-                    broker=global_broker,
-                    cache=global_cache,
-                    centre_id='total',
-                    topic=topic,
                     media_type=media_type
                 ).inc(file_size)
 
-
-                DOWNLOADS_TOTAL_BYTES.labels(
-                    broker=global_broker,
-                    cache=global_cache,
-                    centre_id='total',
-                    topic='total',
-                    media_type=media_type
-                ).inc(file_size)
         except Exception as e:
             LOGGER.error(f"Error collecting metrics: {e}", exc_info=True)
 
