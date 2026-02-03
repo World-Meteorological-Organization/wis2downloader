@@ -93,13 +93,13 @@ FAILED_TOTAL = Counter(
 
 def set_status(key, type, status):
     if key in (None, ''):
-        LOGGER.error("No key provided")
+        LOGGER.warning("No key provided")
         return
     if type not in ('by-msg-id', 'by-hash', 'by-data-id'):
-        LOGGER.error(f"Invalid type {type}")
+        LOGGER.warning(f"Invalid type {type}")
         return
     if status not in STATUS_VALID_CONDITIONS:
-        LOGGER.error(f"Invalid status '{status}' for {key} ({type})")
+        LOGGER.warning(f"Invalid status '{status}' for {key} ({type})")
     tracker_id = f"{TRACKER}:{type}:{key}"
 
     try:
@@ -113,10 +113,10 @@ def set_status(key, type, status):
 def get_status(key, type):
     status = None
     if key in (None, ''):
-        LOGGER.error("No key provided")
+        LOGGER.warning("No key provided")
         return status
     if type not in ('by-msg-id', 'by-hash', 'by-data-id'):
-        LOGGER.error(f"Invalid type {type}")
+        LOGGER.warning(f"Invalid type {type}")
         return status
 
     tracker_id = f"{TRACKER}:{type}:{key}"
@@ -313,7 +313,7 @@ def download_from_wis2(self, job):
     redis_client = get_redis_client()
     lock_acquired = redis_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
     if not lock_acquired:  # lock acquired by another worker
-        LOGGER.warning(f"Could not acquire lock for {lock_key_identifier}, retrying in 10 seconds")
+        LOGGER.debug(f"Could not acquire lock for {lock_key_identifier}, retrying in 10 seconds")
         raise self.retry(countdown=10, max_retries=10)
 
 
@@ -326,7 +326,7 @@ def download_from_wis2(self, job):
 
         # check we have a download URL
         if not download_url:
-            result['status'] = STATUS_FAILED
+            result['status'] = STATUS_SKIPPED
             result['reason'] = "No download URL in notification message"
             result['error_class'] = "MissingDownloadURLError"
             return result
@@ -350,20 +350,19 @@ def download_from_wis2(self, job):
         # extract cache
         result['global_cache'] = urlsplit(download_url).hostname
 
-        # ToDo, remove hard coding and move to config.
         if result['global_cache'] in CACHE_EXCLUDE_LIST:
             result['status'] = STATUS_SKIPPED
             result['reason'] = "Global cache black listed, skipped"
             result['error_class'] = "GlobalCacheBlacklisted"
-            LOGGER.warning(f"File {output_path} skipped from blacklisted cache")
+            LOGGER.debug(f"File {output_path} skipped from blacklisted cache")
             return result
 
         # check if the file exists, if so we have already processed this notification
         if output_path.exists() and not overwrite:
-            result['status'] = STATUS_FAILED
+            result['status'] = STATUS_SKIPPED
             result['reason'] = "File already exists and overwrite is not requested"
             result['error_class'] = "FileExistsError"
-            LOGGER.warning(f"File {output_path} already exists, skipping")
+            LOGGER.debug(f"File {output_path} already exists, skipping")
             return result
 
         # ToDo - investigate whether we want to replace the following with aria2
@@ -377,12 +376,12 @@ def download_from_wis2(self, job):
             result['status'] = STATUS_FAILED
             result['reason'] = f"Connection timeout error for {result['global_cache']}, see logs"
             result['error_class'] = str(e.__class__.__name__)
-            LOGGER.error(f"Connection timeout error {e} for {result['global_cache']}")
+            LOGGER.warning(f"Connection timeout error {e} for {result['global_cache']}")
         except urllib3.exceptions.ReadTimeoutError as e:
             result['status'] = STATUS_FAILED
             result['reason'] = f"Download timeout  error for {result['global_cache']}, see logs"
             result['error_class'] = str(e.__class__.__name__)
-            LOGGER.error(f"Download timeout error {e} for {result['global_cache']}")
+            LOGGER.warning(f"Download timeout error {e} for {result['global_cache']}")
         except urllib3.exceptions.MaxRetryError as e:
             result['status'] = STATUS_FAILED
             result['reason'] = f"Maximum retries downloading from {result['global_cache']} exceeded"
@@ -391,11 +390,11 @@ def download_from_wis2(self, job):
             result['status'] = STATUS_FAILED
             result['reason'] = f"Error while downloading from {result['global_cache']}, see logs"
             result['error_class'] = str(e.__class__.__name__)
-            LOGGER.error(f"Error {e} while downloading from {result['global_cache']}")
+            LOGGER.warning(f"Error {e} while downloading from {result['global_cache']}")
 
         if result['status'] == STATUS_FAILED:
             final_status = result.get('status', STATUS_FAILED)
-            LOGGER.error(f"Download failed for {download_url}, reason: {result['reason']}")
+            LOGGER.warning(f"Download failed for {download_url}, reason: {result['reason']}")
             if lock_acquired:
                 redis_client.delete(lock_key)
             set_status(message_id, 'by-msg-id', final_status)
@@ -418,7 +417,7 @@ def download_from_wis2(self, job):
             result['status'] = STATUS_SKIPPED
             result['reason'] = f"Media type '{file_type}' not allowed by filter"
             result['error_class'] = "MediaTypeNotAllowed"
-            LOGGER.warning(f"File {output_path} skipped, media type '{file_type}' not allowed by filter")
+            LOGGER.debug(f"File {output_path} skipped, media type '{file_type}' not allowed by filter")
             return result
 
         # hash verification
@@ -453,8 +452,8 @@ def download_from_wis2(self, job):
                 if hash_expected:
                     result['valid_hash'] = (hash_base64 == hash_expected)
                     if not result['valid_hash']:
-                        LOGGER.error(f"Hash verification failed for {download_url}")
-                        result['status'] = STATUS_FAILED
+                        LOGGER.warning(f"Hash verification failed for {download_url}")
+                        result['status'] = STATUS_SKIPPED
                         result['reason'] = f"Hash verification failed for {download_url}"
                         result['error_class'] = "HashVerificationError"
                         return result
@@ -480,7 +479,7 @@ def download_from_wis2(self, job):
                     result['status'] = STATUS_SKIPPED
                     result['reason'] = "File created by another process"
                     result['error_class'] = "FileExistsError"
-                    LOGGER.warning(
+                    LOGGER.debug(
                         f"File {output_path} already exists (race condition), skipping")
                     return result
         except OSError as e:
@@ -518,7 +517,7 @@ def download_from_wis2(self, job):
 @app.task
 def decode_and_ingest(result):
     if result.get('status') != STATUS_SUCCESS:
-        LOGGER.info(
+        LOGGER.debug(
             f"Skipping decode for job {result.get('id')} due to previous status: {result.get('status')}")
         return result
 
