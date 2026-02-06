@@ -12,6 +12,7 @@ COPY ./modules/shared /app/shared
 
 # Install any additional dependencies if needed
 RUN uv pip install /app/shared
+RUN uv pip install shapely
 
 # Expose the port your NiceGUI app runs on (default is 8080)
 EXPOSE 8080

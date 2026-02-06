@@ -2,10 +2,237 @@ from cProfile import label
 import os
 from xmlrpc import client
 import httpx
-from nicegui import app, ui, binding, context
+from nicegui import Client, app, ui, binding, context
 import json
 import copy
 from shared import setup_logging
+from shapely.geometry import Point, Polygon, MultiPolygon, MultiPoint
+from pathlib import Path
+
+ui.add_css('''
+    /* Drawer content improvements */
+        .q-drawer, .q-drawer--left, .q-drawer--right, .bg-base-100 {
+            background-color: #f5f6fa !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+    .q-drawer .q-label, .q-drawer label, .bg-base-100 .q-label, .bg-base-100 label {
+        color: #1a2233 !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.01em;
+        background: transparent !important;
+        text-shadow: 0 1px 0 #fff, 0 0px 2px #fff;
+    }
+    .q-drawer .q-btn, .bg-base-100 .q-btn {
+        background: #e6ecf3 !important; /* softer, more natural light blue-gray */
+        color: #23405a !important; /* deeper, natural blue for text */
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        margin-bottom: 6px !important;
+        box-shadow: 0 1px 4px 0 rgba(31,38,135,0.06);
+        transition: background 0.2s, color 0.2s;
+    }
+    .q-drawer .q-btn:hover, .q-btn:hover {
+        background: #b7c9d9 !important; /* slightly darker on hover */
+        color: #2563eb !important;
+    }
+    .selected-topic-chip {
+        background: linear-gradient(90deg, #2563eb 60%, #77AEE4 100%) !important;
+        color: #fff !important;
+        font-weight: 600 !important;
+        border-radius: 7px !important;
+        padding: 2px 10px !important;
+        font-size: 0.85rem !important;
+        margin: 2px 4px 2px 0 !important;
+        box-shadow: 0 1px 4px 0 rgba(31,38,135,0.10) !important;
+        border: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+    .q-drawer-container:nth-child(1) > .q-drawer--left {
+        margin-left: 0px !important;
+    }
+    .q-drawer-container:nth-child(2) > .q-drawer--left {
+        margin-left: 80px !important;
+    }
+    .header-bg {
+        width: 100vw !important;
+        min-height: 120px;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+    }
+            background: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+    .header-img {
+        width: 100vw !important;
+        height: 120px !important;
+        object-fit: cover !important;
+        display: block;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Modern glassmorphism card style */
+    .nicegui-card, .q-card {
+        background: rgba(255, 255, 255, 0.7) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18) !important;
+        backdrop-filter: blur(8px) !important;
+        border-radius: 18px !important;
+        border: 1px solid rgba(255,255,255,0.18) !important;
+        margin-bottom: 18px !important;
+        transition: box-shadow 0.3s;
+    }
+    .nicegui-card:hover, .q-card:hover {
+        box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.22) !important;
+    }
+
+    /* Modern button style */
+    .q-btn {
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 8px 0 rgba(31, 38, 135, 0.10) !important;
+        transition: background 0.2s, box-shadow 0.2s;
+    }
+    .q-btn:hover {
+        background: #2563eb !important;
+        color: #fff !important;
+        box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.18) !important;
+    }
+
+    /* Modern input style */
+    .q-field__control, .q-input, .q-select, .q-number {
+        border-radius: 10px !important;
+        background: rgba(255,255,255,0.85) !important;
+        border: 1px solid #e0e7ef !important;
+        box-shadow: 0 1px 4px 0 rgba(31, 38, 135, 0.06) !important;
+        transition: border 0.2s, box-shadow 0.2s;
+    }
+    .q-field__control:focus-within, .q-input:focus-within, .q-select:focus-within, .q-number:focus-within {
+        border: 1.5px solid #2563eb !important;
+        box-shadow: 0 2px 8px 0 rgba(31, 38, 135, 0.12) !important;
+    }
+
+    /* Modern label style */
+    label, .q-label {
+        font-size: 1.08rem !important;
+        font-weight: 500 !important;
+        color: #1e293b !important;
+        letter-spacing: 0.01em;
+    }
+
+    /* Sidebar modern look */
+    .q-drawer, .q-drawer--left, .q-drawer--right {
+        background: rgba(245, 247, 255, 0.92) !important;
+        border-radius: 18px !important;
+        box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10) !important;
+       /* margin: 12px !important;*/
+    }
+
+    /* Footer modern look */
+    .q-footer {
+        background: rgba(32, 106, 170, 0.95) !important;
+        border-top-left-radius: 18px !important;
+        border-top-right-radius: 18px !important;
+        box-shadow: 0 -2px 12px 0 rgba(31, 38, 135, 0.10) !important;
+    }
+
+    /* Modern scroll area */
+    .q-scrollarea {
+        border-radius: 14px !important;
+        background: rgba(255,255,255,0.85) !important;
+        box-shadow: 0 1px 6px 0 rgba(31, 38, 135, 0.08) !important;
+    }
+
+    /* Modern row spacing */
+    .q-row {
+        gap: 18px !important;
+        align-items: center !important;
+    }
+
+    /* Modern checkbox: fully round with custom checkmark */
+    .q-checkbox__inner {
+        background: #fff !important;
+        position: relative !important;
+        width: 20px !important;
+        height: 20px !important;
+        min-width: 20px !important;
+        min-height: 20px !important;
+        transition: background 0.2s, border 0.2s;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: visible !important;
+    }
+    .q-checkbox__inner--checked {
+        background: #2563eb !important;
+        border-color: #2563eb !important;
+        .q-footer {
+            background: rgba(32, 106, 170, 0.95) !important;
+            border-top-left-radius: 0 !important;
+            border-top-right-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+        content: '';
+        position: absolute;
+        left: 50%;
+        .q-drawer, .q-drawer--left, .q-drawer--right {
+            background: rgba(245, 247, 255, 0.92) !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+        border-radius: 1px;
+        box-sizing: border-box;
+        pointer-events: none;
+        display: block;
+        z-index: 2;
+    }
+    /* Modern dialog */
+    .q-dialog {
+        border-radius: 18px !important;
+        background: rgba(255,255,255,0.95) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18) !important;
+    }
+        /* Menu bar gradient background */
+    .menu-bar-gradient {
+        background: linear-gradient(135deg, #2563eb 60%, #77AEE4 100%) !important;
+        box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10) !important;
+    }
+    .menu-bar-btn.q-btn {
+        font-size: 0.68rem !important;
+        text-transform: lowercase !important;
+        background: #a3c0e6 !important; /* lighter metallic blue */
+        color: #23405a !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        margin-bottom: 4px !important;
+        box-shadow: 0 1px 4px 0 rgba(31,38,135,0.13);
+        transition: background 0.2s, color 0.2s;
+        letter-spacing: 0.01em;
+        width: 50px !important;
+        min-width: 50px !important;
+        max-width: 50px !important;
+        height: 30px !important;
+        min-height: 30px !important;
+        max-height: 30px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        padding: 0 !important;
+        line-height: 28px !important;
+    }
+    .menu-bar-btn.q-btn:hover {
+        background: #2563eb !important;
+        color: #fff !important;
+    }
+''',shared=True)
 
 # Set up logging
 setup_logging()  # Configure root logger
@@ -20,6 +247,8 @@ json_scrapes = {
 def scrape_all():
     with httpx.Client() as client:
         for url in [("https://gdc.wis.cma.cn","CMA"), ("https://wis2.dwd.de/gdc", "DWD"), ("https://wis2-gdc.weather.gc.ca", "ECCC")]:
+            # if url[1] == "CMA":
+            #     continue
             try:
                 response = client.get(str(url[0]) + f'/collections/wis2-discovery-metadata/items?limit=2000&f=json', timeout=5)
             except Exception as e:
@@ -29,18 +258,26 @@ def scrape_all():
                 continue
             json_scrape = response.json()
             json_scrapes[url[1]] = json_scrape
-scrape_all_task = ui.run( scrape_all())
+
+
+scrape_all_task = ui.run(scrape_all())
 
 SUBSCRIPTION_MANAGER = "http://subscription-manager:5001"
 app.colors(base_100="#FFFFFF",
            base_200="#5D8FCF",
            base_300="#77AEE4",
            base_400="#206AAA",
+           primary   = "#2563eb",
+           secondary = "#64748b",
+           accent    = "#10b981",
+           grey_1 = "#f8fafc",
+           grey_2 = "#f1f5f9"           
            )
 
 @ui.page('/')
-def home_page():
-    context.client.content.classes('h-[100vh]')
+def home_page(client: Client):
+    
+    client.content.classes(remove='q-pa-md')
 
     @binding.bindable_dataclass
     class Tree:
@@ -64,30 +301,49 @@ def home_page():
             pass
     page = Page()
     
+
     ui.query(".nicegui-content").style("padding: 0; overflow: hidden;")
 
-    with ui.element("div").classes("flex w-full h-screen absolute"):
-            # MenuBar
-        page.home = ui.element("div").classes("flex flex-col max-w-xs bg-base-400 p-4 items-center justify-start gap-4")
-        with page.home:
-            ui.button(icon="home", text="GDC Subscription", color="base-100").props("flat round").on('click', lambda: ui.navigate.to('/'))
-            ui.button(icon="logout", text="Unsubscribe", color="base-100").props("flat round").on('click', lambda: ui.navigate.to('/unsubscribe'))
-
-            # Left Sidebar
-        page.left_sidebar = ui.element("div").classes("w-[20%] max-w-sm bg-base-200 p-4")
-        with page.left_sidebar:
-            pass
-
-            # Content
-        page.content = ui.element("div").classes("grow bg-base-100 p-4")
+    with ui.element("div").classes("flex h-auto w-full relative").style("min-width: 0; margin-left: 320px; margin-right: 340px;"):
+        # Content
+        page.content = ui.element("div").classes("bg-base-100 h-max p-4 flex-grow min-w-0")
         with page.content:
             view_label = ui.label('Please select a type of display for the topics:').style('font-weight: bold; font-size: 16px;').style('color:' + "#4A72C3" + ';')
-            view = ui.radio({'tree':'Tree view', 'page':'Text search'}).props('inline').on('update:model-value', lambda e: on_view_changed(view))
+            view = ui.radio({'tree':'Tree view', 'page':'Record search'}).props('inline').on('update:model-value', lambda e: on_view_changed(view))
 
-        # Right Sidebar
-        page.right_sidebar = ui.element("div").classes("w-[20%] max-w-sm bg-base-200 p-4")
-        with page.right_sidebar:
-            pass
+    with ui.header(elevated=True).classes("header-bg bg-white text-slate-900 p-0 flex").style("margin:0 !important; padding:0 !important; border:0 !important; line-height:0 !important;"):
+        ui.image('assets/wmo-banner.png').props("fit=cover").classes("header-img").style("width: 100vw; height: 120px; object-fit: cover; display: block; margin: 0 !important; padding: 0 !important; border: 0 !important;")
+        ui.image('assets/wmo-foot.png').style("width: 100vw; height: 11px; display: block; margin: 0 !important; padding: 0 !important; border: 0 !important; line-height:0 !important;")
+        ui.image('assets/logo.png').style("position: absolute !important; left: 20% !important; top: 20px !important; width: 80px !important; height: 80px !important; line-height:0 !important;")
+        
+    
+    # Left Sidebar
+    page.left_sidebar = ui.left_drawer().classes("bg-base-100 p-4").style("width: 240px; min-width: 200px; max-width: 260px; background-color: #f5f6fa;")
+    with page.left_sidebar:
+        with ui.scroll_area().style('max-height: 75vh; min-height: 200px; width: 100%; overflow-y: auto;'):
+            pass  # Place dataset elements here in your actual code
+    
+    # MenuBar
+    page.home = ui.left_drawer().props("mini mini-width=80").classes("menu-bar-gradient p-4 items-center justify-start gap-4")
+    with page.home:
+        ui.button(icon='subscribe',text="GDC Subscription").props("mini mini-width=80 no-caps").classes("menu-bar-btn").style("width: 80px !important; min-width: 80px !important; max-width: 80px !important;").on('click', lambda: ui.navigate.to('/'))
+        ui.button(icon='unsubscribe',text="Unsubscribe").props("mini mini-width=80 no-caps").classes("menu-bar-btn").style("width: 80px !important; min-width: 80px !important; max-width: 80px !important;").on('click', lambda: ui.navigate.to('/unsubscribe'))
+
+
+
+    # Right Sidebar
+    page.right_sidebar = ui.right_drawer().classes("w-[20%] max-w-sm bg-base-100 p-4").style("background-color: #f5f6fa;")
+    with page.right_sidebar:
+        pass
+
+    #Footer
+    with ui.footer().classes("bg-base-400").style("height: 30px;"):
+        ui.image('assets/wmo-foot.png').style("margin-top: -10px; height: 11px;")
+        ui.label("© 2026 World Meteorological Organization").style("color: white; margin-left: 10px; font-size: 12px; margin-top: -18px;")
+
+
+
+
 
     def put_in_dicc(dicc,key,identifier):
         values = key.split('/')
@@ -189,21 +445,24 @@ def home_page():
         if not all(bbox):
             return True
         if 'geometry' in feature and feature['geometry'] is not None:
-            coordinates = feature['geometry']['coordinates'][0]
-            if isinstance(coordinates, list) and isinstance(coordinates[0], list):
-                pass
-            else:
-                return False
-            lons = [coord[0] for coord in coordinates]
-            lats = [coord[1] for coord in coordinates]
-            min_lon, max_lon = min(lons), max(lons)
-            min_lat, max_lat = min(lats), max(lats)
-            if isinstance(min_lon,list) or isinstance(max_lon,list) or isinstance(min_lat,list) or isinstance(max_lat,list):
-                return False 
-            if max_lon >= bbox[1] and min_lon <= bbox[2] and max_lat >= bbox[3] and min_lat <= bbox[0]:
-                return True
-            return False
-        return False
+            coordinates = feature['geometry']['coordinates']
+            type = feature['geometry']['type']
+            if type == 'Point':
+                point = Point(coordinates[0], coordinates[1])
+                bbox_polygon = Polygon([(bbox[1], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[0]), (bbox[1], bbox[0])])
+                return point.within(bbox_polygon)
+            elif type == 'MultiPoint':
+                multipoint = MultiPoint([(coord[0], coord[1]) for coord in coordinates])
+                bbox_polygon = Polygon([(bbox[1], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[0]), (bbox[1], bbox[0])])
+                return multipoint.within(bbox_polygon)
+            elif type in ['Polygon', 'MultiPolygon']:
+                if type == 'Polygon':
+                    polygon = Polygon(coordinates[0])
+                else:
+                    polygon = MultiPolygon([Polygon(part) for part in coordinates[0]])
+                bbox_polygon = Polygon([(bbox[1], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[0]), (bbox[1], bbox[0])])
+                return polygon.intersects(bbox_polygon)
+            
     
     async def perform_search(query, gdc, data_policy, keywords, bbox):
         page.right_sidebar.clear()
@@ -218,7 +477,6 @@ def home_page():
             features = [feature for feature in features if filter_by_data_policy(feature, data_policy)]
             features = [feature for feature in features if filter_by_keywords(feature, keywords)]
             features = [feature for feature in features if filter_by_bbox(feature, bbox)]
-            print(len(features))
             if len(features) == 0:
                 results_label = ui.label("No results found.").style('margin-top: 10px; font-weight: bold;').style('color: black;')
                 results_label.tag = "results_label"
@@ -310,20 +568,21 @@ def home_page():
         topics = tree.selected_topics
         with page.right_sidebar:
             page.right_sidebar.clear()
-            ui.label("Selected Topics:").style('font-weight: bold; font-size: 16px;').style('color:' + "#EDEFF3" + ';')
-            for topic in topics:
-                ui.label(topic).style('margin-left: 10px; font-weight: bold;').style('color: white;').style('background-color: #77AEE4; padding: 2px; border-radius: 3px;')
+            ui.label("Selected Topics:").style('font-weight: bold; font-size: 16px;').style('color:' + "#4A72C3" + ';')
+            with ui.row().classes("selected-topics-row"):
+                for topic in topics:
+                    ui.label(topic).classes("selected-topic-chip").style("display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 7px; background: linear-gradient(90deg, #77AEE4 60%, #2563eb 100%); color: #fff; font-weight: 500; font-size: 0.85rem; margin: 2px 4px 2px 0; box-shadow: 0 1px 4px 0 rgba(31,38,135,0.10);")
             directory = ui.textarea("Directory to save datasets(default: data):").style('margin-top: 10px; width: 100%;')
             submit = ui.button("Submit").style('margin-top: 10px;').on('click', lambda: subscribe_to_topics(topics, directory.value))
         with page.left_sidebar:
             page.left_sidebar.clear()
-            ui.label("Datasets:").style('font-weight: bold; font-size: 16px;').style('color:' + "#EDEFF3" + ';')
+            ui.label("Datasets:").style('font-weight: bold; font-size: 16px;').style('color:' + "#4A72C3" + ';')
             with ui.scroll_area().style('height: 90vh;'):
                 for topic in topics:
                         for (key,features) in tree.features.items():
                             if topic[0:-2] in key:
                                 for dataset in features:
-                                    ui.button(f"{dataset['id']}").style('font-size:12px;width:80%').on('click', lambda e: show_metadata(e.sender.text))
+                                    ui.button(f"{dataset['id']}").style('font-size:12px;width:70%').on('click', lambda e: show_metadata(e.sender.text))
     
     async def subscribe_to_topics(topics, directory):
         async with httpx.AsyncClient() as client:
@@ -386,7 +645,7 @@ def unsuscribe_page():
         with page.content:
             reload = ui.button("Reload Subscriptions").style('margin-left: 10px; font-weight: bold;').on('click', lambda: load_subscriptions())
             # Right Sidebar
-        page.right_sidebar = ui.element("div").classes("w-[20%] max-w-xsg-base-200 p-4")
+        page.right_sidebar = ui.element("div").classes("w-[20%] max-w-xs bg-base-200 p-4")
         with page.right_sidebar:
             pass
 
