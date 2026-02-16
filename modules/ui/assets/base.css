@@ -13,6 +13,11 @@
     box-sizing: border-box;
 }
 
+.card-map {
+    margin-left: auto !important;
+    right: 0px !important;
+}
+
 .q-drawer-container:nth-child(3) > .q-drawer--right {
         margin-right: 300px !important;
     }

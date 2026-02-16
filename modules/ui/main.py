@@ -62,6 +62,7 @@ def home_page(client: Client):
         value: int
         features = {}
         selected_topics = []
+        selected_datasets = {}
 
         def __init__(self, value):
             self.value = value
@@ -93,7 +94,6 @@ def home_page(client: Client):
         # Dataset Sidebar as a column on the right
         dataset_sidebar = ui.element("div").classes("bg-base-100 p-4 dataset-sidebar").style("width: 260px; background-color: #f5f6fa; box-shadow: -2px 0 8px rgba(31,38,135,0.06);")
         with dataset_sidebar:
-            ui.label("Datasets:").style('font-weight: bold; font-size: 16px;').style('color:' + "#4A72C3" + ';')
             page.dataset_sidebar = dataset_sidebar
 
     with ui.header(elevated=True).classes("header-bg bg-white text-slate-900 p-0 flex").style("margin:0 !important; padding:0 !important; border:0 !important; line-height:0 !important;"):
@@ -166,6 +166,7 @@ def home_page(client: Client):
                 url = radio1 = ui.radio({"CMA":'CMA', "DWD":'DWD', "ECCC":"ECCC" }).props('inline').on('update:model-value', lambda e: make_search_page(e.sender, url.value))
 
     async def make_search_page(e, gdc):
+        clean_page()
         with page.content_card:
             page.content_card.clear()
             label = ui.label("Please select a source GDC.").style('margin-left: 10px; font-weight: bold;').style('color: black;')
@@ -243,8 +244,7 @@ def home_page(client: Client):
             
     
     async def perform_search(query, gdc, data_policy, keywords, bbox):
-        page.right_sidebar.clear()
-        page.dataset_sidebar.clear()
+        clean_page()
         with page.content_card:
             for child in page.content_card.descendants():
                 if child.tag in ["results_column", "results_label"]:
@@ -263,9 +263,6 @@ def home_page(client: Client):
             # for feature in json['features']:
             #     if feature.contains(query):
             #         features.append(feature)
-            tree.features = {}
-            tree.selected_topics = []
-            tree.value = None
             for item in json['features']:
                 for link in item['links']:
                     if "channel" in link and link["channel"].startswith('cache/'):
@@ -308,28 +305,37 @@ def home_page(client: Client):
                                         tree_list.append(Tree([item_link['channel']]))
                                         i+=1
                                         selector = ui.button("Select").on('click', lambda e, tree=tree_list[i-1]: select_in_search_results(tree, page_selector=page_selector, query=query, gdc=gdc, filtered_json=filtered_json, sender=e.sender))
-                                        print(item_link['channel'] in tree.selected_topics)
-                                        print(tree.selected_topics)
                                         if item_link['channel'] in tree.selected_topics:
-                                            selector.text = "Deselect"
+                                            selector.text = "Unselect"
                                         break
                         if 'geometry' in item and item['geometry'] is not None:
                             coordinates = copy.deepcopy(item['geometry']['coordinates'])
                             coordinates[0]= coordinates[0][:-1]
                             coordinates = [[(coord[1], coord[0]) for coord in coordinates[0]]]
-                            map = ui.leaflet(zoom=0).style('width: 60%; max-width: 60%; height: 200px; margin-left: auto !important; margin-right: 0 !important;')
+                            map = ui.leaflet(zoom=0).classes("card-map").style('width: 60%; max-width: 60%; height: 200px; margin-left: auto !important; margin-right: 0 !important;')
                             location = map.generic_layer(name='polygon',args=coordinates)
-                            map.on('load', lambda e: map.run_map_method('fitBounds', copy.deepcopy([coordinates[0][0], coordinates[0][2]])))
+                            await map.initialized()
+                            map.run_map_method('fitBounds', copy.deepcopy([coordinates[0][0], coordinates[0][2]]))
 
     async def select_in_search_results(e, page_selector, query, gdc, filtered_json, sender=None):
-        on_topics_picked(e, sender=sender)
-        await update_search_results(page_selector, query, gdc, filtered_json)
+        on_topics_picked(e, sender=sender, is_page_selection=True)
+        if sender.text == "Unselect" and e.value[0] in tree.selected_datasets:
+            tree.selected_datasets.pop(e.value[0])   
+        sender.text = "Unselect" if sender.text == "Select" else "Select"        
+        #await update_search_results(page_selector, query, gdc, filtered_json)
+
+    def clean_page():
+        page.right_sidebar.clear()
+        page.dataset_sidebar.clear()
+        tree.features = {}
+        tree.selected_topics = []
+        tree.selected_datasets = {}
 
     async def scrape_topics_tree(gdc):
         with page.content_card:
             json = json_scrapes[gdc]
             ui.update()
-            tree.features = {}
+            clean_page()
             dicc = {}
             for item in json['features']:
                 for link in item['links']:
@@ -350,9 +356,8 @@ def home_page(client: Client):
                 tree.value = new_tree
             label.text = ''
 
-    def on_topics_picked(e,sender=None):
+    def on_topics_picked(e,sender=None, is_page_selection=False):
         if len(e.value) == 1:
-            print(e.value[0])
             if e.value[0] not in tree.selected_topics:
                 tree.selected_topics.append(e.value[0])
             else:
@@ -371,24 +376,52 @@ def home_page(client: Client):
         with page.dataset_sidebar:
             page.dataset_sidebar.clear()
             ui.label("Datasets:").style('font-weight: bold; font-size: 16px;').style('color:' + "#4A72C3" + ';')
-            select_all_btn = ui.button('Select All').style('margin-bottom: 10px; width: 70%; font-size: 0.85rem; padding: 2px 0; font-weight: 500; background: #77AEE4; color: #fff; border-radius: 5px; min-width: 0; max-width: 90px;')
-            def select_all_datasets():
-                # Select all dataset buttons in the sidebar
-                for topic in topics:
-                    for (key, features) in tree.features.items():
-                        if topic[0:-2] in key:
-                            for dataset in features:
-                                # You may want to add to a selected list or trigger selection logic here
-                                pass  # Implement your selection logic
-            select_all_btn.on('click', select_all_datasets)
+            select_all_btn = ui.button('Select All', on_click=lambda e: select_all_datasets(e))
+            added_datasets = []
             with ui.scroll_area().style('height: 75vh;'):
                 for topic in topics:
                     for (key,features) in tree.features.items():
                         if topic[0:-2] in key:
                             for dataset in features:
-                                ui.button(f"{dataset['id']}")\
-                                    .style('font-size:12px;width:170px;max-width:200px;min-width:80px;text-overflow:ellipsis;')\
-                                    .on('click', lambda e: show_metadata(e.sender.text))
+                                if dataset['id'] not in added_datasets:
+                                    added_datasets.append(dataset['id'])
+                                else:
+                                    continue
+                                with ui.card().tight().style('width: 170px; max-width: 170px;'):
+                                    ui.label(f"{dataset['id']}").classes("break-all").style('font-weight: bold; font-size: 14px; width: 170px; max-width: 170px; background-color: #f0f0f0;')
+                                    select_btn = ui.button(f"Select")\
+                                        .style('font-size:12px;width:170px;max-width:200px;min-width:80px;text-overflow:ellipsis;')\
+                                        .on('click', lambda e, topic=topic, dataset_id=dataset['id']: select_dataset(e, topic, dataset_id))
+                                    if is_page_selection:
+                                        select_btn.run_method("click")
+                                    ui.button(f"Show Metadata")\
+                                        .style('font-size:12px;width:170px;max-width:200px;min-width:80px;text-overflow:ellipsis;')\
+                                        .on('click', lambda e, dataset_id=dataset['id']: show_metadata(dataset_id))
+    
+    async def select_all_datasets(e):
+                if e.sender.text == "Select All":
+                    for child in page.dataset_sidebar.descendants():
+                        if isinstance(child, ui.button) and child.text in ["Select"]:
+                            child.run_method("click")
+                else:
+                    for child in page.dataset_sidebar.descendants():
+                        if isinstance(child, ui.button) and child.text in ["Unselect"]:
+                            child.run_method("click")
+                e.sender.text = "Unselect All" if e.sender.text == "Select All" else "Select All"
+                e.sender.set_background_color("#77AEE4" if e.sender.text == "Unselect All" else "primary")
+
+    async def select_dataset(e, topic, dataset_id):
+        e.sender.text = "Unselect" if e.sender.text == "Select" else "Select"
+        e.sender.set_background_color("#77AEE4" if e.sender.text == "Unselect" else "primary")
+        if topic not in tree.selected_datasets:
+            tree.selected_datasets[topic] = []
+        if dataset_id not in tree.selected_datasets[topic]:
+            tree.selected_datasets[topic].append(dataset_id)
+        else:
+            tree.selected_datasets[topic].remove(dataset_id)
+            if len(tree.selected_datasets[topic]) == 0:
+                del tree.selected_datasets[topic]
+        #print(tree.selected_datasets)
     
     async def subscribe_to_topics(topics, directory):
         async with httpx.AsyncClient() as client:
