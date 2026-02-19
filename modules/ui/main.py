@@ -111,4 +111,4 @@ def main_page(client: Client):
     show_view('dashboard')
 
 
-ui.run()
+ui.run(favicon='assets/logo.png')

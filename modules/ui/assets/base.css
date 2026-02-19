@@ -3,7 +3,7 @@
 /* -- Layout ---------------------------------------------------- */
 
 .nicegui-content {
-    padding: 0 !important;
+    padding: 20px !important;
     overflow: hidden !important;
 }
 
@@ -68,7 +68,7 @@
 
 .header-logo {
     position: absolute !important;
-    left: 20% !important;
+    left: 5% !important;
     top: 20px !important;
     width: 80px !important;
     height: 80px !important;
@@ -170,6 +170,12 @@
 
 /* -- Dataset sidebar ------------------------------------------- */
 
+.dataset-sidebar {
+    padding: 20px !important;
+    position: absolute !important;
+    right: 0 !important;
+}
+
 .dataset-scroll {
     height: 75vh;
 }
@@ -182,12 +188,12 @@
 .dataset-id-label {
     font-weight: bold;
     font-size: 14px;
-    background-color: #f0f0f0;
+    background-color: #ffffff;
 }
 
 .dataset-btn {
     font-size: 12px;
-    width: 170px;
+    width: 140px;
     min-width: 80px;
     text-overflow: ellipsis;
 }
