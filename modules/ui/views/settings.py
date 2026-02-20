@@ -1,37 +1,27 @@
 from nicegui import ui
 
-from data import scrape_all
+from data import gdc_records, scrape_all
 
-GDC_OPTIONS = {
-    'CMA':  'CMA — China Meteorological Administration',
-    'DWD':  'DWD — Deutscher Wetterdienst',
-    'ECCC': 'ECCC — Environment and Climate Change Canada',
-}
+_GDC_CHIP_COLOURS = {'CMA': 'blue', 'DWD': 'teal', 'ECCC': 'orange'}
 
 
-def render(container, state):
+def render(container):
     with container:
         ui.label("Settings").classes("page-title")
 
         with ui.card().classes("settings-card"):
             with ui.card_section():
-                ui.label("Global Discovery Catalogue (GDC)").classes('text-h6')
+                ui.label("Global Discovery Catalogues").classes('text-h6')
                 ui.label(
-                    "Select the GDC server used for topic discovery in "
-                    "Catalogue Search and Tree Search."
+                    "Records are fetched from all three GDCs at startup and merged. "
+                    "Results are cached in Redis for 6 hours."
                 ).classes('text-body2 text-grey-7')
-                radio = ui.radio(GDC_OPTIONS, value=state.gdc).props('inline')
-
-                def on_gdc_changed(e):
-                    state.gdc = e.sender.value
-
-                radio.on('update:model-value', on_gdc_changed)
-
-        with ui.card().classes("settings-card"):
-            with ui.card_section():
-                ui.label("GDC Data").classes('text-h6')
-                ui.label(
-                    "GDC metadata is fetched once at startup. "
-                    "Click Refresh to pull the latest data from all three catalogues."
-                ).classes('text-body2 text-grey-7')
-                ui.button("Refresh GDC data", icon="refresh").on('click', scrape_all)
+                with ui.row().classes('q-mt-sm q-gutter-sm'):
+                    for name, records in gdc_records.items():
+                        count = len(records)
+                        colour = _GDC_CHIP_COLOURS.get(name, 'grey') if count else 'grey'
+                        label = f"{name}: {count} records" if count else f"{name}: not loaded"
+                        ui.chip(label, color=colour)
+                ui.button("Refresh GDC data", icon="refresh").on(
+                    'click', lambda: scrape_all(force=True)
+                )

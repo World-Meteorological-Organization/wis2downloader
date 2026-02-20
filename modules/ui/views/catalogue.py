@@ -3,8 +3,10 @@ import copy
 from nicegui import ui
 from shapely.geometry import Point, Polygon, MultiPolygon, MultiPoint
 
-from data import gdc_records
+from data import gdc_records, MergedRecord, merged_records
 from models.wcmp2 import WCMP2Record
+
+_GDC_CHIP_COLOURS = {'CMA': 'blue', 'DWD': 'teal', 'ECCC': 'orange'}
 from views.shared import on_topics_picked, show_metadata, clean_page
 
 
@@ -76,7 +78,7 @@ def filter_by_bbox(record: WCMP2Record, bbox) -> bool | None:
 # Search result functions
 # ---------------------------------------------------------------------------
 
-async def select_in_search_results(e, page_selector, query, gdc, records,
+async def select_in_search_results(e, page_selector, query, records,
                                    state, layout, sender=None):
     on_topics_picked(e, state, layout, is_page_selection=True, sender=sender)
     if sender.text == "Unselect" and e.value[0] in state.selected_datasets:
@@ -84,7 +86,7 @@ async def select_in_search_results(e, page_selector, query, gdc, records,
     sender.text = "Unselect" if sender.text == "Select" else "Select"
 
 
-async def update_search_results(page_selector, query, gdc, records, state, layout):
+async def update_search_results(page_selector, query, records: list[MergedRecord], state, layout):
     page_number = int(page_selector.value)
     num_pages = len(page_selector.options)
     parent = page_selector.parent_slot.parent
@@ -95,7 +97,7 @@ async def update_search_results(page_selector, query, gdc, records, state, layou
             label='Page', value=str(page_number), with_input=True,
         ).classes("page-selector").on(
             'update:model-value',
-            lambda e: update_search_results(page_selector, query, gdc, records, state, layout),
+            lambda e: update_search_results(page_selector, query, records, state, layout),
         )
         offset = (page_number - 1) * 10
         event_list = []
@@ -103,28 +105,31 @@ async def update_search_results(page_selector, query, gdc, records, state, layou
         for j in range(offset, offset + 10):
             if j >= len(records):
                 break
-            item = records[j]
+            merged = records[j]
+            rec = merged.record
             with ui.card().classes("result-card"):
                 with ui.row().classes("result-card-header"):
-                    ui.label(
-                        item.title or item.id
-                    ).classes("result-title")
-                    if item.wmo_data_policy:
-                        chip_color = "green" if item.wmo_data_policy == "core" else "red"
-                        ui.chip(item.wmo_data_policy, color=chip_color)
+                    ui.label(rec.title or rec.id).classes("result-title")
+                    if rec.wmo_data_policy:
+                        chip_color = "green" if rec.wmo_data_policy == "core" else "red"
+                        ui.chip(rec.wmo_data_policy, color=chip_color)
+                    for gdc in merged.source_gdcs:
+                        ui.chip(gdc, color=_GDC_CHIP_COLOURS.get(gdc, 'grey'))
+                    if merged.has_discrepancy:
+                        ui.icon('warning', color='orange').tooltip(
+                            'Record content differs between catalogues'
+                        )
 
-                ui.label(item.id).classes("result-subtitle")
+                ui.label(rec.id).classes("result-subtitle")
                 with ui.row(wrap=False).classes("result-row"):
                     with ui.column().classes("result-details"):
-                        ui.label(
-                            item.description or 'N/A'
-                        ).classes("result-description")
+                        ui.label(rec.description or 'N/A').classes("result-description")
                         with ui.row().classes("result-actions"):
                             ui.button("Show Metadata", icon='info').on(
                                 'click',
-                                lambda ev, did=item.id: show_metadata(did, state),
+                                lambda ev, did=rec.id: show_metadata(did, state),
                             )
-                            for lnk in item.links:
+                            for lnk in rec.links:
                                 if lnk.channel and lnk.channel.startswith('cache/'):
                                     event_list.append(_Event([lnk.channel]))
                                     i += 1
@@ -132,15 +137,15 @@ async def update_search_results(page_selector, query, gdc, records, state, layou
                                     selector = ui.button("Select", icon='add').on(
                                         'click',
                                         lambda ev, er=ev_ref: select_in_search_results(
-                                            er, page_selector, query, gdc, records,
+                                            er, page_selector, query, records,
                                             state, layout, sender=ev.sender,
                                         ),
                                     )
                                     if lnk.channel in state.selected_topics:
                                         selector.text = "Unselect"
                                     break
-                    if item.geometry is not None:
-                        coordinates = copy.deepcopy(item.geometry.coordinates)
+                    if rec.geometry is not None:
+                        coordinates = copy.deepcopy(rec.geometry.coordinates)
                         coordinates[0] = coordinates[0][:-1]
                         coordinates = [[(c[1], c[0]) for c in coordinates[0]]]
                         map_widget = ui.leaflet(zoom=0, options={'attributionControl': False}).classes("card-map")
@@ -151,26 +156,26 @@ async def update_search_results(page_selector, query, gdc, records, state, layou
                         )
 
 
-async def perform_search(query, gdc, data_policy, keywords, bbox, state, layout,
+async def perform_search(query, data_policy, keywords, bbox, state, layout,
                          results_container):
     clean_page(state, layout)
     results_container.clear()
 
-    records = list(gdc_records[gdc])
-    records = [r for r in records if filter_feature(r, query)]
-    records = [r for r in records if filter_by_data_policy(r, data_policy)]
-    records = [r for r in records if filter_by_keywords(r, keywords)]
-    records = [r for r in records if filter_by_bbox(r, bbox)]
+    records = merged_records()
+    records = [m for m in records if filter_feature(m.record, query)]
+    records = [m for m in records if filter_by_data_policy(m.record, data_policy)]
+    records = [m for m in records if filter_by_keywords(m.record, keywords)]
+    records = [m for m in records if filter_by_bbox(m.record, bbox)]
 
     if not records:
         with results_container:
             ui.label("No results found.").classes("no-results-label")
         return
 
-    for record in records:
-        for channel in record.mqtt_channels:
+    for merged in records:
+        for channel in merged.record.mqtt_channels:
             if channel.startswith('cache/'):
-                state.features.setdefault(channel, []).append(record)
+                state.features.setdefault(channel, []).append(merged.record)
                 break
 
     num_pages = (len(records) // 10) + (1 if len(records) % 10 > 0 else 0)
@@ -181,9 +186,9 @@ async def perform_search(query, gdc, data_policy, keywords, bbox, state, layout,
             label='Page', value='1', with_input=True,
         ).classes("page-selector").on(
             'update:model-value',
-            lambda e: update_search_results(page_selector, query, gdc, records, state, layout),
+            lambda e: update_search_results(page_selector, query, records, state, layout),
         )
-        await update_search_results(page_selector, query, gdc, records, state, layout)
+        await update_search_results(page_selector, query, records, state, layout)
 
 
 # ---------------------------------------------------------------------------
@@ -195,16 +200,15 @@ def render(container, state, layout):
     with container:
         ui.label("Catalogue Search").classes("page-title")
 
-        if not state.gdc:
+        if not any(gdc_records.values()):
             with ui.card().classes("info-card"):
                 ui.icon('info').classes("info-card-icon")
-                ui.label("No GDC selected").classes("text-h6")
+                ui.label("Catalogue data not loaded").classes("text-h6")
                 ui.label(
-                    "Go to Settings and choose a Global Discovery Catalogue source."
+                    "GDC data is still being fetched. Try again in a moment, "
+                    "or visit Settings to trigger a manual refresh."
                 ).classes("text-body2 text-grey-7")
             return
-
-        ui.label(f"Source: {state.gdc}").classes("text-body2 text-grey-7")
 
         with ui.card().classes("search-form-card"):
             with ui.card_section():
@@ -233,7 +237,7 @@ def render(container, state, layout):
         search_btn.on(
             'click',
             lambda: perform_search(
-                search_input.value, state.gdc,
+                search_input.value,
                 search_data_type.value, search_keyword.value,
                 [search_bbox_north.value, search_bbox_west.value,
                  search_bbox_east.value, search_bbox_south.value],

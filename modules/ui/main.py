@@ -33,7 +33,6 @@ def main_page(client: Client):
 
     class AppState:
         def __init__(self):
-            self.gdc = None              # selected GDC: 'CMA', 'DWD', or 'ECCC'
             self.features = {}
             self.selected_topics = []
             self.selected_datasets = {}
@@ -57,7 +56,7 @@ def main_page(client: Client):
             elif name == 'manage':
                 subscriptions.render(layout.content)
             elif name == 'settings':
-                settings.render(layout.content, state)
+                settings.render(layout.content)
 
     layout = build_layout(show_view)
     show_view('dashboard')

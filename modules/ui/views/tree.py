@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from data import gdc_records
+from data import gdc_records, merged_records
 from views.shared import on_topics_picked, clean_page
 
 
@@ -37,14 +37,13 @@ def put_in_dicc(dicc, key, identifier):
 # GDC scraper — builds state.features + tree widget
 # ---------------------------------------------------------------------------
 
-async def scrape_topics_tree(gdc, state, layout, tree_area):
+async def scrape_topics_tree(state, layout, tree_area):
     clean_page(state, layout)
-    records = gdc_records[gdc]
     dicc = {}
-    for record in records:
-        for channel in record.mqtt_channels:
+    for merged in merged_records():
+        for channel in merged.record.mqtt_channels:
             if channel.startswith('cache/'):
-                state.features.setdefault(channel, []).append(record)
+                state.features.setdefault(channel, []).append(merged.record)
                 dicc = put_in_dicc(dicc, channel, channel)
                 break
 
@@ -68,18 +67,17 @@ def render(container, state, layout):
     with container:
         ui.label("Tree Search").classes("page-title")
 
-        if not state.gdc:
+        if not any(gdc_records.values()):
             with ui.card().classes("info-card"):
                 ui.icon('info').classes("info-card-icon")
-                ui.label("No GDC selected").classes("text-h6")
+                ui.label("Catalogue data not loaded").classes("text-h6")
                 ui.label(
-                    "Go to Settings and choose a Global Discovery Catalogue source."
+                    "GDC data is still being fetched. Try again in a moment, "
+                    "or visit Settings to trigger a manual refresh."
                 ).classes("text-body2 text-grey-7")
             return
-
-        ui.label(f"Source: {state.gdc}").classes("text-body2 text-grey-7")
 
         with ui.scroll_area().classes("tree-scroll") as tree_area:
             ui.label("Loading…").classes("text-body2 text-grey-7")
 
-        ui.timer(0.1, lambda: scrape_topics_tree(state.gdc, state, layout, tree_area), once=True)
+        ui.timer(0.1, lambda: scrape_topics_tree(state, layout, tree_area), once=True)
