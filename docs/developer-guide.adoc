@@ -12,41 +12,43 @@ WIS2 Downloader is a distributed system with four main components:
 
 [source]
 ----
-┌─────────────────────────────────────────────────────────────────┐
-│                        Docker Compose                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│   ┌──────────────────┐        ┌──────────────────┐              │
-│   │  Subscription    │        │    Subscriber    │              │
-│   │    Manager       │        │  (MQTT Client)   │              │
-│   │   (Flask API)    │        │                  │              │
-│   └────────┬─────────┘        └────────┬─────────┘              │
-│            │                           │                         │
-│            │  Redis PubSub             │  Celery Tasks           │
-│            │  (commands)               │                         │
-│            ▼                           ▼                         │
-│   ┌──────────────────────────────────────────────┐              │
-│   │                   Redis                      │              │
-│   │          (State + Task Queue)                │              │
-│   └──────────────────────────────────────────────┘              │
-│            │                           │                         │
-│            │  Task Queue               │  Results                │
-│            ▼                           ▼                         │
-│   ┌──────────────────────────────────────────────┐              │
-│   │              Celery Workers                  │              │
-│   │         (Download & Process Tasks)           │              │
-│   └──────────────────────────────────────────────┘              │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+                         Docker Compose
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                           │
+  │  Web UI (NiceGUI :8080)                                   │
+  │    - reads GDC catalogue data from Redis cache            │
+  │    - posts subscriptions to Subscription Manager API      │
+  │                          │                                │
+  │                          ▼                                │
+  │  Subscription Manager (Flask API :5001)                   │
+  │    - persists subscriptions in Redis                      │
+  │    - publishes subscribe/unsubscribe commands via PubSub  │
+  │                          │                                │
+  │              Redis PubSub (commands)                      │
+  │                          │                                │
+  │                          ▼                                │
+  │  Subscriber (MQTT Client)                                 │
+  │    - connects to WIS2 Global Broker                       │
+  │    - on notification: queues Celery download task         │
+  │                          │                                │
+  │              Redis (Celery queue + dedup state)           │
+  │                          │                                │
+  │                          ▼                                │
+  │  Celery Workers                                           │
+  │    - download file, verify hash, apply filters, save      │
+  │                                                           │
+  └──────────────────────────────────────────────────────────┘
 ----
 
 === Data Flow
 
-1. User creates subscription via REST API (subscription_manager)
-2. Subscription Manager publishes command to Redis PubSub
-3. Subscriber receives command, subscribes to MQTT topic
-4. When notification arrives, Subscriber creates Celery task
-5. Celery worker downloads file and updates metrics
+1. On startup, the Web UI fetches WCMP2 records from the three GDC endpoints (or Redis cache) and builds an in-memory topic hierarchy
+2. User browses the Catalogue or Tree view and selects a topic in the Web UI
+3. User clicks *Subscribe* → Web UI POSTs a subscription to the Subscription Manager REST API
+4. Subscription Manager persists the subscription in Redis and publishes a subscribe command to the Redis PubSub channel
+5. Subscriber receives the command and subscribes to the MQTT topic on the WIS2 Global Broker
+6. When a WIS2 notification arrives, Subscriber queues a Celery download task
+7. Celery worker downloads the file, verifies the hash, applies filters, and saves to disk
 
 == Module Structure
 
@@ -73,14 +75,26 @@ modules/
 │       └── static/
 │           └── openapi.yml # API specification
 │
-└── task_manager/           # Celery tasks
-    └── task_manager/
-        ├── __init__.py
-        ├── worker.py       # Celery app configuration
-        ├── tasks/
-        │   └── wis2.py     # Download tasks
-        └── workflows/
-            └── __init__.py # Task chains
+├── task_manager/           # Celery tasks
+│   └── task_manager/
+│       ├── __init__.py
+│       ├── worker.py       # Celery app configuration
+│       ├── tasks/
+│       │   └── wis2.py     # Download tasks
+│       └── workflows/
+│           └── __init__.py # Task chains
+│
+└── ui/                     # NiceGUI web interface (port 8080)
+    ├── main.py             # Entry point, page route, AppState
+    ├── layout.py           # PageLayout builder
+    ├── config.py           # Environment variable config
+    ├── data.py             # GDC data layer — fetch, merge, cache, hierarchy
+    ├── assets/
+    │   └── base.css        # All custom CSS
+    ├── components/         # Reusable layout components
+    ├── models/
+    │   └── wcmp2.py        # WCMP2Record dataclass
+    └── views/              # Page views (catalogue, tree, subscriptions, etc.)
 ----
 
 == Module Details
@@ -335,6 +349,210 @@ def wis2_download(args):
     return workflow
 ----
 
+== UI Module
+
+The UI is a NiceGUI web application served at port 8080. It is the primary user-facing interface for discovering datasets, browsing the WIS2 topic hierarchy, and creating subscriptions.
+
+=== Module Structure
+
+[source]
+----
+modules/ui/
+├── main.py                  # Application entry point, page route, AppState
+├── layout.py                # PageLayout builder
+├── config.py                # Environment variable config (SUBSCRIPTION_MANAGER_URL etc.)
+├── data.py                  # GDC data layer — fetch, merge, cache, hierarchy
+├── assets/
+│   └── base.css             # All custom CSS (inside @layer components)
+├── components/
+│   ├── header.py            # WMO banner + toolbar
+│   ├── footer.py            # Footer bar
+│   ├── navigation_drawer.py # Left nav drawer with view links
+│   └── page_body.py         # Main content area + right sidebar
+├── models/
+│   └── wcmp2.py             # WCMP2Record dataclass (GeoJSON Feature)
+└── views/
+    ├── dashboard.py         # Grafana iframe embed
+    ├── catalogue.py         # Catalogue search + result cards
+    ├── tree.py              # Topic hierarchy tree
+    ├── subscriptions.py     # Active subscriptions list
+    ├── settings.py          # GDC status + refresh trigger
+    └── shared.py            # Shared sidebar logic (on_topics_picked, confirm_subscribe, show_metadata)
+----
+
+=== Data Layer (data.py)
+
+The data layer is responsible for fetching WCMP2 records from the three WIS2 Global Discovery Catalogues (GDC), merging them, and building two module-level caches that all views read from.
+
+==== GDC Sources
+
+Records are fetched from three public GDC endpoints at startup:
+
+[cols="1,2"]
+|===
+|Short name |URL
+
+|`CMA`
+|`https://gdc.wis.cma.cn`
+
+|`DWD`
+|`https://wis2.dwd.de/gdc`
+
+|`ECCC`
+|`https://wis2-gdc.weather.gc.ca`
+|===
+
+Raw JSON responses are cached in Redis under keys `gdc:cache:CMA`, `gdc:cache:DWD`, and `gdc:cache:ECCC` with a TTL controlled by `GDC_CACHE_TTL_SECONDS` (default 6 hours). Redis is optional — if unavailable, data is fetched over HTTP on every startup.
+
+==== Merged Records
+
+After all GDC sources are loaded, `_build_merged_records()` deduplicates records by ID across catalogues:
+
+* Records present in only one catalogue appear once with a single `source_gdcs` entry.
+* Records present in multiple catalogues are merged: `source_gdcs` lists all contributing catalogues.
+* `has_discrepancy` is set to `True` if properties, geometry, or links differ between catalogues.
+* Links are unioned across catalogues so that channel data present in any one GDC is preserved on the merged record.
+
+The result is stored in the module-level `_merged_records` list and returned by `merged_records()`.
+
+==== Topic Hierarchy
+
+`_build_topic_hierarchy()` iterates `_merged_records` and inserts each record's first `cache/` MQTT channel into a nested dict:
+
+[source]
+----
+{
+  "cache": {
+    "children": {
+      "a": {
+        "children": {
+          "wis2": {
+            "children": {
+              "de-dwd": {
+                "children": {
+                  ...
+                  "synop": {
+                    "datasets": [<WCMP2Record>, ...]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+----
+
+A node may contain both `"children"` and `"datasets"` if one channel is a prefix of another.
+
+The hierarchy is stored in `_topic_hierarchy` and returned by `topic_hierarchy()`. It is consumed by `tree.py` to build the `ui.tree` widget, and by `get_datasets_for_channel()` to resolve datasets for a given topic.
+
+==== Key Functions
+
+[cols="2,3"]
+|===
+|Function |Description
+
+|`merged_records() -> list[MergedRecord]`
+|Returns the cached merged record list
+
+|`topic_hierarchy() -> dict`
+|Returns the cached topic hierarchy
+
+|`get_datasets_for_channel(channel) -> list[WCMP2Record]`
+|Strips trailing `/#`, navigates the hierarchy, and recursively collects all datasets from that node and its descendants
+
+|`scrape_all(force=False)`
+|Fetches GDC data (Redis cache first, then HTTP), rebuilds `_merged_records` and `_topic_hierarchy`
+|===
+
+=== WCMP2 Model (models/wcmp2.py)
+
+`WCMP2Record` is a dataclass representation of a WIS2 Discovery Metadata GeoJSON Feature.
+
+[source,python]
+----
+from models.wcmp2 import WCMP2Record
+
+rec = WCMP2Record.from_dict(feature_dict)
+
+rec.id                   # str - unique dataset identifier
+rec.title                # str | None
+rec.description          # str | None
+rec.keywords             # list[str]
+rec.wmo_data_policy      # 'core' | 'recommended' | None
+rec.geometry             # Geometry | None  (.type, .coordinates)
+rec.links                # list[Link]  (.channel, .href, .rel, .extra)
+rec.mqtt_channels        # list[str]  - channels from all links
+----
+
+`Link.extra` is a dict capturing non-schema keys from the GDC response (e.g. GDC-specific `filters` used for custom filter fields in the subscription sidebar).
+
+=== AppState
+
+Each browser session has its own `AppState` instance (defined in `main.py`):
+
+[source,python]
+----
+class AppState:
+    def __init__(self):
+        self.selected_topics: list[str] = []
+----
+
+`selected_topics` holds the MQTT topics currently selected in the UI and drives the right sidebar.
+
+=== Views
+
+All views follow the same convention: a `render(container, ...)` function that builds the NiceGUI elements inside the provided container element. `render` is always a plain (non-async) function so it can be called synchronously from `show_view()` in `main.py`.
+
+==== Catalogue View
+
+`views/catalogue.py` provides full-text search across `merged_records()` with pure filter functions:
+
+[cols="2,3"]
+|===
+|Function |Description
+
+|`filter_feature(record, query)`
+|Matches query against ID, title, description, keywords, and theme concepts
+
+|`filter_by_data_policy(record, policy)`
+|Matches `'core'`, `'recommended'`, or `'all'`
+
+|`filter_by_keywords(record, keywords)`
+|Comma-separated keywords; all must appear in the record
+
+|`filter_by_bbox(record, bbox)`
+|Shapely geometry intersection with the given bounding box
+|===
+
+Result cards are rendered by `update_search_results()`, which is also responsible for pagination.
+
+==== Tree View
+
+`views/tree.py` converts `topic_hierarchy()` into `ui.tree` nodes via `_to_tree_nodes()` (recursive, alphabetically sorted). Selection uses `on_select` to enforce single-node selection — `on_tick` is not used because it conflicts with NiceGUI's internal state synchronisation.
+
+==== Shared Sidebar (views/shared.py)
+
+`on_topics_picked(e, state, layout, is_page_selection, dataset_id)` is the central handler for both catalogue and tree selection. It:
+
+1. Updates `state.selected_topics`
+2. Builds the right sidebar with save-directory input, dataset/media-type/bbox/date filters, and optional custom filters
+3. Wires the *Subscribe* button to `confirm_subscribe()`
+
+`confirm_subscribe()` shows a dialog with the full JSON payload before calling `subscribe_to_topics()`.
+
+`show_metadata(dataset_id)` looks up the record from `merged_records()` and renders a details dialog with an interactive Leaflet map.
+
+=== Adding a New View
+
+1. Create `modules/ui/views/myview.py` with a `render(container)` function
+2. Add a navigation entry in `components/navigation_drawer.py`
+3. Add a branch in the `show_view()` dispatcher in `main.py`
+4. Add any new CSS classes to `assets/base.css` inside the `@layer components { ... }` block
+
 == Inter-Service Communication
 
 === Redis PubSub (Commands)
@@ -581,6 +799,10 @@ LLEN celery
 
 # View deduplication keys
 KEYS wis2:notifications:*
+
+# View GDC catalogue cache (populated by the UI on startup)
+KEYS gdc:cache:*
+TTL gdc:cache:CMA
 ----
 
 NOTE: All Redis commands require authentication. The `-a $REDIS_PASSWORD` flag passes the password from your environment.
