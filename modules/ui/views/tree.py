@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from data import json_scrapes
+from data import gdc_records
 from views.shared import on_topics_picked, clean_page
 
 
@@ -39,13 +39,13 @@ def put_in_dicc(dicc, key, identifier):
 
 async def scrape_topics_tree(gdc, state, layout, tree_area):
     clean_page(state, layout)
-    json_data = json_scrapes[gdc]
+    records = gdc_records[gdc]
     dicc = {}
-    for item in json_data.get('features', []):
-        for link in item['links']:
-            if "channel" in link and link["channel"].startswith('cache/'):
-                state.features.setdefault(link["channel"], []).append(item)
-                dicc = put_in_dicc(dicc, link["channel"], link["channel"])
+    for record in records:
+        for channel in record.mqtt_channels:
+            if channel.startswith('cache/'):
+                state.features.setdefault(channel, []).append(record)
+                dicc = put_in_dicc(dicc, channel, channel)
                 break
 
     tree_area.clear()

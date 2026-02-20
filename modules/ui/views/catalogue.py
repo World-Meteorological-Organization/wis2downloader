@@ -3,7 +3,8 @@ import copy
 from nicegui import ui
 from shapely.geometry import Point, Polygon, MultiPolygon, MultiPoint
 
-from data import json_scrapes
+from data import gdc_records
+from models.wcmp2 import WCMP2Record
 from views.shared import on_topics_picked, show_metadata, clean_page
 
 
@@ -17,44 +18,46 @@ class _Event:
 # Pure filter helpers (no state dependency)
 # ---------------------------------------------------------------------------
 
-def filter_feature(feature, query):
-    if feature.get("id") is not None and query.lower() in feature['id'].lower():
+def filter_feature(record: WCMP2Record, query: str) -> bool:
+    q = query.lower()
+    if q in record.id.lower():
         return True
-    if 'properties' in feature:
-        for value in feature['properties'].values():
-            if isinstance(value, str) and query.lower() in value.lower():
-                return True
-            elif isinstance(value, list):
-                for item in value:
-                    if isinstance(item, str) and query.lower() in item.lower():
+    p = record.properties
+    for text in (p.title, p.description, p.version, p.rights):
+        if text and q in text.lower():
+            return True
+    for kw in record.keywords:
+        if q in kw.lower():
+            return True
+    if p.themes:
+        for theme in p.themes:
+            for concept in theme.concepts:
+                for text in (concept.id, concept.title, concept.description):
+                    if text and q in text.lower():
                         return True
     return False
 
 
-def filter_by_data_policy(feature, data_policy):
+def filter_by_data_policy(record: WCMP2Record, data_policy: str) -> bool:
     if data_policy == 'all':
         return True
-    if 'properties' in feature and 'wmo:dataPolicy' in feature['properties']:
-        return feature['properties']['wmo:dataPolicy'] == data_policy
-    return False
+    return record.wmo_data_policy == data_policy
 
 
-def filter_by_keywords(feature, keywords):
+def filter_by_keywords(record: WCMP2Record, keywords: str) -> bool:
     if not keywords:
         return True
     keyword_list = [kw.strip().lower() for kw in keywords.split(',')]
-    if 'properties' in feature and 'keywords' in feature['properties']:
-        feature_keywords = [kw.lower() for kw in feature['properties']['keywords']]
-        return all(kw in feature_keywords for kw in keyword_list)
-    return False
+    record_keywords = [kw.lower() for kw in record.keywords]
+    return all(kw in record_keywords for kw in keyword_list)
 
 
-def filter_by_bbox(feature, bbox):
+def filter_by_bbox(record: WCMP2Record, bbox) -> bool | None:
     if not all(bbox):
         return True
-    if 'geometry' in feature and feature['geometry'] is not None:
-        coordinates = feature['geometry']['coordinates']
-        geom_type = feature['geometry']['type']
+    if record.geometry is not None:
+        coordinates = record.geometry.coordinates
+        geom_type = record.geometry.type
         bbox_polygon = Polygon(
             [(bbox[1], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[0]), (bbox[1], bbox[0])]
         )
@@ -66,14 +69,14 @@ def filter_by_bbox(feature, bbox):
             return Polygon(coordinates[0]).intersects(bbox_polygon)
         elif geom_type == 'MultiPolygon':
             return MultiPolygon([Polygon(part) for part in coordinates[0]]).intersects(bbox_polygon)
-    return None  # Preserve original behaviour: None filters feature out when bbox is active
+    return None  # Preserve original behaviour: None filters record out when bbox is active
 
 
 # ---------------------------------------------------------------------------
 # Search result functions
 # ---------------------------------------------------------------------------
 
-async def select_in_search_results(e, page_selector, query, gdc, filtered_json,
+async def select_in_search_results(e, page_selector, query, gdc, records,
                                    state, layout, sender=None):
     on_topics_picked(e, state, layout, is_page_selection=True, sender=sender)
     if sender.text == "Unselect" and e.value[0] in state.selected_datasets:
@@ -81,7 +84,7 @@ async def select_in_search_results(e, page_selector, query, gdc, filtered_json,
     sender.text = "Unselect" if sender.text == "Select" else "Select"
 
 
-async def update_search_results(page_selector, query, gdc, filtered_json, state, layout):
+async def update_search_results(page_selector, query, gdc, records, state, layout):
     page_number = int(page_selector.value)
     num_pages = len(page_selector.options)
     parent = page_selector.parent_slot.parent
@@ -92,53 +95,52 @@ async def update_search_results(page_selector, query, gdc, filtered_json, state,
             label='Page', value=str(page_number), with_input=True,
         ).classes("page-selector").on(
             'update:model-value',
-            lambda e: update_search_results(page_selector, query, gdc, filtered_json, state, layout),
+            lambda e: update_search_results(page_selector, query, gdc, records, state, layout),
         )
         offset = (page_number - 1) * 10
         event_list = []
         i = 0
         for j in range(offset, offset + 10):
-            if j >= len(filtered_json['features']):
+            if j >= len(records):
                 break
-            item = filtered_json['features'][j]
+            item = records[j]
             with ui.card().classes("result-card"):
                 with ui.row().classes("result-card-header"):
                     ui.label(
-                        item['properties'].get('title', item['id'])
+                        item.title or item.id
                     ).classes("result-title")
-                    data_policy = item['properties'].get('wmo:dataPolicy')
-                    if data_policy:
-                        chip_color = "green" if data_policy == "core" else "red"
-                        ui.chip(data_policy, color=chip_color)
+                    if item.wmo_data_policy:
+                        chip_color = "green" if item.wmo_data_policy == "core" else "red"
+                        ui.chip(item.wmo_data_policy, color=chip_color)
 
-                ui.label(item['id']).classes("result-subtitle")
+                ui.label(item.id).classes("result-subtitle")
                 with ui.row(wrap=False).classes("result-row"):
                     with ui.column().classes("result-details"):
                         ui.label(
-                            item['properties'].get('description', 'N/A')
+                            item.description or 'N/A'
                         ).classes("result-description")
                         with ui.row().classes("result-actions"):
                             ui.button("Show Metadata", icon='info').on(
                                 'click',
-                                lambda ev, did=item['id']: show_metadata(did, state),
+                                lambda ev, did=item.id: show_metadata(did, state),
                             )
-                            for item_link in item['links']:
-                                if "channel" in item_link and item_link["channel"].startswith('cache/'):
-                                    event_list.append(_Event([item_link['channel']]))
+                            for lnk in item.links:
+                                if lnk.channel and lnk.channel.startswith('cache/'):
+                                    event_list.append(_Event([lnk.channel]))
                                     i += 1
                                     ev_ref = event_list[i - 1]
                                     selector = ui.button("Select", icon='add').on(
                                         'click',
                                         lambda ev, er=ev_ref: select_in_search_results(
-                                            er, page_selector, query, gdc, filtered_json,
+                                            er, page_selector, query, gdc, records,
                                             state, layout, sender=ev.sender,
                                         ),
                                     )
-                                    if item_link['channel'] in state.selected_topics:
+                                    if lnk.channel in state.selected_topics:
                                         selector.text = "Unselect"
                                     break
-                    if 'geometry' in item and item['geometry'] is not None:
-                        coordinates = copy.deepcopy(item['geometry']['coordinates'])
+                    if item.geometry is not None:
+                        coordinates = copy.deepcopy(item.geometry.coordinates)
                         coordinates[0] = coordinates[0][:-1]
                         coordinates = [[(c[1], c[0]) for c in coordinates[0]]]
                         map_widget = ui.leaflet(zoom=0, options={'attributionControl': False}).classes("card-map")
@@ -154,25 +156,24 @@ async def perform_search(query, gdc, data_policy, keywords, bbox, state, layout,
     clean_page(state, layout)
     results_container.clear()
 
-    json_data = copy.deepcopy(json_scrapes[gdc])
-    features = [f for f in json_data['features'] if filter_feature(f, query)]
-    features = [f for f in features if filter_by_data_policy(f, data_policy)]
-    features = [f for f in features if filter_by_keywords(f, keywords)]
-    features = [f for f in features if filter_by_bbox(f, bbox)]
+    records = list(gdc_records[gdc])
+    records = [r for r in records if filter_feature(r, query)]
+    records = [r for r in records if filter_by_data_policy(r, data_policy)]
+    records = [r for r in records if filter_by_keywords(r, keywords)]
+    records = [r for r in records if filter_by_bbox(r, bbox)]
 
-    if not features:
+    if not records:
         with results_container:
             ui.label("No results found.").classes("no-results-label")
         return
 
-    for item in features:
-        for link in item['links']:
-            if "channel" in link and link["channel"].startswith('cache/'):
-                state.features.setdefault(link["channel"], []).append(item)
+    for record in records:
+        for channel in record.mqtt_channels:
+            if channel.startswith('cache/'):
+                state.features.setdefault(channel, []).append(record)
                 break
 
-    json_data['features'] = features
-    num_pages = (len(features) // 10) + (1 if len(features) % 10 > 0 else 0)
+    num_pages = (len(records) // 10) + (1 if len(records) % 10 > 0 else 0)
 
     with results_container:
         page_selector = ui.select(
@@ -180,9 +181,9 @@ async def perform_search(query, gdc, data_policy, keywords, bbox, state, layout,
             label='Page', value='1', with_input=True,
         ).classes("page-selector").on(
             'update:model-value',
-            lambda e: update_search_results(page_selector, query, gdc, json_data, state, layout),
+            lambda e: update_search_results(page_selector, query, gdc, records, state, layout),
         )
-        await update_search_results(page_selector, query, gdc, json_data, state, layout)
+        await update_search_results(page_selector, query, gdc, records, state, layout)
 
 
 # ---------------------------------------------------------------------------

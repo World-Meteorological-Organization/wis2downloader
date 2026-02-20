@@ -7,16 +7,22 @@
     overflow: hidden !important;
 }
 
-.dataset-sidebar {
-    position: fixed !important;
-    right: 0 !important;
+.dataset-sidebar,
+.right-sidebar {
+    flex-shrink: 0;
     height: 100%;
     overflow-y: auto;
-    z-index: 10;
     box-sizing: border-box;
-    width: 260px;
     background-color: #f5f6fa;
     box-shadow: -2px 0 8px rgba(31,38,135,0.06);
+}
+
+.dataset-sidebar {
+    width: 260px;
+}
+
+.right-sidebar {
+    width: 300px;
 }
 
 .card-map {
@@ -24,14 +30,6 @@
     height: 200px;
     margin-left: auto !important;
     margin-right: 0 !important;
-}
-
-.q-drawer-container:nth-child(3) > .q-drawer--right {
-    margin-right: 300px !important;
-}
-
-.right-sidebar {
-    background-color: #f5f6fa;
 }
 
 /* -- Header ---------------------------------------------------- */
@@ -68,11 +66,20 @@
 
 .header-logo {
     position: absolute !important;
-    left: 20% !important;
+    left: 20px !important;
     top: 20px !important;
     width: 80px !important;
     height: 80px !important;
     line-height: 0 !important;
+}
+
+.header-toolbar {
+    width: 100%;
+    background: rgba(32, 106, 170, 0.95);
+    display: flex !important;
+    align-items: center;
+    line-height: normal !important;
+    margin-top: -22px !important;
 }
 
 /* -- Footer ---------------------------------------------------- */
@@ -334,28 +341,29 @@
 
 .q-drawer--mini {
     overflow: hidden !important;
-    width: 80px !important;
+    width: 60px !important;
 }
 
 /* -- Grafana iframe -------------------------------------------- */
 
 .grafana-frame {
     width: 100%;
-    height: calc(100vh - 175px); /* subtract header (~145px) + footer (30px) */
+    height: calc(100vh - 215px); /* subtract header (~185px) + footer (30px) */
     border: none;
     display: block;
 }
 
 /* -- Form inputs ----------------------------------------------- */
 
-.q-field__control, .q-input, .q-select, .q-number {
+.q-input, .q-select, .q-number {
     border-radius: 10px !important;
     background: rgba(255,255,255,0.85) !important;
     border: 1px solid #e0e7ef !important;
     box-shadow: 0 1px 4px 0 rgba(31, 38, 135, 0.06) !important;
     transition: border 0.2s, box-shadow 0.2s;
+    padding: 0 12px !important;
 }
-.q-field__control:focus-within, .q-input:focus-within, .q-select:focus-within, .q-number:focus-within {
+.q-field__control:focus-withinn, .q-input:focus-within, .q-select:focus-within, .q-number:focus-within {
     border: 1.5px solid #2563eb !important;
     box-shadow: 0 2px 8px 0 rgba(31, 38, 135, 0.12) !important;
 }

@@ -18,7 +18,7 @@ DEFAULT_ACCEPTED_MEDIA_TYPES = [
 
 
 def clean_page(state, layout):
-    layout.right_sidebar.set_value(False)
+    layout.right_sidebar.set_visibility(False)
     layout.right_sidebar.clear()
     layout.dataset_sidebar.clear()
     state.features = {}
@@ -27,16 +27,23 @@ def clean_page(state, layout):
 
 
 def on_topics_picked(e, state, layout, is_page_selection=False, sender=None):
-    if len(e.value) == 1:
+    if is_page_selection:
+        # Called from catalogue: e.value is [single_topic], toggle in/out
         if e.value[0] not in state.selected_topics:
             state.selected_topics.append(e.value[0])
         else:
             state.selected_topics.remove(e.value[0])
     else:
-        state.selected_topics = e.value
+        # Called from tree on_tick: e.value is the full accumulated ticked list
+        state.selected_topics = list(e.value)
     topics = state.selected_topics
 
-    layout.right_sidebar.set_value(True)
+    if not topics:
+        layout.right_sidebar.set_visibility(False)
+        layout.dataset_sidebar.clear()
+        return
+
+    layout.right_sidebar.set_visibility(True)
     with layout.right_sidebar:
         layout.right_sidebar.clear()
         ui.label("Selected Topics:").classes("sidebar-title")
@@ -62,23 +69,23 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None):
                 for (key, features) in state.features.items():
                     if topic.replace("/#", "") in key:
                         for dataset in features:
-                            if dataset['id'] in added_datasets:
+                            if dataset.id in added_datasets:
                                 continue
-                            added_datasets.append(dataset['id'])
+                            added_datasets.append(dataset.id)
                             with ui.card().classes("dataset-card"):
-                                ui.label(f"{dataset['id']}").classes("break-all dataset-id-label")
+                                ui.label(dataset.title).classes("break-all dataset-id-label")
                                 select_btn = ui.button("Select") \
                                     .classes("dataset-btn") \
-                                    .on('click', lambda ev, t=topic, d=dataset['id']:
+                                    .on('click', lambda ev, t=topic, d=dataset.id:
                                         select_dataset(ev, t, d, state))
                                 if is_page_selection and topic == e.value[0]:
                                     select_btn.run_method("click")
-                                if dataset['id'] in state.selected_datasets.get(topic, []):
+                                if dataset.id in state.selected_datasets.get(topic, []):
                                     select_btn.text = "Unselect"
                                     select_btn.set_background_color("#77AEE4")
                                 ui.button("Show Metadata") \
                                     .classes("dataset-btn") \
-                                    .on('click', lambda ev, d=dataset['id']:
+                                    .on('click', lambda ev, d=dataset.id:
                                         show_metadata(d, state))
 
 
@@ -102,13 +109,14 @@ async def show_filters_dialog(topics, filters, state):
                 if len(topics) == 1 and len(state.selected_datasets.get(topics[0], [])) == 1:
                     dataset_id = state.selected_datasets[topics[0]][0]
                     dataset = next(
-                        (d for feats in state.features.values() for d in feats if d['id'] == dataset_id),
+                        (d for feats in state.features.values() for d in feats if d.id == dataset_id),
                         None
                     )
-                    if dataset and 'links' in dataset:
-                        for link in dataset['links']:
-                            if 'filters' in link:
-                                for name, filt in link['filters'].items():
+                    if dataset:
+                        for link in dataset.links:
+                            link_filters = link.extra.get('filters')
+                            if link_filters:
+                                for name, filt in link_filters.items():
                                     if name in custom_filters:
                                         continue
                                     custom_filters[name] = []
@@ -201,7 +209,7 @@ async def subscribe_to_topics(topics, directory, filters, state):
 
 async def show_metadata(dataset_id, state):
     dataset = next(
-        (d for feats in state.features.values() for d in feats if d['id'] == dataset_id),
+        (d for feats in state.features.values() for d in feats if d.id == dataset_id),
         dataset_id
     )
     with ui.dialog() as dialog, ui.card():
@@ -209,15 +217,15 @@ async def show_metadata(dataset_id, state):
             if isinstance(dataset, str):
                 ui.label(f"Metadata not available for: {dataset_id}").classes("result-label")
             else:
-                ui.label(f"ID: {dataset['id']}").classes("result-label")
-                ui.label(f"Title: {dataset['properties'].get('title', 'N/A')}").classes("result-label")
-                ui.label(f"Description: {dataset['properties'].get('description', 'N/A')}").classes("result-description")
+                ui.label(f"ID: {dataset.id}").classes("result-label")
+                ui.label(f"Title: {dataset.title or 'N/A'}").classes("result-label")
+                ui.label(f"Description: {dataset.description or 'N/A'}").classes("result-description")
                 with ui.row():
                     ui.label("Keywords:").classes("result-label")
-                    for keyword in dataset['properties'].get('keywords', []):
+                    for keyword in dataset.keywords:
                         ui.button(keyword).classes("keyword-btn")
-                if dataset.get('geometry'):
-                    coordinates = copy.deepcopy(dataset['geometry']['coordinates'])
+                if dataset.geometry:
+                    coordinates = copy.deepcopy(dataset.geometry.coordinates)
                     coordinates[0] = coordinates[0][:-1]
                     coordinates = [[(coord[1], coord[0]) for coord in coordinates[0]]]
                     map_widget = ui.leaflet(center=coordinates[0][0], zoom=5, options={'attributionControl': False})

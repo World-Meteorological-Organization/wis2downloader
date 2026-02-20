@@ -1,14 +1,23 @@
-from nicegui import ui
+from components.navigation_drawer import build_nav_drawer
+from components.header import build_header
+from components.footer import build_footer
+from components.page_body import build_page_body
 
 
-def build_header():
-    with ui.header(elevated=True).classes("header-bg"):
-        ui.image('assets/wmo-banner.png').props("fit=cover").classes("header-banner")
-        ui.image('assets/wmo-foot.png').classes("header-divider")
-        ui.image('assets/logo.png').classes("header-logo")
+class PageLayout:
+    def __init__(self):
+        self.header = None
+        self.footer = None
+        self.nav_drawer = None
+        self.content = None
+        self.dataset_sidebar = None
+        self.right_sidebar = None
 
 
-def build_footer():
-    with ui.footer().classes("bg-base-400"):
-        ui.image('assets/wmo-foot.png').classes("footer-divider")
-        ui.label("© 2026 World Meteorological Organization").classes("footer-copyright")
+def build_layout(on_navigate):
+    layout = PageLayout()
+    toggle_mini = build_nav_drawer(layout, on_navigate)
+    build_header(layout, toggle_mini)
+    build_page_body(layout)
+    build_footer(layout)
+    return layout
