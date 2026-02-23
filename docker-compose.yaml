@@ -63,6 +63,9 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
     depends_on:
       - prometheus
       - loki
@@ -100,10 +103,7 @@ services:
     volumes:
       - "./downloads/:/data"
       - "./:/local"
-      - "prometheus-metrics-data:/tmp/prometheus_metrics"
     env_file: *default-env
-    environment:
-      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_metrics
     tty: true
     depends_on:
       - redis
@@ -130,10 +130,8 @@ services:
       - "./downloads/:/data"
       - "./:/local/app"
       - "./config/subscription_manager/:/app/config/"
-      - "prometheus-metrics-data:/tmp/prometheus_metrics"
     env_file: *default-env
     environment:
-      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_metrics
       - FLASK_HOST=0.0.0.0
       - FLASK_PORT=5001
     tty: true
@@ -213,7 +211,6 @@ services:
 volumes:
   loki-data:
   prometheus-data:
-  prometheus-metrics-data:
   grafana-data:
   redis-data:
 

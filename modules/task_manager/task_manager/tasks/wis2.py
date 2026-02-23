@@ -9,7 +9,6 @@ import magic
 import mimetypes
 import os
 from pathlib import Path
-from prometheus_client import Counter, Gauge
 import tempfile
 import time
 import urllib3
@@ -17,8 +16,8 @@ from urllib.parse import urlsplit
 
 from task_manager.worker import app as app
 
-# Import shared Redis client
-from shared import get_redis_client
+# Import shared utilities
+from shared import get_redis_client, apply_filters, MatchContext, incr_counter
 
 LOGGER = get_task_logger(__name__)
 
@@ -58,37 +57,6 @@ DEFAULT_ACCEPTED_MEDIA_TYPES = [
                         'application/octet-stream',
                         ]
 
-# define some metrics for prometheus
-
-NOTIFICATIONS_TOTAL = Counter(
-    'wis2downloader_notifications_total',
-    'Total number of notifications processed.',
-    ['status']
-)
-
-DOWNLOADS_TOTAL = Counter(
-    'wis2downloader_downloads_total',
-    'Total number of files downloaded.',
-    ['cache', 'media_type']
-)
-
-DOWNLOADS_BYTES_TOTAL = Counter(
-    'wis2downloader_downloads_bytes_total',
-    'Total number of bytes downloaded.',
-    ['cache', 'media_type']
-)
-
-SKIPPED_TOTAL = Counter(
-    'wis2downloader_skipped_total',
-    'Total number of skipped notifications by reason.',
-    ['reason']
-)
-
-FAILED_TOTAL = Counter(
-    'wis2downloader_failed_total',
-    'Total number of failed downloads by reason.',
-    ['cache', 'reason']
-)
 
 
 def set_status(key, type, status):
@@ -146,9 +114,39 @@ def guess_file_type(data):
     return mime, ext
 
 def _is_allowed_media_type(media_type, filters):
+    """Legacy filter: check media_type against accepted_media_types list."""
     allowed_types = filters.get('accepted_media_types', DEFAULT_ACCEPTED_MEDIA_TYPES)
     base_type = media_type.split(';')[0].strip().lower()
     return any(fnmatch(base_type, t.lower()) for t in allowed_types)
+
+
+def _get_filter_config(job: dict) -> dict:
+    """Return the filter config from a job dict.
+
+    Supports both:
+      job['filter']  — new destinations model (single filter object)
+      job['filters'] — legacy subscriptions model
+    """
+    return job.get('filter') or job.get('filters') or {}
+
+
+def _apply_job_filter(filter_config: dict, ctx: MatchContext) -> tuple[str, str | None]:
+    """Evaluate the filter for a job context.
+
+    Dispatches to the new rule-based engine when filter_config contains 'rules'.
+    Falls back to the legacy accepted_media_types check otherwise (only useful
+    post-download when ctx.media_type is set).
+
+    Returns ('accept', reason | None) or ('reject', reason).
+    """
+    if 'rules' in filter_config:
+        return apply_filters(filter_config, ctx)
+
+    # Legacy format or empty config
+    if ctx.media_type is not None:
+        if not _is_allowed_media_type(ctx.media_type, filter_config):
+            return 'reject', f"Media type '{ctx.media_type}' not allowed by filter"
+    return 'accept', None
 
 
 def _select_download_link(links):
@@ -199,24 +197,17 @@ def metrics_collector(func):
 
         try:
             # Always count the notification by final status
-            NOTIFICATIONS_TOTAL.labels(status=status_code.lower()).inc()
+            incr_counter('notifications_total', {'status': status_code.lower()})
 
             if status_code == STATUS_SKIPPED:
-                SKIPPED_TOTAL.labels(reason=error_class).inc()
+                incr_counter('skipped_total', {'reason': error_class})
 
             if status_code == STATUS_FAILED:
-                FAILED_TOTAL.labels(cache=global_cache, reason=error_class).inc()
+                incr_counter('failed_total', {'cache': global_cache, 'reason': error_class})
 
             if status_code == STATUS_SUCCESS:
-                DOWNLOADS_TOTAL.labels(
-                    cache=global_cache,
-                    media_type=media_type
-                ).inc()
-
-                DOWNLOADS_BYTES_TOTAL.labels(
-                    cache=global_cache,
-                    media_type=media_type
-                ).inc(file_size)
+                incr_counter('downloads_total', {'cache': global_cache, 'media_type': media_type})
+                incr_counter('downloads_bytes_total', {'cache': global_cache, 'media_type': media_type}, file_size)
 
         except Exception as e:
             LOGGER.error(f"Error collecting metrics: {e}", exc_info=True)
@@ -357,6 +348,28 @@ def download_from_wis2(self, job):
             LOGGER.debug(f"File {output_path} skipped from blacklisted cache")
             return result
 
+        # Pre-download filter: evaluate rules against what is known before fetching.
+        # Rules that depend on media_type or actual size won't fire here (those
+        # fields are None at this point) and will be re-evaluated post-download.
+        filter_config = _get_filter_config(job)
+        notification_props = job.get('payload', {}).get('properties', {})
+        pre_ctx = MatchContext(
+            topic=topic,
+            centre_id=centre_id if centre_id != 'unknown' else None,
+            data_id=data_id,
+            metadata_id=metadata_id,
+            href=download_url,
+            size=expected_length,
+            properties=notification_props,
+        )
+        pre_action, pre_reason = _apply_job_filter(filter_config, pre_ctx)
+        if pre_action == 'reject':
+            result['status'] = STATUS_SKIPPED
+            result['reason'] = pre_reason or "Rejected by pre-download filter"
+            result['error_class'] = "FilterRejected"
+            LOGGER.debug(f"File {output_path} rejected pre-download: {pre_reason}")
+            return result
+
         # check if the file exists, if so we have already processed this notification
         if output_path.exists() and not overwrite:
             result['status'] = STATUS_SKIPPED
@@ -411,13 +424,24 @@ def download_from_wis2(self, job):
 
         file_type, _ = guess_file_type(data)
         result['media_type'] = file_type
-        # check if media_type is allowed
-        filters = job.get('filters', {})
-        if not _is_allowed_media_type(file_type, filters):
+
+        # Post-download filter: re-evaluate with full context (media_type and actual size now known).
+        post_ctx = MatchContext(
+            topic=topic,
+            centre_id=centre_id if centre_id != 'unknown' else None,
+            data_id=data_id,
+            metadata_id=metadata_id,
+            href=download_url,
+            media_type=file_type,
+            size=len(data),
+            properties=notification_props,
+        )
+        post_action, post_reason = _apply_job_filter(filter_config, post_ctx)
+        if post_action == 'reject':
             result['status'] = STATUS_SKIPPED
-            result['reason'] = f"Media type '{file_type}' not allowed by filter"
-            result['error_class'] = "MediaTypeNotAllowed"
-            LOGGER.debug(f"File {output_path} skipped, media type '{file_type}' not allowed by filter")
+            result['reason'] = post_reason or "Rejected by post-download filter"
+            result['error_class'] = "FilterRejected"
+            LOGGER.debug(f"File {output_path} rejected post-download: {post_reason}")
             return result
 
         # hash verification

@@ -164,8 +164,11 @@ sudo setfacl -R -d -m u:youruser:rx downloads
 # Check all services are running
 docker-compose ps
 
-# Check health endpoint
+# Check health endpoint (subscription manager)
 curl http://localhost:5002/health
+
+# Check web UI is up
+curl -o /dev/null -s -w "%{http_code}" http://localhost:8080
 
 # View logs
 docker-compose logs -f subscriber
@@ -315,6 +318,33 @@ docker-compose logs -f subscriber
 |Comma-separated list of global cache hostnames to exclude
 |===
 
+==== Web UI Settings
+
+[cols="2,1,1,4"]
+|===
+|Variable |Type |Default |Description
+
+|`WIS2_SUBSCRIPTION_MANAGER_URL`
+|string
+|`http://subscription-manager:5001`
+|Internal URL the UI uses to reach the subscription manager API
+
+|`WIS2_GRAFANA_URL`
+|string
+|`http://localhost:3000`
+|URL used to embed Grafana panels in the Dashboard view
+
+|`STORAGE_SECRET`
+|string
+|`wis2box-rx-secret`
+|NiceGUI session storage secret key — set a unique value in production
+
+|`GDC_CACHE_TTL_SECONDS`
+|integer
+|`21600`
+|Seconds to cache GDC catalogue data in Redis (default 6 hours); set to `0` to always fetch live
+|===
+
 === File Structure
 
 [source]
@@ -330,7 +360,8 @@ wis2downloader-refactor/
 │   ├── shared/                  # Shared utilities
 │   ├── subscriber/              # MQTT subscriber
 │   ├── subscription_manager/    # REST API
-│   └── task_manager/            # Celery tasks
+│   ├── task_manager/            # Celery tasks
+│   └── ui/                      # NiceGUI web interface
 ├── docker-compose.yaml
 ├── default.env
 └── README.adoc
@@ -347,11 +378,10 @@ The system uses a single Redis instance for:
 * Deduplication tracking
 * Celery task queue and results
 
-For production deployments requiring high availability, consider:
+The system uses a single Redis instance and does not provide high availability. Regardless of scale, ensure Redis data is durable:
 
-* Using external managed Redis (AWS ElastiCache, Azure Cache for Redis)
-* Running Redis with persistence enabled (AOF + RDB)
-* Implementing regular backups
+* Enable Redis persistence (AOF + RDB)
+* Implement regular backups of the Redis dump
 
 === Scaling Workers
 
@@ -639,3 +669,38 @@ docker network inspect wis2downloader-refactor_redis-net
 * Prometheus scrape interval is 15 seconds by default
 * Check Prometheus targets: `http://localhost:9090/targets`
 * Verify metrics endpoint: `curl http://localhost:5002/metrics`
+
+=== Web UI: Catalogue Data Not Loaded
+
+If the Catalogue Search or Tree Search views show "Catalogue data not loaded":
+
+1. Check whether the UI container started successfully:
++
+[source,bash]
+----
+docker-compose logs wis2downloader-ui | tail -30
+----
+
+2. Confirm the GDC cache keys exist in Redis:
++
+[source,bash]
+----
+docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "gdc:cache:*"
+----
++
+If no keys are present, the initial fetch either failed or is still in progress. Wait a moment and reload the page.
+
+3. Force a fresh fetch from the Settings view (`http://localhost:8080`) by clicking *Refresh GDC data*, or by restarting the UI container:
++
+[source,bash]
+----
+docker-compose restart wis2downloader-ui
+----
+
+4. If the GDC fetch consistently fails, check network connectivity from the UI container to the public GDC endpoints:
++
+[source,bash]
+----
+docker exec wis2downloader-ui curl -s -o /dev/null -w "%{http_code}" \
+  https://wis2-gdc.weather.gc.ca/collections/wis2-discovery-metadata/items?limit=1
+----

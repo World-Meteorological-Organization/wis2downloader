@@ -5,7 +5,7 @@
 :icons: font
 :source-highlighter: highlight.js
 
-A scalable, high-availability system for downloading data from WIS2 (WMO Information System 2.0) Global Brokers.
+A scalable system for downloading data from WIS2 (WMO Information System 2.0) Global Brokers.
 
 toc::[]
 

@@ -1,5 +1,40 @@
 # WIS2 Downloader Refactor - Progress Log
 
+## 2026-02-20
+
+### UI Module: Bug Fixes and Architecture Improvements - COMPLETE
+
+**Bug Fixes:**
+- Fixed `show_metadata` failing for records where the CMA GDC omits `channel` fields in links (e.g. Kazakhstan synop record). `show_metadata` now looks up the record directly from `merged_records()` rather than relying on a per-session flat index.
+- Fixed `_build_merged_records()` discrepancy detection to also flag records where link sets differ between catalogues.
+- Fixed `KeyError: 'datasets'` in `_insert_channel()` when a channel string is a prefix of another (e.g. `cache/a/wis2/centre` and `cache/a/wis2/centre/data/...`). Root cause was overwriting the `children` dict; fixed using `setdefault` for each level independently.
+- Fixed catalogue search breaking after `render()` was incorrectly changed to `async def` — synchronous callers in `show_view()` cannot `await` it.
+- Fixed confirmation dialog rendering too narrow (292 px). Root cause: `.dialog-confirm` class was on `ui.scroll_area` instead of `ui.card`, and buttons were inside the scroll area.
+
+**Architecture:**
+- `merged_records()` and `topic_hierarchy()` are now module-level caches in `data.py`, computed once at the end of `scrape_all()`. Previously `_build_merged_records()` was called on every `merged_records()` invocation.
+- Added `get_datasets_for_channel(channel)` — strips trailing `/#`, navigates the topic hierarchy, and recursively collects all datasets from that node and its descendants.
+- Removed `state.features` — the module-level `_topic_hierarchy` in `data.py` is now the single source of truth for channel→dataset mapping.
+- `AppState` reduced to `selected_topics` only; `features`, `selected_datasets`, and `tree_widget` fields removed.
+- Link merging: `_build_merged_records()` unions channel-bearing links from all GDCs onto the primary record, so channel data present in any catalogue is preserved on the merged record.
+
+**New Features:**
+- Subscription confirmation dialog: before sending to the subscription manager, a dialog shows the full JSON payload (pretty-printed) with Cancel / Confirm buttons.
+- Catalogue dataset filter locks to the selected record and is non-editable when a dataset is selected from search results.
+- Custom filters (derived from MQTT link metadata `filters` key) are shown in the right sidebar only when selecting from catalogue search results; hidden in tree view.
+- Tree view: single-topic selection enforced via `on_select` (native NiceGUI/Quasar behaviour). Using `on_tick` was rejected as it requires a timer race to reset internal state.
+- Tree view: topics sorted alphabetically at every level of the hierarchy.
+
+**Changed Files:**
+- `modules/ui/data.py` — added `_merged_records`, `_topic_hierarchy`, `_insert_channel()`, `_collect_datasets()`, `_build_topic_hierarchy()`, `get_datasets_for_channel()`, `topic_hierarchy()`; `scrape_all()` rebuilds both caches on completion
+- `modules/ui/views/tree.py` — replaced `put_in_dicc` tree-builder with `_to_tree_nodes()`; switched to `on_select`; alphabetical sorting
+- `modules/ui/views/catalogue.py` — removed `state.features` population; pass `dataset_id` to `on_topics_picked`; reverted `render` to `def`
+- `modules/ui/views/shared.py` — removed `state.features` from `clean_page`; `on_topics_picked` accepts `dataset_id` param; `show_metadata` looks up from `merged_records()`; added `confirm_subscribe()` dialog
+- `modules/ui/main.py` — `AppState` reduced to `selected_topics`
+- `modules/ui/assets/base.css` — added `.dialog-scroll` and `.dialog-confirm` sizing rules
+
+---
+
 ## 2026-02-02
 
 ### Phase 8: Security Hardening - COMPLETE
@@ -70,8 +105,6 @@ Sentinel was over-engineered for most deployment scenarios. Single Redis provide
 - Reduced resource usage (5 fewer containers)
 - Faster startup time
 - Easier local development
-
-For production HA, external managed Redis (AWS ElastiCache, Azure Cache) is recommended.
 
 ---
 

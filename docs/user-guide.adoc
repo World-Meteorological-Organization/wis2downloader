@@ -12,6 +12,118 @@ WIS2 Downloader automatically downloads data from WIS2 (WMO Information System 2
 subscriptions. You create subscriptions to specify which data topics you're interested in, and the system handles
 downloading and organizing the files.
 
+Subscriptions can be created through the browser-based web interface (recommended) or directly via the REST API.
+
+== Web Interface
+
+The web interface is available at `http://localhost:8080`. It provides a visual way to discover available WIS2 datasets, browse the topic hierarchy, and create subscriptions without using the REST API directly.
+
+=== Navigation
+
+The navigation drawer on the left gives access to five views:
+
+[cols="1,3"]
+|===
+|View |Description
+
+|*Dashboard*
+|Embedded Grafana panels showing download rates, queue depth, and byte totals in real time
+
+|*Catalogue Search*
+|Full-text search across all three Global Discovery Catalogues (GDC) with filtering by data policy, keywords, and bounding box
+
+|*Tree Search*
+|Browse the complete WIS2 topic hierarchy as a navigable tree and select a topic to open the subscription sidebar
+
+|*Subscriptions*
+|List all active subscriptions and unsubscribe from topics
+
+|*Settings*
+|View GDC record counts per catalogue and trigger a manual data refresh
+|===
+
+=== Catalogue Search
+
+The Catalogue Search view queries records fetched from the three WIS2 Global Discovery Catalogues (CMA, DWD, ECCC), merged into a single deduplicated list.
+
+==== Search Filters
+
+[cols="1,3"]
+|===
+|Filter |Description
+
+|Search text
+|Matches against dataset ID, title, description, version, keywords, and theme concepts
+
+|Data Policy
+|`all` (default), `core`, or `recommended` — based on the WMO Unified Data Policy
+
+|Keywords
+|Comma-separated list; all keywords must appear in the record
+
+|Bounding box
+|North/West/East/South decimal degrees; returns records whose geometry intersects the box
+|===
+
+Click *Filter* to run the search. Results are paginated at ten per page.
+
+==== Result Cards
+
+Each result card shows:
+
+* Dataset title and record ID
+* Data policy badge (`core` = green, `recommended` = red)
+* Source catalogue chips (CMA = blue, DWD = teal, ECCC = orange)
+* A warning icon if the record content differs between catalogues
+* *Show Metadata* — opens a dialog with full record details and an interactive map of the dataset's geographic extent
+* *Select* / *Unselect* — adds or removes the dataset's MQTT topic to the subscription sidebar
+
+=== Tree Search
+
+The Tree Search view renders the complete WIS2 topic hierarchy derived from all loaded GDC records. Expand nodes to navigate down to individual topics. Type in the filter box at the top to search across all node labels. Click a leaf node to open the subscription sidebar.
+
+NOTE: Only one topic can be active at a time in the tree view.
+
+=== Creating a Subscription from the UI
+
+When a topic is selected (from catalogue search or the tree view), the subscription sidebar opens on the right.
+
+[cols="1,3"]
+|===
+|Field |Description
+
+|Selected Topics
+|The active MQTT topic(s)
+
+|Save directory
+|Path under `/data` where files will be saved (default `./`)
+
+|Datasets
+|Filter downloads to specific datasets; locked to the selected record in catalogue view
+
+|Media types
+|Restrict downloads by MIME type
+
+|Bounding box
+|Spatial filter applied at download time
+
+|Date & time range
+|Temporal filter applied at download time
+
+|Custom filters
+|Dataset-specific filter fields from the GDC record's link metadata (catalogue view only)
+|===
+
+Click *Subscribe* to open a confirmation dialog showing the full JSON payload. Review it, then click *Confirm* to create the subscription, or *Cancel* to go back.
+
+=== Managing Subscriptions
+
+The Subscriptions view lists all active subscriptions with their save paths. Click *Unsubscribe* on any entry to remove it. Use *Reload Subscriptions* to refresh the list after any changes made via the API.
+
+=== Settings
+
+The Settings view shows how many records were loaded from each GDC. Click *Refresh GDC data* to force a fresh fetch from all three catalogues, bypassing the Redis cache.
+
 == Understanding WIS2 Topics
 
 WIS2 uses MQTT topic hierarchies to organize data. Topics follow this pattern:
@@ -55,11 +167,13 @@ cache/a/wis2/{centre-id}/data/{data-policy}/{earth-system-domain}/{category}/...
 |Matches zero or more levels (must be at end of topic)
 |===
 
-== Managing Subscriptions
+== Managing Subscriptions via the REST API
+
+Subscriptions can also be managed programmatically using the REST API at `http://localhost:5002`.
+
+TIP: Use the Swagger UI at `http://localhost:5002/swagger` for interactive API exploration.
 
 === Creating a Subscription
-
-Use the REST API to create subscriptions:
 
 [source,bash]
 ----
@@ -80,8 +194,6 @@ Response:
   "target": "surface-obs"
 }
 ----
-
-TIP: Use the Swagger UI at `http://localhost:5002/swagger` for interactive API exploration.
 
 === Subscription Parameters
 

@@ -2,13 +2,12 @@ import json
 import os
 from pathlib import Path
 from urllib.parse import unquote
+from uuid import uuid4
 import yaml
 from flask import Flask, request, jsonify, url_for, Response, render_template
-from prometheus_client import generate_latest, CollectorRegistry, multiprocess
-from prometheus_client import Gauge
 from redis.exceptions import ConnectionError
 
-from shared import get_redis_client, setup_logging
+from shared import get_redis_client, setup_logging, set_gauge, generate_prometheus_text
 
 # Set up logging
 setup_logging()  # Configure root logger
@@ -23,6 +22,7 @@ try:
 except Exception as e:
     LOGGER.error(f"Error getting flask host and port: {e}")
     raise e
+
 
 def get_json() -> dict:
     """Get JSON body safely."""
@@ -51,62 +51,104 @@ def normalise_path(userpath: str) -> str | None:
 
     return str(resolved_path.relative_to(DATA_DIRECTORY))
 
+
 # Redis pub/sub channel for subscription commands
 COMMAND_CHANNEL = "subscription_commands"
 
-# Now set up flask app
+# Redis key — flat hash: sub_id → JSON({id, topic, save_path, filter})
+GLOBAL_SUBSCRIPTIONS_KEY = "global:subscriptions"
+
+# Flask app
 FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY')
 if not FLASK_SECRET_KEY:
     raise ValueError("FLASK_SECRET_KEY must be set")
 app = Flask(__name__, instance_relative_config=True)
 app.config.from_mapping(SECRET_KEY=FLASK_SECRET_KEY)
 
-# Redis key for storing subscriptions
-GLOBAL_SUBSCRIPTION_KEY = "global:all_subscriptions"
 
+# ==================== REDIS HELPERS ====================
 
-
-def publish_command(command, channel):
+def publish_command(command: dict) -> bool:
     try:
         redis_client = get_redis_client()
-        redis_client.publish(channel, json.dumps(command))
-        LOGGER.info(f"Published command to {channel}: {command}")
+        redis_client.publish(COMMAND_CHANNEL, json.dumps(command))
+        LOGGER.info(f"Published command: {command}")
         return True
     except ConnectionError as e:
         LOGGER.error(f"Failed to publish command to Redis: {e}")
         return False
     except Exception as e:
-        LOGGER.error(f"Unexpected error: {e}")
+        LOGGER.error(f"Unexpected error publishing command: {e}")
         return False
 
-def persist_subscription(topic, save_path, filters):
+
+def _get_all_subscriptions() -> dict:
+    """Read all subscriptions from Redis. Returns {sub_id: sub_data}."""
+    redis_client = get_redis_client()
+    raw = redis_client.hgetall(GLOBAL_SUBSCRIPTIONS_KEY)
+    result = {}
+    for k, v in raw.items():
+        sub_id = k.decode('utf-8')
+        try:
+            result[sub_id] = json.loads(v.decode('utf-8'))
+        except json.JSONDecodeError:
+            LOGGER.warning(f"Could not decode subscription {sub_id}")
+    return result
+
+
+def _get_subscription(sub_id: str) -> dict | None:
+    """Read a single subscription. Returns None if not found."""
     try:
         redis_client = get_redis_client()
-        data_to_persist = {
-            "topic": topic,
-            "save_path": save_path,
-            "filters": filters
-        }
-        redis_client.hset(GLOBAL_SUBSCRIPTION_KEY, topic, json.dumps(data_to_persist))
-        LOGGER.info(f"Persisted subscription for topic {topic}")
-        return True
-
-    except ConnectionError as e:
-        LOGGER.error(f"Failed to persist subscriptions to Redis: {e}")
-        return False
-
+        raw = redis_client.hget(GLOBAL_SUBSCRIPTIONS_KEY, sub_id)
+        if raw is None:
+            return None
+        return json.loads(raw.decode('utf-8'))
     except Exception as e:
-        LOGGER.error(f"Unexpected error: {e}")
+        LOGGER.error(f"Error reading subscription '{sub_id}': {e}")
+        return None
+
+
+def _persist_subscription(sub_id: str, sub_data: dict) -> bool:
+    try:
+        redis_client = get_redis_client()
+        redis_client.hset(GLOBAL_SUBSCRIPTIONS_KEY, sub_id, json.dumps(sub_data))
+        return True
+    except Exception as e:
+        LOGGER.error(f"Error persisting subscription '{sub_id}': {e}")
         return False
+
+
+def _delete_subscription(sub_id: str) -> bool:
+    try:
+        redis_client = get_redis_client()
+        redis_client.hdel(GLOBAL_SUBSCRIPTIONS_KEY, sub_id)
+        return True
+    except Exception as e:
+        LOGGER.error(f"Error deleting subscription '{sub_id}': {e}")
+        return False
+
+
+def _subs_for_topic(topic: str, all_subs: dict) -> dict:
+    """Return {sub_id: sub_data} for all subscriptions matching a topic."""
+    return {k: v for k, v in all_subs.items() if v.get('topic') == topic}
+
+
+def _group_by_topic(all_subs: dict) -> dict:
+    """Group flat {sub_id: sub_data} into {topic: {sub_id: {save_path, filter}}}."""
+    grouped: dict[str, dict] = {}
+    for sub_id, sub_data in all_subs.items():
+        topic = sub_data.get('topic')
+        if not topic:
+            continue
+        grouped.setdefault(topic, {})[sub_id] = {
+            'save_path': sub_data.get('save_path'),
+            'filter': sub_data.get('filter', {}),
+        }
+    return grouped
 
 
 CELERY_DEFAULT_QUEUE = os.getenv("CELERY_DEFAULT_QUEUE", "celery")
-CELERY_QUEUE_LENGTH = Gauge(
-    'wis2downloader_celery_queue_length',
-    'Current number of tasks in the Celery default queue.',
-    ['queue_name'],
-    multiprocess_mode='livesum'
-)
 
 
 # preload openapi doc
@@ -122,127 +164,158 @@ def load_openapi():
 OPENAPI = load_openapi()
 
 
-# Define routes for subscription manager
-# GET list of subscriptions
-@app.route('/subscriptions')
+# ==================== SUBSCRIPTIONS ====================
+
+@app.get('/subscriptions')
 def list_subscriptions():
-    subscriptions = {}
+    """List all subscriptions grouped by topic.
+
+    Returns: {topic: {sub_id: {save_path, filter}}}
+    """
     try:
-        redis_client = get_redis_client()
-        all_topics_bytes = redis_client.hgetall(GLOBAL_SUBSCRIPTION_KEY)
-        if not all_topics_bytes:
-            return jsonify(subscriptions), 200
-
-        for topic_bytes, data_bytes in all_topics_bytes.items():
-            topic = topic_bytes.decode('utf-8')
-            try:
-                details = json.loads(data_bytes.decode('utf-8'))
-                subscriptions[topic] = details
-
-            except json.JSONDecodeError:
-                LOGGER.warning(f"Failed to decode subscription for topic {topic}")
-                continue
-
+        return jsonify(_group_by_topic(_get_all_subscriptions())), 200
     except ConnectionError as e:
         return jsonify({"error": f"Failed to connect to Redis: {e}"}), 503
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {e}"}), 500
 
 
-    return jsonify(subscriptions), 200
-
-
-# POST (add) new subscription
 @app.post('/subscriptions')
 def add_subscription():
+    """Create a new subscription. Assigns a UUID and returns the full subscription."""
     data = get_json()
 
-    # Get and validate topic
     topic = normalise_topic(data.get('topic'))
     if topic is None:
         return jsonify({"error": "No topic provided"}), 400
 
-    # Get location (target) where we want to save the data for this topic
-    target = normalise_path(data.get('target', ''))
+    save_path = normalise_path(data.get('target', '') or '')
+    # accept both 'filter' (new) and 'filters' (legacy) in the request body
+    filter_config = data.get('filter') or data.get('filters') or {}
 
-    # get filters specified
-    filters = data.get('filters', {})
-
-    command = {
-        "action": "subscribe",
-        "topic": topic,
-        "save_path": target,
-        "filters": filters
+    sub_id = str(uuid4())
+    sub_data = {
+        'id': sub_id,
+        'topic': topic,
+        'save_path': save_path,
+        'filter': filter_config,
     }
 
-    # Publish command to subscriber via Redis
-    if not publish_command(command, COMMAND_CHANNEL):
-        return jsonify({"error": "Failed to queue subscription command, Redis service unavailable"}), 503
+    try:
+        all_subs = _get_all_subscriptions()
+    except ConnectionError as e:
+        return jsonify({"error": f"Failed to connect to Redis: {e}"}), 503
 
-    # Persist subscription to Redis
-    if not persist_subscription(topic, target, command.get("filters")):
-        return jsonify({"error": "Failed to persist subscription to redis"}), 503
+    existing_for_topic = _subs_for_topic(topic, all_subs)
+    is_new_topic = len(existing_for_topic) == 0
 
-    # Create response
-    response = jsonify({"status": "accepted", "topic": topic, "target": target})
-    response.status_code = 202
-    response.headers['Location'] = url_for('get_subscription', topic=topic)
+    if not _persist_subscription(sub_id, sub_data):
+        return jsonify({"error": "Failed to persist subscription to Redis"}), 503
+
+    if is_new_topic:
+        # First subscription for this topic — create the MQTT subscription
+        command = {
+            "action": "subscribe",
+            "topic": topic,
+            "subscriptions": {
+                sub_id: {'id': sub_id, 'save_path': save_path, 'filter': filter_config}
+            },
+        }
+    else:
+        # Topic already subscribed — register the new subscription with the subscriber
+        command = {
+            "action": "add_subscription",
+            "topic": topic,
+            "sub_id": sub_id,
+            "save_path": save_path,
+            "filter": filter_config,
+        }
+
+    if not publish_command(command):
+        return jsonify({"error": "Failed to queue subscription command, Redis unavailable"}), 503
+
+    response = jsonify(sub_data)
+    response.status_code = 201
+    response.headers['Location'] = url_for('get_subscription', sub_id=sub_id)
     return response
 
 
-# GET information on subscription
-@app.get('/subscriptions/<path:topic>')
-def get_subscription(topic):
-    topic = unquote(topic)
-    if not topic:
-        return jsonify({"error": "No topic passed"}), 400
+@app.get('/subscriptions/<sub_id>')
+def get_subscription(sub_id):
+    """Get details for a specific subscription."""
+    sub_data = _get_subscription(sub_id)
+    if sub_data is None:
+        return jsonify({"error": f"Subscription '{sub_id}' not found"}), 404
+    return jsonify(sub_data), 200
+
+
+@app.put('/subscriptions/<sub_id>')
+def update_subscription(sub_id):
+    """Update a subscription's save path or filter."""
+    sub_data = _get_subscription(sub_id)
+    if sub_data is None:
+        return jsonify({"error": f"Subscription '{sub_id}' not found"}), 404
+
+    data = get_json()
+    if 'target' in data:
+        sub_data['save_path'] = normalise_path(data['target'])
+    if 'filter' in data:
+        sub_data['filter'] = data['filter']
+
+    if not _persist_subscription(sub_id, sub_data):
+        return jsonify({"error": "Failed to persist update to Redis"}), 503
+
+    command = {
+        "action": "update_subscription",
+        "topic": sub_data['topic'],
+        "sub_id": sub_id,
+        "save_path": sub_data['save_path'],
+        "filter": sub_data['filter'],
+    }
+    if not publish_command(command):
+        return jsonify({"error": "Failed to queue update command"}), 503
+
+    return jsonify(sub_data), 200
+
+
+@app.delete('/subscriptions/<sub_id>')
+def delete_subscription(sub_id):
+    """Delete a subscription. Sends unsubscribe only when the last subscription for the topic is removed."""
+    sub_data = _get_subscription(sub_id)
+    if sub_data is None:
+        return jsonify({"error": f"Subscription '{sub_id}' not found"}), 404
+
+    topic = sub_data['topic']
+
+    if not _delete_subscription(sub_id):
+        return jsonify({"error": "Failed to delete subscription from Redis"}), 503
+
     try:
-        redis_client = get_redis_client()
-        subscription_data = redis_client.hget(GLOBAL_SUBSCRIPTION_KEY, topic)
-        if subscription_data is None:
-            return jsonify({"error": f"Subscription for topic {topic} not found"}), 404
-
-        subscription_data = json.loads(subscription_data)
-        return jsonify(subscription_data), 200
-
+        remaining = _subs_for_topic(topic, _get_all_subscriptions())
     except ConnectionError as e:
         return jsonify({"error": f"Failed to connect to Redis: {e}"}), 503
-    except Exception as e:
-        return jsonify({"error": f"Unexpected error: {e}"}), 500
+
+    if len(remaining) == 0:
+        # Last subscription for this topic — close the MQTT subscription
+        command = {"action": "unsubscribe", "topic": topic}
+    else:
+        # Other subscriptions remain — just remove this one from the routing table
+        command = {"action": "remove_subscription", "topic": topic, "sub_id": sub_id}
+
+    if not publish_command(command):
+        return jsonify({"error": "Failed to queue command"}), 503
+
+    return jsonify({"status": "deleted", "id": sub_id}), 200
 
 
-# DELETE subscription
-@app.delete('/subscriptions/<path:topic>')
-def delete_subscription(topic):
-    topic = unquote(topic)
-    if not topic:
-        return jsonify({"error": "No topic provided"}), 400
+# ==================== MONITORING ====================
 
-    # Publish unsubscribe command to subscriber via Redis
-    command = {"action": "unsubscribe", "topic": topic}
-    if not publish_command(command, COMMAND_CHANNEL):
-        return jsonify({"error": "Failed to queue unsubscribe command"}), 503
-
-    # Remove subscription from Redis
-    try:
-        redis_client = get_redis_client()
-        redis_client.hdel(GLOBAL_SUBSCRIPTION_KEY, topic)
-        LOGGER.info(f"Removed subscription: {topic}")
-    except Exception as e:
-        LOGGER.error(f"Failed to remove subscription from Redis: {e}")
-        return jsonify({"error": "Failed to remove subscription"}), 503
-
-    return jsonify({"status": "deleted", "topic": topic}), 200
-
-
-# Swagger end point
 @app.route('/')
 @app.route('/swagger')
 def render_swagger():
     return render_template('swagger.html', )
 
 
-# Openapi doc endpoint
 @app.route('/openapi')
 def fetch_openapi():
     return jsonify(OPENAPI)
@@ -254,28 +327,23 @@ def expose_metrics():
     try:
         redis_client = get_redis_client()
         queue_length = redis_client.llen(CELERY_DEFAULT_QUEUE)
-        CELERY_QUEUE_LENGTH.labels(queue_name=CELERY_DEFAULT_QUEUE).set(queue_length)
+        set_gauge('celery_queue_length', {'queue_name': CELERY_DEFAULT_QUEUE}, queue_length)
 
-        registry = CollectorRegistry()
-        basedir = os.getenv('PROMETHEUS_MULTIPROC_DIR', '/tmp/prometheus_metrics')
-        multiprocess.MultiProcessCollector(registry, path=basedir)
-
-        return Response(generate_latest(registry), mimetype="text/plain")
+        text = generate_prometheus_text()
+        return Response(text, mimetype="text/plain")
 
     except Exception as e:
         LOGGER.error(f"Failed to generate metrics: {e}")
         return Response("Error generating metrics", status=500, mimetype="text/plain")
 
 
-# health check end point
 @app.route('/health')
 def health_check():
-    # Health check that pings the Sentinel-aware Redis client
     try:
         get_redis_client().ping()
         status = 'healthy'
     except Exception as e:
-        LOGGER.error(f"Redis Sentinel connection failed for health check: {e}")
+        LOGGER.error(f"Redis connection failed for health check: {e}")
         status = 'unhealthy'
 
     return Response(response=json.dumps({'status': status}), status=200,

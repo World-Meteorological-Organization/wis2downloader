@@ -59,22 +59,61 @@ class CommandListener(threading.Thread):
             command = json.loads(message['data'])
             action = command.get('action')
             topic = command.get('topic')
-            save_path = command.get('save_path')
+
             if not all([action, topic]):
                 LOGGER.warning(f'Invalid command received: {command}')
                 return
 
             if action == 'subscribe':
-                filters = command.get('filters', {})
-                self.subscriber.subscribe(topic, save_path, filters)
-                LOGGER.info(f'Subscribed to new topic: {topic}, save path = {save_path}')
+                subscriptions = command.get('subscriptions', {})
+                self.subscriber.subscribe(topic, subscriptions)
+                LOGGER.info(
+                    f"Subscribed to topic: {topic} "
+                    f"({len(subscriptions)} subscription(s))")
+
             elif action == 'unsubscribe':
                 self.subscriber.unsubscribe(topic)
                 LOGGER.info(f'Unsubscribed from {topic}')
+
+            elif action == 'add_subscription':
+                sub_id = command.get('sub_id')
+                if not sub_id:
+                    LOGGER.warning(f'add_subscription missing sub_id: {command}')
+                    return
+                self.subscriber.add_subscription(
+                    topic,
+                    sub_id,
+                    command.get('save_path', ''),
+                    command.get('filter', {}),
+                )
+                LOGGER.info(f'Added subscription {sub_id} to topic {topic}')
+
+            elif action == 'remove_subscription':
+                sub_id = command.get('sub_id')
+                if not sub_id:
+                    LOGGER.warning(f'remove_subscription missing sub_id: {command}')
+                    return
+                self.subscriber.remove_subscription(topic, sub_id)
+                LOGGER.info(f'Removed subscription {sub_id} from topic {topic}')
+
+            elif action == 'update_subscription':
+                sub_id = command.get('sub_id')
+                if not sub_id:
+                    LOGGER.warning(f'update_subscription missing sub_id: {command}')
+                    return
+                # update is an upsert
+                self.subscriber.add_subscription(
+                    topic,
+                    sub_id,
+                    command.get('save_path', ''),
+                    command.get('filter', {}),
+                )
+                LOGGER.info(f'Updated subscription {sub_id} on topic {topic}')
+
             else:
                 LOGGER.warning(f'Unknown action: {action}')
 
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             LOGGER.error(f'Failed to decode command: {message}')
         except Exception as e:
             LOGGER.error(f'Unexpected error: {e}')

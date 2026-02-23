@@ -2,460 +2,152 @@ openapi: 3.0.3
 x-api-id: wis2-downloader-api
 info:
   title: WIS2 Downloader API
-  version: 2.0.0
+  version: 3.0.0
   description: |
     REST API for managing WIS2 data subscriptions.
 
-    This API allows you to subscribe to WIS2 MQTT topics and configure
-    multiple destinations with different save paths and filters per topic.
-
-    **Key Concepts:**
-    - **Topic**: An MQTT topic pattern to subscribe to
-    - **Destination**: A save path + filter combination. One topic can have multiple destinations.
-    - **Filter**: A hierarchical rule-based filter that evaluates notification properties
+    Each subscription is identified by a UUID and binds together an MQTT topic,
+    a save destination, and an optional filter. Multiple subscriptions can share
+    the same topic — the MQTT connection is opened once and messages are routed
+    to every matching subscription.
   contact:
     name: WIS2 Downloader
+
 servers:
   - url: http://localhost:5002
     description: Local development server
 
 tags:
-  - name: Topics
-    description: Manage MQTT topic subscriptions
-  - name: Destinations
-    description: Manage destinations (save paths + filters) for topics
   - name: Subscriptions
-    description: Legacy subscription endpoints (backward compatible)
+    description: Manage WIS2 data subscriptions
   - name: Monitoring
     description: Health checks and metrics
 
 paths:
-  # ==================== TOPICS ====================
-  /topics:
-    get:
-      tags:
-        - Topics
-      summary: List all topics
-      description: Returns all subscribed MQTT topics with their destinations
-      operationId: listTopics
-      responses:
-        "200":
-          description: Map of topic to topic details with destinations
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties:
-                  $ref: '#/components/schemas/Topic'
-              example:
-                "cache/a/wis2/+/data/core/weather/surface-based-observations/#":
-                  topic: "cache/a/wis2/+/data/core/weather/surface-based-observations/#"
-                  destinations:
-                    "550e8400-e29b-41d4-a716-446655440000":
-                      id: "550e8400-e29b-41d4-a716-446655440000"
-                      name: "bufr-only"
-                      save_path: "surface-obs-bufr"
-                      filter:
-                        name: "bufr-filter"
-                        rules:
-                          - id: "accept-bufr"
-                            order: 1
-                            match:
-                              media_type:
-                                equals: "application/bufr"
-                            action: "accept"
-        "503":
-          $ref: '#/components/responses/ServiceUnavailable'
-
-    post:
-      tags:
-        - Topics
-      summary: Create topic subscription
-      description: |
-        Subscribe to a WIS2 MQTT topic. Creates the topic with no destinations initially.
-        Add destinations separately via POST /topics/{topic}/destinations.
-
-        **Topic Wildcards:**
-        - `+` matches exactly one level (e.g., country code)
-        - `#` matches zero or more levels (must be at end of topic)
-      operationId: createTopic
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - topic
-              properties:
-                topic:
-                  type: string
-                  description: WIS2 MQTT topic pattern
-                  example: "cache/a/wis2/+/data/core/weather/surface-based-observations/#"
-      responses:
-        "201":
-          description: Topic created
-          headers:
-            Location:
-              description: URL to retrieve topic details
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Topic'
-        "400":
-          $ref: '#/components/responses/BadRequest'
-        "409":
-          description: Topic already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                error: "Topic already exists"
-        "503":
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /topics/{topic}:
-    parameters:
-      - name: topic
-        in: path
-        required: true
-        description: URL-encoded WIS2 topic
-        schema:
-          type: string
-        example: "cache/a/wis2/+/data/core/weather/surface-based-observations/#"
-
-    get:
-      tags:
-        - Topics
-      summary: Get topic details
-      description: Returns topic details including all destinations
-      operationId: getTopic
-      responses:
-        "200":
-          description: Topic with all destinations
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Topic'
-        "404":
-          $ref: '#/components/responses/NotFound'
-        "503":
-          $ref: '#/components/responses/ServiceUnavailable'
-
-    delete:
-      tags:
-        - Topics
-      summary: Delete topic
-      description: Removes a topic subscription and ALL its destinations
-      operationId: deleteTopic
-      responses:
-        "200":
-          description: Topic deleted
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "deleted"
-                  topic:
-                    type: string
-        "404":
-          $ref: '#/components/responses/NotFound'
-        "503":
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  # ==================== DESTINATIONS ====================
-  /topics/{topic}/destinations:
-    parameters:
-      - name: topic
-        in: path
-        required: true
-        description: URL-encoded WIS2 topic
-        schema:
-          type: string
-
-    get:
-      tags:
-        - Destinations
-      summary: List destinations for topic
-      description: Returns all destinations configured for a topic
-      operationId: listDestinations
-      responses:
-        "200":
-          description: Map of destination ID to destination details
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties:
-                  $ref: '#/components/schemas/Destination'
-        "404":
-          $ref: '#/components/responses/NotFound'
-        "503":
-          $ref: '#/components/responses/ServiceUnavailable'
-
-    post:
-      tags:
-        - Destinations
-      summary: Add destination to topic
-      description: |
-        Add a new destination (save path + filter) to an existing topic.
-        When messages arrive on the topic, a download job is created for each destination.
-      operationId: createDestination
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DestinationRequest'
-            examples:
-              simple:
-                summary: Simple destination without filter
-                value:
-                  name: "all-data"
-                  target: "raw-data"
-              with_filter:
-                summary: Destination with hierarchical filter
-                value:
-                  name: "bufr-surface-european"
-                  target: "european-surface-bufr"
-                  filter:
-                    name: "european-bufr-filter"
-                    description: "Accept BUFR from European centres only"
-                    rules:
-                      - id: "reject-large"
-                        order: 1
-                        match:
-                          size:
-                            gt_bytes: 104857600
-                        action: "reject"
-                        reason: "File exceeds 100MB"
-                      - id: "accept-european-bufr"
-                        order: 2
-                        match:
-                          all:
-                            - media_type:
-                                equals: "application/bufr"
-                            - centre_id:
-                                in: ["de-dwd", "fr-meteofrance", "uk-metoffice"]
-                        action: "accept"
-                      - id: "default-reject"
-                        order: 999
-                        match:
-                          always: true
-                        action: "reject"
-              with_properties:
-                summary: Filter on WIS2 notification properties
-                value:
-                  name: "eccc-00z-short-range"
-                  target: "eccc-forecasts"
-                  filter:
-                    name: "eccc-00z-filter"
-                    rules:
-                      - id: "00z-short-range"
-                        order: 1
-                        match:
-                          all:
-                            - property: "model_run"
-                              type: "string"
-                              equals: "00"
-                            - property: "forecast_hour"
-                              type: "integer"
-                              lte: 48
-                        action: "accept"
-                      - id: "default"
-                        order: 999
-                        match:
-                          always: true
-                        action: "reject"
-      responses:
-        "201":
-          description: Destination created
-          headers:
-            Location:
-              description: URL to retrieve destination details
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Destination'
-        "400":
-          $ref: '#/components/responses/BadRequest'
-        "404":
-          $ref: '#/components/responses/NotFound'
-        "503":
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /topics/{topic}/destinations/{destination_id}:
-    parameters:
-      - name: topic
-        in: path
-        required: true
-        description: URL-encoded WIS2 topic
-        schema:
-          type: string
-      - name: destination_id
-        in: path
-        required: true
-        description: Destination UUID
-        schema:
-          type: string
-          format: uuid
-
-    get:
-      tags:
-        - Destinations
-      summary: Get destination details
-      description: Returns details for a specific destination
-      operationId: getDestination
-      responses:
-        "200":
-          description: Destination details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Destination'
-        "404":
-          $ref: '#/components/responses/NotFound'
-        "503":
-          $ref: '#/components/responses/ServiceUnavailable'
-
-    put:
-      tags:
-        - Destinations
-      summary: Update destination
-      description: Update destination name, save path, or filter
-      operationId: updateDestination
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DestinationRequest'
-      responses:
-        "200":
-          description: Destination updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Destination'
-        "400":
-          $ref: '#/components/responses/BadRequest'
-        "404":
-          $ref: '#/components/responses/NotFound'
-        "503":
-          $ref: '#/components/responses/ServiceUnavailable'
-
-    delete:
-      tags:
-        - Destinations
-      summary: Delete destination
-      description: |
-        Remove a destination from a topic. If this is the last destination,
-        the topic subscription is also removed.
-      operationId: deleteDestination
-      responses:
-        "200":
-          description: Destination deleted
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "deleted"
-                  destination_id:
-                    type: string
-                    format: uuid
-                  topic_removed:
-                    type: boolean
-                    description: True if the topic was also removed (no destinations left)
-        "404":
-          $ref: '#/components/responses/NotFound'
-        "503":
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  # ==================== LEGACY SUBSCRIPTIONS ====================
+  # ==================== SUBSCRIPTIONS ====================
   /subscriptions:
     get:
       tags:
         - Subscriptions
-      summary: List all subscriptions (legacy)
+      summary: List all subscriptions
       description: |
-        Returns all active WIS2 topic subscriptions in legacy format.
-        For topics with multiple destinations, returns the first destination's data.
+        Returns all active subscriptions grouped by MQTT topic.
 
-        **Deprecated:** Use GET /topics instead.
+        Each topic maps to a dict of subscription IDs, each containing
+        the save path and filter for that subscription.
       operationId: listSubscriptions
       responses:
         "200":
-          description: Map of topic to subscription details
+          description: Subscriptions grouped by topic
           content:
             application/json:
               schema:
                 type: object
+                description: Map of topic to subscriptions for that topic
                 additionalProperties:
-                  $ref: '#/components/schemas/LegacySubscription'
+                  type: object
+                  description: Map of subscription UUID to subscription detail
+                  additionalProperties:
+                    $ref: '#/components/schemas/SubscriptionDetail'
+              example:
+                "cache/a/wis2/+/data/core/weather/surface-based-observations/#":
+                  "550e8400-e29b-41d4-a716-446655440000":
+                    save_path: "surface-obs-bufr"
+                    filter:
+                      name: "bufr-filter"
+                      rules:
+                        - id: "accept-bufr"
+                          order: 1
+                          match:
+                            media_type:
+                              equals: "application/bufr"
+                          action: "accept"
+                  "661f9511-f30c-52e5-b827-557766551111":
+                    save_path: "surface-obs-all"
+                    filter: {}
         "503":
           $ref: '#/components/responses/ServiceUnavailable'
 
     post:
       tags:
         - Subscriptions
-      summary: Create subscription (legacy)
+      summary: Create a subscription
       description: |
-        Subscribe to a WIS2 MQTT topic with a single destination.
-        Creates topic + one destination with auto-generated ID.
+        Subscribe to a WIS2 MQTT topic. Assigns a UUID to the subscription and
+        returns the full subscription record.
 
-        **Deprecated:** Use POST /topics + POST /topics/{topic}/destinations instead.
+        If this is the first subscription for the given topic, an MQTT connection
+        is opened. Additional subscriptions for the same topic reuse the existing
+        MQTT connection.
+
+        **Topic wildcards:**
+        - `+` matches exactly one level (e.g., centre ID)
+        - `#` matches zero or more levels (must be at the end)
       operationId: createSubscription
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LegacySubscriptionRequest'
+              $ref: '#/components/schemas/SubscriptionRequest'
+            examples:
+              simple:
+                summary: Subscribe with no filter
+                value:
+                  topic: "cache/a/wis2/+/data/core/weather/surface-based-observations/#"
+                  target: "surface-obs"
+              with_filter:
+                summary: Subscribe with a rule-based filter
+                value:
+                  topic: "cache/a/wis2/+/data/core/weather/surface-based-observations/#"
+                  target: "surface-obs-bufr"
+                  filter:
+                    name: "bufr-only"
+                    rules:
+                      - id: "accept-bufr"
+                        order: 1
+                        match:
+                          media_type:
+                            equals: "application/bufr"
+                        action: "accept"
+                      - id: "default-reject"
+                        order: 999
+                        match:
+                          always: true
+                        action: "reject"
       responses:
-        "202":
-          description: Subscription accepted for processing
+        "201":
+          description: Subscription created
           headers:
             Location:
-              description: URL to retrieve subscription details
+              description: URL to retrieve the subscription
               schema:
                 type: string
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LegacySubscriptionResponse'
+                $ref: '#/components/schemas/Subscription'
         "400":
           $ref: '#/components/responses/BadRequest'
         "503":
           $ref: '#/components/responses/ServiceUnavailable'
 
-  /subscriptions/{topic}:
+  /subscriptions/{id}:
     parameters:
-      - name: topic
+      - name: id
         in: path
         required: true
-        description: URL-encoded WIS2 topic
+        description: Subscription UUID
         schema:
           type: string
+          format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
 
     get:
       tags:
         - Subscriptions
-      summary: Get subscription details (legacy)
-      description: |
-        Returns details for a specific subscription in legacy format.
-
-        **Deprecated:** Use GET /topics/{topic} instead.
+      summary: Get a subscription
+      description: Returns the full subscription record for the given UUID.
       operationId: getSubscription
       responses:
         "200":
@@ -463,7 +155,38 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LegacySubscription'
+                $ref: '#/components/schemas/Subscription'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Subscriptions
+      summary: Update a subscription
+      description: |
+        Update the save path or filter for a subscription. The topic cannot be
+        changed — delete and recreate to change the topic.
+      operationId: updateSubscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target:
+                  type: string
+                  description: New subdirectory under data root
+                  example: "surface-obs-bufr-v2"
+                filter:
+                  $ref: '#/components/schemas/Filter'
+      responses:
+        "200":
+          description: Updated subscription
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
         "404":
           $ref: '#/components/responses/NotFound'
         "503":
@@ -472,11 +195,10 @@ paths:
     delete:
       tags:
         - Subscriptions
-      summary: Delete subscription (legacy)
+      summary: Delete a subscription
       description: |
-        Removes a subscription and stops receiving data for the topic.
-
-        **Deprecated:** Use DELETE /topics/{topic} instead.
+        Remove a subscription. If this is the last subscription for its topic
+        the MQTT connection for that topic is closed.
       operationId: deleteSubscription
       responses:
         "200":
@@ -488,11 +210,12 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: deleted
-                  topic:
+                    example: "deleted"
+                  id:
                     type: string
-        "400":
-          $ref: '#/components/responses/BadRequest'
+                    format: uuid
+        "404":
+          $ref: '#/components/responses/NotFound'
         "503":
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -520,10 +243,10 @@ paths:
       description: |
         Returns metrics in Prometheus text format.
 
-        **Available Metrics:**
+        **Available metrics:**
         - `wis2downloader_notifications_total` - Total notifications by status
-        - `wis2downloader_downloads_total` - Successfully downloaded files by cache and media type
-        - `wis2downloader_downloads_bytes_total` - Total bytes downloaded by cache and media type
+        - `wis2downloader_downloads_total` - Successful downloads by cache and media type
+        - `wis2downloader_downloads_bytes_total` - Total bytes downloaded
         - `wis2downloader_skipped_total` - Skipped notifications by reason
         - `wis2downloader_failed_total` - Failed downloads by cache and reason
         - `wis2downloader_celery_queue_length` - Current tasks in queue
@@ -543,7 +266,6 @@ paths:
       tags:
         - Monitoring
       summary: OpenAPI specification
-      description: Returns this OpenAPI specification as JSON
       operationId: getOpenAPI
       responses:
         "200":
@@ -555,8 +277,39 @@ paths:
 
 components:
   schemas:
-    # ==================== TOPIC SCHEMAS ====================
-    Topic:
+    Subscription:
+      type: object
+      description: Full subscription record as stored and returned by the API
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique subscription identifier (assigned on creation)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        topic:
+          type: string
+          description: WIS2 MQTT topic pattern
+          example: "cache/a/wis2/+/data/core/weather/surface-based-observations/#"
+        save_path:
+          type: string
+          nullable: true
+          description: Subdirectory under the data root where files are saved
+          example: "surface-obs-bufr"
+        filter:
+          $ref: '#/components/schemas/Filter'
+
+    SubscriptionDetail:
+      type: object
+      description: Subscription detail as it appears in the grouped list response (excludes id and topic, which are the enclosing keys)
+      properties:
+        save_path:
+          type: string
+          nullable: true
+          example: "surface-obs-bufr"
+        filter:
+          $ref: '#/components/schemas/Filter'
+
+    SubscriptionRequest:
       type: object
       required:
         - topic
@@ -565,40 +318,6 @@ components:
           type: string
           description: WIS2 MQTT topic pattern
           example: "cache/a/wis2/+/data/core/weather/surface-based-observations/#"
-        destinations:
-          type: object
-          description: Map of destination ID to destination details
-          additionalProperties:
-            $ref: '#/components/schemas/Destination'
-
-    # ==================== DESTINATION SCHEMAS ====================
-    Destination:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: Unique destination identifier
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        name:
-          type: string
-          description: Human-readable name for this destination
-          example: "bufr-only"
-        save_path:
-          type: string
-          nullable: true
-          description: Subdirectory under data root where files are saved
-          example: "surface-obs"
-        filter:
-          $ref: '#/components/schemas/Filter'
-
-    DestinationRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Human-readable name for this destination
-          example: "bufr-surface-obs"
         target:
           type: string
           description: Subdirectory under data root where files are saved
@@ -606,27 +325,19 @@ components:
         filter:
           $ref: '#/components/schemas/Filter'
 
-    # ==================== FILTER SCHEMAS ====================
     Filter:
       type: object
       description: |
-        Hierarchical rule-based filter. Rules are evaluated in order.
-        First matching rule determines the action (accept/reject).
+        Hierarchical rule-based filter. Rules are evaluated in order;
+        the first matching rule's action is applied.
       properties:
         name:
           type: string
           description: Filter name for identification
-          example: "european-bufr-filter"
+          example: "bufr-only"
         description:
           type: string
           description: Human-readable description of filter purpose
-        mode:
-          type: string
-          enum: [first_match, all]
-          default: first_match
-          description: |
-            - `first_match`: Stop at first matching rule (default)
-            - `all`: Evaluate all rules (for logging/debugging)
         rules:
           type: array
           description: Ordered list of filter rules
@@ -655,39 +366,33 @@ components:
           type: string
           enum: [accept, reject, continue]
           description: |
-            - `accept`: Accept the notification for download
-            - `reject`: Skip the notification
-            - `continue`: Log match but continue to next rule
+            - `accept`: Download the file
+            - `reject`: Skip the file
+            - `continue`: Log match and move to next rule
         reason:
           type: string
-          description: Reason logged when rule triggers (useful for reject rules)
+          description: Reason logged when rule triggers
           example: "File exceeds size limit"
 
     MatchCondition:
       type: object
       description: |
-        Condition to match against notification data. Can be a simple field match,
-        a property match with type, or a logical combinator (all/any/not).
+        Condition to match against notification data.
 
-        **Simple field matches:**
-        - `media_type`: MIME type of downloaded file
-        - `size`: File size conditions (gt_bytes, lt_bytes, between_bytes)
-        - `centre_id`: Data centre from topic (position 3)
-        - `data_id`: From notification properties.data_id
-        - `metadata_id`: From notification properties.metadata_id
-        - `topic`: Full MQTT topic string
-        - `href`: Download URL
-        - `always`: Always matches (for default rules)
+        **Simple field matches:** `media_type`, `size`, `centre_id`, `data_id`,
+        `metadata_id`, `topic`, `href`, `always`
 
-        **Property match (for dynamic WIS2 properties):**
-        - `property`: Field name in notification properties
-        - `type`: Expected type (string, integer, number, boolean, datetime)
-        - Plus an operator (equals, in, gt, lte, etc.)
+        **Size operators:** `gt_bytes`, `lt_bytes`, `gte_bytes`, `lte_bytes`, `between_bytes`
 
-        **Logical combinators:**
-        - `all`: Array of conditions, ALL must match (AND)
-        - `any`: Array of conditions, ANY must match (OR)
-        - `not`: Single condition that must NOT match
+        **String operators:** `equals`, `not_equals`, `in`, `not_in`, `pattern`, `regex`
+
+        **Numeric operators:** `gt`, `gte`, `lt`, `lte`, `between`
+
+        **Property match (dynamic WIS2 notification fields):**
+        Specify `property` (field name) and `type` (string/integer/number/boolean/datetime)
+        plus an operator.
+
+        **Logical combinators:** `all` (AND), `any` (OR), `not`
       additionalProperties: true
       example:
         all:
@@ -696,168 +401,12 @@ components:
           - centre_id:
               in: ["de-dwd", "fr-meteofrance"]
 
-    MatchOperator:
-      type: object
-      description: |
-        Operators for matching field values.
-
-        **String operators:**
-        - `equals`: Exact match
-        - `not_equals`: Not equal
-        - `in`: Value in list
-        - `not_in`: Value not in list
-        - `pattern`: Glob/fnmatch pattern (e.g., "application/*")
-        - `regex`: Regular expression
-
-        **Numeric operators (integer/number):**
-        - `equals`, `not_equals`, `in`, `not_in`
-        - `gt`: Greater than
-        - `gte`: Greater than or equal
-        - `lt`: Less than
-        - `lte`: Less than or equal
-        - `between`: [min, max] inclusive
-
-        **Size operators:**
-        - `gt_bytes`, `lt_bytes`, `gte_bytes`, `lte_bytes`
-        - `between_bytes`: [min, max]
-
-        **Existence:**
-        - `exists`: true/false - check if field exists
-      properties:
-        equals:
-          description: Exact value match
-        not_equals:
-          description: Value must not equal
-        in:
-          type: array
-          description: Value must be in list
-        not_in:
-          type: array
-          description: Value must not be in list
-        pattern:
-          type: string
-          description: Glob/fnmatch pattern
-        regex:
-          type: string
-          description: Regular expression pattern
-        gt:
-          description: Greater than (numeric/datetime)
-        gte:
-          description: Greater than or equal
-        lt:
-          description: Less than
-        lte:
-          description: Less than or equal
-        between:
-          type: array
-          description: "[min, max] range"
-          minItems: 2
-          maxItems: 2
-        gt_bytes:
-          type: integer
-          description: Size greater than N bytes
-        lt_bytes:
-          type: integer
-          description: Size less than N bytes
-        between_bytes:
-          type: array
-          items:
-            type: integer
-          minItems: 2
-          maxItems: 2
-        exists:
-          type: boolean
-          description: Check if field exists
-
-    PropertyMatch:
-      type: object
-      description: |
-        Match against dynamic properties from WIS2 notification.
-        Requires specifying the expected type for proper comparison.
-      required:
-        - property
-        - type
-      properties:
-        property:
-          type: string
-          description: Property name from notification properties object
-          example: "model_run"
-        type:
-          type: string
-          enum: [string, integer, number, boolean, datetime]
-          description: Expected type for value comparison
-          example: "string"
-      additionalProperties: true
-      example:
-        property: "forecast_hour"
-        type: "integer"
-        lte: 48
-
-    # ==================== LEGACY SCHEMAS ====================
-    LegacySubscription:
-      type: object
-      description: Legacy subscription format (deprecated)
-      required:
-        - topic
-      properties:
-        topic:
-          type: string
-          description: WIS2 MQTT topic pattern
-        save_path:
-          type: string
-          nullable: true
-          description: Subdirectory under data root
-        filters:
-          $ref: '#/components/schemas/LegacyFilters'
-
-    LegacySubscriptionRequest:
-      type: object
-      description: Legacy subscription request (deprecated)
-      required:
-        - topic
-      properties:
-        topic:
-          type: string
-          description: WIS2 MQTT topic pattern
-        target:
-          type: string
-          description: Subdirectory under data root
-        filters:
-          $ref: '#/components/schemas/LegacyFilters'
-
-    LegacySubscriptionResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          enum: [accepted]
-        topic:
-          type: string
-        target:
-          type: string
-          nullable: true
-
-    LegacyFilters:
-      type: object
-      description: Legacy simple filter format (deprecated)
-      properties:
-        accepted_media_types:
-          type: array
-          description: List of allowed MIME types (fnmatch patterns)
-          items:
-            type: string
-          example:
-            - "application/bufr"
-            - "application/grib"
-
-    # ==================== COMMON SCHEMAS ====================
     HealthResponse:
       type: object
       properties:
         status:
           type: string
           enum: [healthy, unhealthy]
-          description: Service health status
           example: healthy
 
     Error:
@@ -865,7 +414,6 @@ components:
       properties:
         error:
           type: string
-          description: Error message
           example: "No topic provided"
 
   responses:
@@ -885,7 +433,7 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: "Topic not found"
+            error: "Subscription not found"
 
     ServiceUnavailable:
       description: Service unavailable (Redis connection failed)
