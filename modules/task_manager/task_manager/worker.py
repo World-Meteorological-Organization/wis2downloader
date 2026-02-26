@@ -1,7 +1,6 @@
 from celery import Celery
 import os
 import sys
-import subprocess
 
 from shared.logging import setup_logging
 from shared.redis_client import (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_DB)
@@ -36,11 +35,6 @@ app.conf.update(
 app.autodiscover_tasks(['task_manager.tasks','task_manager.tasks.wis2' ])
 
 def main():
-    # Start celery beat in the background
-    subprocess.Popen([
-        sys.executable, '-m', 'celery', '-A', 'task_manager.worker', 'beat', '--loglevel=debug'
-    ])
-    # Start celery worker
     app.start(argv=sys.argv[1:])
 
 if __name__ == '__main__':

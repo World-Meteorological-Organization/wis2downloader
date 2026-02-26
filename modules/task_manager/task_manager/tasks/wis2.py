@@ -1,6 +1,5 @@
 import base64
 from celery.utils.log import get_task_logger
-from celery import Celery
 import datetime as dt
 from fnmatch import fnmatch
 from functools import wraps
@@ -23,7 +22,6 @@ from shared import get_redis_client, apply_filters, MatchContext, incr_counter
 LOGGER = get_task_logger(__name__)
 
 DATA_BASEPATH = os.getenv("DATA_BASEPATH","/data") # this needs checking
-RETENTION_PERIOD_HOURS = int(os.environ.get('DOWNLOAD_RETENTION_PERIOD', 30)) * 24  # noqa
 
 STATUS_SUCCESS = "SUCCESS"
 STATUS_FAILED = "FAILED"
@@ -217,38 +215,6 @@ def metrics_collector(func):
         return result
     return wrapper
 
-@app.on_after_finalize.connect
-def setup_periodic_tasks(sender: Celery, **kwargs):
-    # Calls clean_directory(DATA_BASEPATH) every 10 minutes.
-    sender.add_periodic_task(600.0, clean_directory.s(DATA_BASEPATH), name='clean downloads every 10 minutes')
-
-@app.task
-def clean_directory(directory):
-    # get the current time
-    current_time = time.time()
-
-    files_removed = 0
-    directories_removed = 0
-    # loop through the files in the directory, including subdirectories
-    for file in os.listdir(directory):
-        # get the full path of the file
-        file_path = os.path.join(directory, file)
-        # check if the path is a file or a directory
-        if os.path.isfile(file_path):
-            # get the time the file was last modified
-            file_time = os.path.getmtime(file_path)
-            # check if the file is older than the retention period
-            if current_time - file_time > RETENTION_PERIOD_HOURS * 3600:
-                os.remove(file_path)
-                files_removed += 1
-        elif os.path.isdir(file_path):
-            # recursively clean the directory
-            clean_directory(file_path)
-            # if the directory is empty, remove it
-            if not os.listdir(file_path):
-                os.rmdir(file_path)
-                directories_removed += 1
-    LOGGER.info(f'CLEANER: removed {files_removed} old files and {directories_removed} empty directories')  # noqa
 
 @app.task(bind=True)
 @metrics_collector

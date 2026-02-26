@@ -116,6 +116,29 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  
+    # Housekeeping
+  housekeep_manager:
+    restart: always
+    build:
+      context: .
+      dockerfile: ./containers/housekeep_manager/Dockerfile
+    volumes:
+      - "./downloads/:/data"
+      - "./:/local"
+    env_file: *default-env
+    tty: true
+    depends_on:
+      - redis
+      - subscription-manager
+    networks:
+      - redis-net
+    logging: *loki-logging
+    healthcheck:
+      test: [ "CMD", "celery", "inspect", "ping" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # Main application
   subscription-manager:
