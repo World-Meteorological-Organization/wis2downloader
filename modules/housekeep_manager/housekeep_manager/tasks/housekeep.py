@@ -10,11 +10,12 @@ from pathlib import Path
 import time
 import urllib3
 from urllib.parse import urlsplit
+import shutil
 
 from housekeep_manager.worker import app as app
 
 # Import shared utilities
-from shared import get_redis_client, apply_filters, MatchContext, incr_counter
+from shared import get_redis_client, apply_filters, MatchContext, incr_counter, set_gauge
 
 LOGGER = get_task_logger(__name__)
 
@@ -157,6 +158,23 @@ def metrics_collector(func):
 def setup_periodic_tasks(sender: Celery, **kwargs):
     # Calls clean_directory(DATA_BASEPATH) every 10 minute.
     sender.add_periodic_task(600.0, clean_directory.s(DATA_BASEPATH), name='clean downloads every 10 minutes')
+    # Check for disk space every 5 minutes creating a metric and log a warning if available space is below threshold
+    sender.add_periodic_task(300.0, check_disk_space.s(), name='check disk space every 5 minutes')
+
+@app.task
+def check_disk_space():
+    """Check disk space and log a warning if available space is below threshold."""
+    try:
+        total, used, free = shutil.disk_usage(DATA_BASEPATH)
+        percent_free = free / total * 100
+        set_gauge('free_space', {}, percent_free)
+        LOGGER.debug(f"Disk usage for {DATA_BASEPATH}: {percent_free:.2f}% free")
+        # You can set a threshold for warning, e.g., 20%
+        if percent_free < 20:
+            LOGGER.warning(f"Disk usage for {DATA_BASEPATH} is below 20%: {percent_free:.2f}% free")
+    except Exception as e:
+        LOGGER.error(f"Error checking disk space: {e}", exc_info=True)
+
 
 @app.task
 def clean_directory(directory):
