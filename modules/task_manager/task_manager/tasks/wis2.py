@@ -1,7 +1,7 @@
 import base64
+from celery.exceptions import MaxRetriesExceededError, Retry
 from celery.utils.log import get_task_logger
 import datetime as dt
-from fnmatch import fnmatch
 from functools import wraps
 import importlib
 import json
@@ -39,8 +39,13 @@ CACHE_EXCLUDE_LIST = [x.strip() for x in os.getenv("GC_EXCLUDE", "").split(",") 
 ALLOWED_HASH_METHODS = ("sha256", "sha384", "sha512", "sha3_256",
                         "sha3_384", "sha3_512")
 
+RETRYABLE_HTTP_CODES = frozenset({429, 500, 502, 503, 504})
+
 _pool = urllib3.PoolManager()
 hash_module = importlib.import_module("hashlib")
+
+DOWNLOAD_CHUNK_SIZE = int(os.getenv("DOWNLOAD_CHUNK_SIZE", str(64 * 1024)))  # 64 KB per chunk
+_PROGRESS_LOG_INTERVAL = 1 * 1024 * 1024  # log a progress line every 50 MB
 
 
 TRACKER = "wis2:notifications:data:tracker"
@@ -49,15 +54,29 @@ mimetypes.add_type('application/bufr', '.bufr')
 mimetypes.add_type('application/grib', '.grib')
 
 DEFAULT_ACCEPTED_MEDIA_TYPES = [
-                        'image/gif', 'image/jpeg', 'image/png', 'image/tiff',  # image formats
-                        'application/pdf', 'application/postscript',  # postscript and PDF
-                        'application/bufr', 'application/grib',  # WMO formats
-                        'application/x-hdf', 'application/x-hdf5', 'application/x-netcdf', 'application/x-netcdf4',  # scientific formats
-                        'text/plain', 'text/html', 'text/xml', 'text/csv', 'text/tab-separated-values',  # text based formats
-                        'application/octet-stream',
-                        ]
+    'image/gif', 'image/jpeg', 'image/png', 'image/tiff',
+    'application/pdf', 'application/postscript',
+    'application/bufr', 'application/grib',
+    'application/x-hdf', 'application/x-hdf5', 'application/x-netcdf', 'application/x-netcdf4',
+    'text/plain', 'text/html', 'text/xml', 'text/csv', 'text/tab-separated-values',
+    'application/octet-stream',
+]
 
-
+DEFAULT_FILTER = {
+    "name": "default",
+    "rules": [
+        {
+            "id": "default-media-type",
+            "order": 1,
+            "match": {"all": [
+                {"media_type": {"exists": True}},
+                {"media_type": {"not_in": DEFAULT_ACCEPTED_MEDIA_TYPES}},
+            ]},
+            "action": "reject",
+            "reason": "Media type not in default allowed list",
+        }
+    ]
+}
 
 def set_status(key, type, status):
     if key in (None, ''):
@@ -113,40 +132,64 @@ def guess_file_type(data):
     ext = mimetypes.guess_extension(mime)
     return mime, ext
 
-def _is_allowed_media_type(media_type, filters):
-    """Legacy filter: check media_type against accepted_media_types list."""
-    allowed_types = filters.get('accepted_media_types', DEFAULT_ACCEPTED_MEDIA_TYPES)
-    base_type = media_type.split(';')[0].strip().lower()
-    return any(fnmatch(base_type, t.lower()) for t in allowed_types)
+def _stream_response_to_file(
+    response,
+    dest_path: str,
+    hasher,
+    download_url: str,
+) -> tuple[int, str]:
+    """Stream *response* body to *dest_path*.
 
+    Writes DOWNLOAD_CHUNK_SIZE bytes at a time, updating *hasher* (a hashlib
+    hash object, or None) incrementally and logging progress every
+    _PROGRESS_LOG_INTERVAL bytes.
 
-def _get_filter_config(job: dict) -> dict:
-    """Return the filter config from a job dict.
-
-    Supports both:
-      job['filter']  — new destinations model (single filter object)
-      job['filters'] — legacy subscriptions model
+    Returns (total_bytes_written, detected_mime_type).
+    Raises OSError on disk errors or urllib3 exceptions on network errors.
+    The caller is responsible for calling response.release_conn().
     """
-    return job.get('filter') or job.get('filters') or {}
+    actual_size = 0
+    last_log_at = 0
+    mime_type = "application/octet-stream"
+    first_chunk = True
+
+    with open(dest_path, "wb") as fh:
+        for chunk in response.stream(DOWNLOAD_CHUNK_SIZE):
+            if not chunk:
+                continue
+            if first_chunk:
+                mime_type, _ = guess_file_type(chunk[:8192])
+                first_chunk = False
+            fh.write(chunk)
+            if hasher is not None:
+                hasher.update(chunk)
+            actual_size += len(chunk)
+            if actual_size - last_log_at >= _PROGRESS_LOG_INTERVAL:
+                LOGGER.info(
+                    "Downloading %s: %.1f MB received",
+                    download_url,
+                    actual_size / (1024 * 1024),
+                )
+                last_log_at = actual_size
+
+    if actual_size > 0:
+        LOGGER.debug(
+            "Download complete: %.1f MB from %s",
+            actual_size / (1024 * 1024),
+            download_url,
+        )
+    return actual_size, mime_type
 
 
 def _apply_job_filter(filter_config: dict, ctx: MatchContext) -> tuple[str, str | None]:
     """Evaluate the filter for a job context.
 
-    Dispatches to the new rule-based engine when filter_config contains 'rules'.
-    Falls back to the legacy accepted_media_types check otherwise (only useful
-    post-download when ctx.media_type is set).
+    Delegates to the rule-based engine when a filter is configured.
+    No filter means accept everything.
 
     Returns ('accept', reason | None) or ('reject', reason).
     """
-    if 'rules' in filter_config:
-        return apply_filters(filter_config, ctx)
-
-    # Legacy format or empty config
-    if ctx.media_type is not None:
-        if not _is_allowed_media_type(ctx.media_type, filter_config):
-            return 'reject', f"Media type '{ctx.media_type}' not allowed by filter"
-    return 'accept', None
+    return apply_filters(filter_config or DEFAULT_FILTER, ctx)
 
 
 def _select_download_link(links):
@@ -282,6 +325,8 @@ def download_from_wis2(self, job):
     metadata_id = job.get('payload',{}).get('properties',{}).get("metadata_id")
     result['metadata_id'] = metadata_id
 
+    geometry = job.get('payload', {}).get('geometry')  # GeoJSON geometry dict or None
+
     result['broker'] = job['_broker']
     result['received'] = job['_received']
     result['queued'] = job['_queued']
@@ -291,6 +336,7 @@ def download_from_wis2(self, job):
         if key:
             status = get_status(key, type)
             if status and status == STATUS_SUCCESS:
+                LOGGER.debug(f"ID '{key}' ({type}) previously processed with status '{status}'")
                 result['status'] = STATUS_SKIPPED
                 result['reason'] = f"ID '{key}' ({type}) previously processed with status '{status}'"
                 result['error_class'] = "PreviouslyProcessed"
@@ -305,7 +351,14 @@ def download_from_wis2(self, job):
     lock_acquired = redis_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
     if not lock_acquired:  # lock acquired by another worker
         LOGGER.debug(f"Could not acquire lock for {lock_key_identifier}, retrying in 10 seconds")
-        raise self.retry(countdown=10, max_retries=10)
+        try:
+            raise self.retry(countdown=10, max_retries=10)
+        except MaxRetriesExceededError:
+            LOGGER.warning(f"Max retries exceeded waiting for lock on {lock_key_identifier}")
+            result['status'] = STATUS_FAILED
+            result['reason'] = f"Could not acquire lock for {lock_key_identifier} after max retries"
+            result['error_class'] = "LockAcquisitionError"
+            return result
 
 
     # At this point, we have not seen the ID before, and we have lock on ID.
@@ -351,7 +404,7 @@ def download_from_wis2(self, job):
         # Pre-download filter: evaluate rules against what is known before fetching.
         # Rules that depend on media_type or actual size won't fire here (those
         # fields are None at this point) and will be re-evaluated post-download.
-        filter_config = _get_filter_config(job)
+        filter_config = job.get('filter') or {}
         notification_props = job.get('payload', {}).get('properties', {})
         pre_ctx = MatchContext(
             topic=topic,
@@ -360,6 +413,7 @@ def download_from_wis2(self, job):
             metadata_id=metadata_id,
             href=download_url,
             size=expected_length,
+            geometry=geometry,
             properties=notification_props,
         )
         pre_action, pre_reason = _apply_job_filter(filter_config, pre_ctx)
@@ -367,7 +421,7 @@ def download_from_wis2(self, job):
             result['status'] = STATUS_SKIPPED
             result['reason'] = pre_reason or "Rejected by pre-download filter"
             result['error_class'] = "FilterRejected"
-            LOGGER.debug(f"File {output_path} rejected pre-download: {pre_reason}")
+            LOGGER.info(f"File {output_path} rejected pre-download: {pre_reason} (filter: {filter_config})")
             return result
 
         # check if the file exists, if so we have already processed this notification
@@ -378,52 +432,124 @@ def download_from_wis2(self, job):
             LOGGER.debug(f"File {output_path} already exists, skipping")
             return result
 
-        # ToDo - investigate whether we want to replace the following with aria2
-        # download the data
+        # Validate hash method before downloading to avoid wasting bandwidth on
+        # an unsupported method.
+        hash_props = job.get('payload', {}).get('properties', {}).get('integrity', {})
+        hash_method = hash_props.get('method', 'sha512')
+        hash_expected = hash_props.get('value')
+        result['hash_method'] = hash_method
+        result['expected_hash'] = hash_expected
+
+        hasher = None
+        if hash_method:
+            sanitized_method = hash_method.replace('-', '_')
+            if sanitized_method not in ALLOWED_HASH_METHODS:
+                result['status'] = STATUS_SKIPPED
+                result['reason'] = "Invalid hash method"
+                result['error_class'] = "InvalidHashMethod"
+                LOGGER.warning(
+                    "File %s skipped, invalid hash method '%s'", output_path, sanitized_method)
+                return result
+            hash_fn = getattr(hash_module, sanitized_method, None)
+            if not hash_fn:
+                result['status'] = STATUS_SKIPPED
+                result['reason'] = "Hash method not found"
+                result['error_class'] = "InvalidHashMethod"
+                LOGGER.warning(
+                    "File %s skipped, hash method '%s' not found", output_path, sanitized_method)
+                return result
+            hasher = hash_fn()
+
+        # Stream the download directly to a temp file to avoid loading large
+        # files into memory.  The hash is computed incrementally and the MIME
+        # type is detected from the first chunk.
         result['status'] = STATUS_PENDING
         result['download_start'] = _now_utc_str()
+        response = None
+        tmp_path = None
         try:
-            response = _pool.request('GET', download_url,
-                                 timeout=urllib3.Timeout(connect=5.0, read=60.0))
-        except urllib3.exceptions.ConnectTimeoutError as e:
-            result['status'] = STATUS_FAILED
-            result['reason'] = f"Connection timeout error for {result['global_cache']}, see logs"
-            result['error_class'] = str(e.__class__.__name__)
-            LOGGER.warning(f"Connection timeout error {e} for {result['global_cache']}")
-        except urllib3.exceptions.ReadTimeoutError as e:
-            result['status'] = STATUS_FAILED
-            result['reason'] = f"Download timeout  error for {result['global_cache']}, see logs"
-            result['error_class'] = str(e.__class__.__name__)
-            LOGGER.warning(f"Download timeout error {e} for {result['global_cache']}")
-        except urllib3.exceptions.MaxRetryError as e:
-            result['status'] = STATUS_FAILED
-            result['reason'] = f"Maximum retries downloading from {result['global_cache']} exceeded"
-            result['error_class'] = str(e.__class__.__name__)
-        except Exception as e:
-            result['status'] = STATUS_FAILED
-            result['reason'] = f"Error while downloading from {result['global_cache']}, see logs"
-            result['error_class'] = str(e.__class__.__name__)
-            LOGGER.warning(f"Error {e} while downloading from {result['global_cache']}")
+            try:
+                response = _pool.request(
+                    'GET', download_url,
+                    preload_content=False,
+                    timeout=urllib3.Timeout(connect=5.0, read=60.0),
+                )
+            except urllib3.exceptions.ConnectTimeoutError as e:
+                result['status'] = STATUS_FAILED
+                result['reason'] = f"Connection timeout error for {result['global_cache']}, see logs"
+                result['error_class'] = str(e.__class__.__name__)
+                LOGGER.warning("Connection timeout %s for %s", e, result['global_cache'])
+                return result
+            except urllib3.exceptions.ReadTimeoutError as e:
+                result['status'] = STATUS_FAILED
+                result['reason'] = f"Download timeout error for {result['global_cache']}, see logs"
+                result['error_class'] = str(e.__class__.__name__)
+                LOGGER.warning("Read timeout %s for %s", e, result['global_cache'])
+                return result
+            except urllib3.exceptions.MaxRetryError as e:
+                result['status'] = STATUS_FAILED
+                result['reason'] = f"Maximum retries downloading from {result['global_cache']} exceeded"
+                result['error_class'] = str(e.__class__.__name__)
+                return result
+            except Exception as e:
+                result['status'] = STATUS_FAILED
+                result['reason'] = f"Error while downloading from {result['global_cache']}, see logs"
+                result['error_class'] = str(e.__class__.__name__)
+                LOGGER.warning("Error %s while downloading from %s", e, result['global_cache'])
+                return result
 
-        if result['status'] == STATUS_FAILED:
-            final_status = result.get('status', STATUS_FAILED)
-            LOGGER.warning(f"Download failed for {download_url}, reason: {result['reason']}")
-            if lock_acquired:
-                redis_client.delete(lock_key)
-            set_status(message_id, 'by-msg-id', final_status)
-            set_status(data_id, 'by-data-id', final_status)
-            set_status(filehash, 'by-hash', final_status)
-            return result
+            if response.status != 200:
+                if response.status in RETRYABLE_HTTP_CODES:
+                    countdown = min(2 ** self.request.retries * 5, 300)
+                    LOGGER.warning(
+                        "HTTP %d from %s, retry %d in %ds",
+                        response.status, result['global_cache'],
+                        self.request.retries + 1, countdown,
+                    )
+                    raise self.retry(countdown=countdown, max_retries=5)
+                result['status'] = STATUS_FAILED
+                result['reason'] = f"HTTP {response.status} response from {result['global_cache']}"
+                result['error_class'] = "HTTPError"
+                LOGGER.warning("HTTP %d (non-retryable) downloading %s", response.status, download_url)
+                return result
+
+            # Stream response body to a temp file.
+            fh, tmp_path = tempfile.mkstemp(dir=target_directory, prefix='.tmp_')
+            os.close(fh)
+            try:
+                actual_size, mime_type = _stream_response_to_file(
+                    response, tmp_path, hasher, download_url
+                )
+            except urllib3.exceptions.ReadTimeoutError as e:
+                result['status'] = STATUS_FAILED
+                result['reason'] = f"Read timeout during download from {result['global_cache']}, see logs"
+                result['error_class'] = str(e.__class__.__name__)
+                LOGGER.warning("Read timeout during streaming from %s: %s", result['global_cache'], e)
+                return result
+            except OSError as e:
+                result['status'] = STATUS_FAILED
+                result['reason'] = "Failed to write file during download, see logs"
+                result['error_class'] = str(e.__class__.__name__)
+                LOGGER.error("Disk error streaming %s to %s: %s", download_url, tmp_path, e)
+                return result
+            except Exception as e:
+                result['status'] = STATUS_FAILED
+                result['reason'] = f"Error during download from {result['global_cache']}, see logs"
+                result['error_class'] = str(e.__class__.__name__)
+                LOGGER.warning("Error streaming from %s: %s", result['global_cache'], e)
+                return result
+
+        finally:
+            if response is not None:
+                response.release_conn()
+            # Clean up any partial temp file on failure
+            if result.get('status') == STATUS_FAILED and tmp_path:
+                Path(tmp_path).unlink(missing_ok=True)
+                tmp_path = None
 
         result['download_end'] = _now_utc_str()
-
-        # verify and save the file
-        data = response.data
-        result['actual_filesize'] = len(data)
-
-
-        file_type, _ = guess_file_type(data)
-        result['media_type'] = file_type
+        result['actual_filesize'] = actual_size
+        result['media_type'] = mime_type
 
         # Post-download filter: re-evaluate with full context (media_type and actual size now known).
         post_ctx = MatchContext(
@@ -432,66 +558,39 @@ def download_from_wis2(self, job):
             data_id=data_id,
             metadata_id=metadata_id,
             href=download_url,
-            media_type=file_type,
-            size=len(data),
+            media_type=mime_type,
+            size=actual_size,
+            geometry=geometry,
             properties=notification_props,
         )
         post_action, post_reason = _apply_job_filter(filter_config, post_ctx)
         if post_action == 'reject':
+            Path(tmp_path).unlink(missing_ok=True)
             result['status'] = STATUS_SKIPPED
             result['reason'] = post_reason or "Rejected by post-download filter"
             result['error_class'] = "FilterRejected"
-            LOGGER.debug(f"File {output_path} rejected post-download: {post_reason}")
+            LOGGER.info(
+                "File %s rejected post-download: %s (filter: %s, media_type: %s)",
+                output_path, post_reason, filter_config, mime_type,
+            )
             return result
 
-        # hash verification
-        hash_props = job.get('payload',{}).get('properties',{}).get('integrity',{})
-        hash_method = hash_props.get('method','sha512')
-        hash_expected = hash_props.get('value')
+        # Hash verification using the incrementally computed digest.
+        if hasher is not None:
+            hash_base64 = base64.b64encode(hasher.digest()).decode()
+            result['actual_hash'] = hash_base64
+            if hash_expected:
+                result['valid_hash'] = (hash_base64 == hash_expected)
+                if not result['valid_hash']:
+                    Path(tmp_path).unlink(missing_ok=True)
+                    LOGGER.warning("Hash verification failed for %s (%s)", download_url, data_id)
+                    result['status'] = STATUS_SKIPPED
+                    result['reason'] = f"Hash verification failed for {download_url}"
+                    result['error_class'] = "HashVerificationError"
+                    return result
 
-        if hash_method:
-            sanitized_method = hash_method.replace('-', '_')
-            if sanitized_method not in ALLOWED_HASH_METHODS:
-                result['status'] = STATUS_SKIPPED
-                result['reason'] = f"Invalid hash method"
-                result['error_class'] = "InvalidHashMethod"
-                LOGGER.warning(
-                    f"File {output_path} skipped, invalid hash method '{sanitized_method}'")
-                return result
-
-            hash_function = getattr(hash_module, sanitized_method, None)
-            if not hash_function:
-                result['status'] = STATUS_SKIPPED
-                result['reason'] = f"Hash method not found"
-                result['error_class'] = "InvalidHashMethod"
-                LOGGER.warning(
-                    f"File {output_path} skipped, hash method '{sanitized_method}' not found")
-                return result
-            else:
-                hash_bytes = hash_function(data).digest()
-                hash_base64 = base64.b64encode(hash_bytes).decode()
-                result['hash_method'] = hash_method
-                result['expected_hash'] = hash_expected
-                result['actual_hash'] = hash_base64
-                if hash_expected:
-                    result['valid_hash'] = (hash_base64 == hash_expected)
-                    if not result['valid_hash']:
-                        LOGGER.warning(f"Hash verification failed for {download_url}")
-                        result['status'] = STATUS_SKIPPED
-                        result['reason'] = f"Hash verification failed for {download_url}"
-                        result['error_class'] = "HashVerificationError"
-                        return result
-
-        # now save the data, first write to tmp file
-        tmp_path = None
+        # Atomically move temp file to its final location.
         try:
-            fh, tmp_path = tempfile.mkstemp(dir=target_directory,
-                                            prefix='.tmp_')
-            try:
-                os.write(fh, data)
-            finally:
-                os.close(fh)
-
             if overwrite:
                 os.replace(tmp_path, output_path)
             else:
@@ -503,16 +602,14 @@ def download_from_wis2(self, job):
                     result['status'] = STATUS_SKIPPED
                     result['reason'] = "File created by another process"
                     result['error_class'] = "FileExistsError"
-                    LOGGER.debug(
-                        f"File {output_path} already exists (race condition), skipping")
+                    LOGGER.debug("File %s already exists (race condition), skipping", output_path)
                     return result
         except OSError as e:
-            if tmp_path:
-                Path(tmp_path).unlink(missing_ok=True)
+            Path(tmp_path).unlink(missing_ok=True)
             result['status'] = STATUS_FAILED
             result['reason'] = "Failed to write file, see logs"
             result['error_class'] = str(e.__class__.__name__)
-            LOGGER.error(f"Failed to write {output_path}: {e}")
+            LOGGER.error("Failed to move %s to %s: %s", tmp_path, output_path, e)
             return result
 
         result['save'] = True
@@ -521,6 +618,14 @@ def download_from_wis2(self, job):
         LOGGER.debug(result)
         return result
 
+    except Retry:
+        raise
+    except MaxRetriesExceededError:
+        LOGGER.warning(f"Max retries exceeded for HTTP error downloading {download_url}")
+        result['status'] = STATUS_FAILED
+        result['reason'] = f"Max retries exceeded for HTTP error from {result['global_cache']}"
+        result['error_class'] = "HTTPError"
+        return result
     except Exception as e:
         LOGGER.error(f"Error processing job {message_id}: {e}", exc_info=True)
         result['status'] = STATUS_FAILED

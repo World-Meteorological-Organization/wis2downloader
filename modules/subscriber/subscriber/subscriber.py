@@ -6,7 +6,7 @@ import paho.mqtt.client as mqtt
 import ssl
 import time
 
-from shared.logging import setup_logging
+from shared import setup_logging, incr_counter
 from task_manager.workflows import wis2_download
 
 
@@ -110,6 +110,7 @@ class Subscriber():
             return
 
         now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        incr_counter('notifications_received_total', {'broker': self.host})
         for sub_data in subscriptions.values():
             job = {
                 "topic": msg.topic,
@@ -120,7 +121,13 @@ class Subscriber():
                 "_queued": now,
                 "payload": payload,
             }
-            wis2_download(job).apply_async()
+            try:
+                wis2_download(job).apply_async()
+            except Exception as e:
+                LOGGER.error(
+                    f"Failed to queue job for topic {msg.topic}: {e}",
+                    exc_info=True)
+                incr_counter('queue_errors_total', {'broker': self.host})
 
     def subscribe(self, topic: str, subscriptions: dict) -> dict:
         """Subscribe to an MQTT topic with an initial set of subscriptions.

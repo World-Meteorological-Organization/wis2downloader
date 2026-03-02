@@ -28,7 +28,7 @@ app.colors(
 
 @ui.page('/')
 def main_page(client: Client):
-    ui.page_title('WIS2box-Rx')
+    ui.page_title('wis2downloader')
     client.content.classes(remove='q-pa-md')
 
     class AppState:
@@ -57,4 +57,4 @@ def main_page(client: Client):
     show_view('dashboard')
 
 
-ui.run(storage_secret=os.getenv('STORAGE_SECRET', 'wis2box-rx-secret'))
+ui.run(storage_secret=os.getenv('STORAGE_SECRET', 'wis2downloader-secret'))

@@ -50,7 +50,7 @@ async def scrape_topics_tree(state, layout, tree_area):
 def render(container, state, layout):
     clean_page(state, layout)
     with container:
-        ui.label("Tree Search").classes("page-title")
+        ui.label("Tree View").classes("page-title")
 
         if not any(gdc_records.values()):
             with ui.card().classes("info-card"):

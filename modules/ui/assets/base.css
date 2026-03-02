@@ -3,13 +3,13 @@
 /* -- Layout ---------------------------------------------------- */
 
 #app {
-    max-width: 1500px !important;
+    max-width: 1600px !important;
     margin: 0 auto;
     transform: translateZ(0);
 }
 
 .nicegui-content {
-    padding: 0 !important;
+    padding: 0rem !important;
     overflow: hidden !important;
 }
 
@@ -19,6 +19,7 @@
     display: flex;
     flex-direction: row;
     overflow: hidden;
+    padding-left: 1rem !important;
 }
 
 .content-area {
@@ -349,14 +350,15 @@
 
 .q-drawer--mini {
     overflow: hidden !important;
-    width: 60px !important;
+    width: calc(32px + 2rem) !important;
 }
+
 
 /* -- Grafana iframe -------------------------------------------- */
 
 .grafana-frame {
     width: 100%;
-    height: calc(100vh - 205px) !important; /* subtract header (~185px) + footer (30px) */
+    height: calc(100vh - 205px - 2rem) !important; /* subtract header (~185px) + footer (30px) */
     border: none;
     display: block;
     padding: 0px;

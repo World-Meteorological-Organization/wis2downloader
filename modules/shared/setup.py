@@ -8,6 +8,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'redis>=4.0.0',
+        'shapely>=2.0.0',
     ],
     python_requires='>=3.10',
 )

@@ -34,6 +34,9 @@ Match fields:
     metadata_id  - From notification properties.metadata_id
     topic        - Full MQTT topic string
     href         - Download URL
+    bbox         - Geographic bounding box: {north, south, east, west} in decimal degrees
+                   Matches against the notification's GeoJSON geometry. Notifications with
+                   no geometry (null) are passed through.
     property     - Dynamic WIS2 notification property (requires "type" field)
     always       - Always/never matches (for default rules)
 
@@ -63,6 +66,8 @@ import datetime
 import fnmatch
 import re
 from dataclasses import dataclass, field
+
+from shapely.geometry import Point, Polygon, shape
 
 from .logging import setup_logging
 
@@ -94,6 +99,7 @@ class MatchContext:
     href: str | None = None
     media_type: str | None = None
     size: int | None = None
+    geometry: dict | None = None
     properties: dict = field(default_factory=dict)
 
 
@@ -115,10 +121,14 @@ def _coerce(value, type_hint: str):
         if type_hint == 'datetime':
             if isinstance(value, datetime.datetime):
                 return value
-            return datetime.datetime.fromisoformat(str(value))
+            s = str(value)
+            if s.endswith('Z'):
+                s = s[:-1] + '+00:00'
+            return datetime.datetime.fromisoformat(s)
     except (ValueError, TypeError):
         return None
-    return value
+    LOGGER.warning(f"Unknown type_hint '{type_hint}' in property match; value not coerced")
+    return None
 
 
 def _apply_operator(value, operator: str, operand) -> bool:
@@ -132,8 +142,14 @@ def _apply_operator(value, operator: str, operand) -> bool:
     if operator == 'not_equals':
         return value != operand
     if operator == 'in':
+        if not isinstance(operand, (list, tuple)):
+            LOGGER.warning(f"Operator 'in' expects a list operand, got {type(operand).__name__!r}")
+            return False
         return value in operand
     if operator == 'not_in':
+        if not isinstance(operand, (list, tuple)):
+            LOGGER.warning(f"Operator 'not_in' expects a list operand, got {type(operand).__name__!r}")
+            return False
         return value not in operand
     if operator == 'pattern':
         return fnmatch.fnmatch(str(value), str(operand))
@@ -171,7 +187,50 @@ def _match_size(condition: dict, size: int | None) -> bool:
         return low <= size <= high
     if 'exists' in condition:
         return bool(condition['exists'])
+    LOGGER.warning(f"No recognised size operator in condition: {list(condition.keys())}")
     return False
+
+
+def _match_bbox(condition: dict, geometry: dict | None) -> bool:
+    """Evaluate a bbox condition against a GeoJSON geometry dict.
+
+    Returns True (pass through) when geometry is None — no location info available.
+    Unsupported geometry types also pass through (logged at DEBUG).
+    """
+    if geometry is None:
+        return True  # pass through: no geometry to test against
+
+    required = ('north', 'south', 'east', 'west')
+    if not all(k in condition for k in required):
+        LOGGER.warning(
+            f"bbox condition missing fields; expected north/south/east/west, "
+            f"got {list(condition.keys())}"
+        )
+        return False
+
+    north = condition['north']
+    south = condition['south']
+    east = condition['east']
+    west = condition['west']
+
+    bbox_polygon = Polygon([
+        (west, south), (east, south), (east, north), (west, north), (west, south),
+    ])
+
+    geom_type = geometry.get('type')
+    coordinates = geometry.get('coordinates')
+
+    try:
+        if geom_type == 'Point':
+            return Point(coordinates[0], coordinates[1]).within(bbox_polygon)
+        if geom_type in ('Polygon', 'MultiPolygon'):
+            return shape(geometry).intersects(bbox_polygon)
+    except Exception as exc:
+        LOGGER.warning(f"bbox geometry evaluation failed ({geom_type}): {exc}")
+        return True  # fail open
+
+    LOGGER.debug(f"Unsupported geometry type '{geom_type}' in bbox match; passing through")
+    return True
 
 
 def _evaluate_match(match: dict, ctx: MatchContext) -> bool:
@@ -186,11 +245,18 @@ def _evaluate_match(match: dict, ctx: MatchContext) -> bool:
     if 'any' in match:
         return any(_evaluate_match(m, ctx) for m in match['any'])
     if 'not' in match:
+        if not isinstance(match['not'], dict):
+            LOGGER.warning(f"'not' combinator expects a dict condition, got {type(match['not']).__name__!r}")
+            return False
         return not _evaluate_match(match['not'], ctx)
 
     # size (dedicated byte-unit operators)
     if 'size' in match:
         return _match_size(match['size'], ctx.size)
+
+    # bbox (geographic bounding box against GeoJSON geometry)
+    if 'bbox' in match:
+        return _match_bbox(match['bbox'], ctx.geometry)
 
     # property (dynamic WIS2 notification property)
     if 'property' in match:
@@ -198,24 +264,27 @@ def _evaluate_match(match: dict, ctx: MatchContext) -> bool:
         type_hint = match.get('type', 'string')
         raw_value = ctx.properties.get(prop_name)
         value = _coerce(raw_value, type_hint)
-        for op in _KNOWN_OPERATORS:
-            if op in match:
+        for op in match:
+            if op in _KNOWN_OPERATORS:
                 operand = match[op]
-                if op not in ('in', 'not_in', 'exists', 'between') and type_hint in ('integer', 'number'):
+                if op == 'between':
+                    if isinstance(operand, (list, tuple)) and type_hint in ('integer', 'number', 'datetime'):
+                        operand = [_coerce(b, type_hint) for b in operand]
+                elif op not in ('in', 'not_in', 'exists') and type_hint in ('integer', 'number', 'datetime'):
                     operand = _coerce(operand, type_hint)
                 return _apply_operator(value, op, operand)
         LOGGER.warning(f"Property match '{prop_name}' has no recognised operator")
         return False
 
     # simple field matches (media_type, centre_id, data_id, metadata_id, topic, href)
-    for field_name in _SIMPLE_FIELDS:
-        if field_name in match:
-            condition = match[field_name]
-            value = getattr(ctx, field_name, None)
-            for op in _KNOWN_OPERATORS:
-                if op in condition:
+    for key in match:
+        if key in _SIMPLE_FIELDS:
+            condition = match[key]
+            value = getattr(ctx, key, None)
+            for op in condition:
+                if op in _KNOWN_OPERATORS:
                     return _apply_operator(value, op, condition[op])
-            LOGGER.warning(f"Field match '{field_name}' has no recognised operator in {condition}")
+            LOGGER.warning(f"Field match '{key}' has no recognised operator in {condition}")
             return False
 
     LOGGER.warning(f"Unrecognised match condition keys: {list(match.keys())}")
@@ -248,7 +317,7 @@ def apply_filters(filters: dict, ctx: MatchContext) -> tuple[str, str | None]:
         try:
             matched = _evaluate_match(match_cond, ctx)
         except Exception as exc:
-            LOGGER.warning(f"Error evaluating rule '{rule_id}': {exc}", exc_info=True)
+            LOGGER.warning(f"Rule '{rule_id}' raised an error and was skipped (fail-open): {exc}", exc_info=True)
             continue
 
         if not matched:
@@ -260,9 +329,16 @@ def apply_filters(filters: dict, ctx: MatchContext) -> tuple[str, str | None]:
         if action == 'accept':
             return 'accept', reason
         if action == 'reject':
+            LOGGER.error(
+                f"Rule '{rule_id}' matched (action=reject), skipping notification "
+                f"[topic={ctx.topic}, media_type={ctx.media_type}, "
+                f"size={ctx.size}, centre_id={ctx.centre_id}, "
+                f"data_id={ctx.data_id}, href={ctx.href}]"
+            )
             return 'reject', reason
         # action == 'continue': rule matched but we keep going
         LOGGER.debug(f"Rule '{rule_id}' matched (action=continue), proceeding to next rule")
 
     # No rule produced a definitive accept/reject — default is accept
+    LOGGER.debug("No filter rule produced a definitive outcome; defaulting to accept")
     return 'accept', None

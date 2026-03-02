@@ -195,7 +195,7 @@ async def perform_search(query, data_policy, keywords, bbox, state, layout,
 def render(container, state, layout):
     clean_page(state, layout)
     with container:
-        ui.label("Catalogue Search").classes("page-title")
+        ui.label("Catalogue View").classes("page-title")
 
         if not any(gdc_records.values()):
             with ui.card().classes("info-card"):
