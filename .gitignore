@@ -36,6 +36,12 @@ __pycache__/
 
 ---
 
+## Generated docs output ##
+/site/
+/modules/ui/site/
+
+---
+
 ## Runtime Data and Logs ##
 # Logs
 *.log

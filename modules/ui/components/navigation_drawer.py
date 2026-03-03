@@ -10,6 +10,7 @@ NAV_ITEMS = [
     ('manual',    'nav.manual',    'edit_note'),
     ('manage',    'nav.manage',    'manage_history'),
     ('settings',  'nav.settings',  'settings'),
+    ('help',      'nav.help',      'help_outline'),
 ]
 
 

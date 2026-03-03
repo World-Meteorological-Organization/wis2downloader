@@ -489,6 +489,16 @@ label, .q-label {
     color: #fff !important;
 }
 
+/* -- Docs iframe ----------------------------------------------- */
+
+.docs-frame {
+    width: calc(100% - 32px - 2rem);
+    height: calc(100vh - 205px - 2rem);
+    border: none;
+    display: block;
+    padding: 0;
+}
+
 /* -- RTL overrides ------------------------------------------------- */
 [dir="rtl"]:has(.q-drawer--left.q-drawer--mini) .q-page-container {
     padding-left: 0 !important;
