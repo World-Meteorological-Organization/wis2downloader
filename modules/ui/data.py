@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from dataclasses import dataclass, field
@@ -26,6 +27,14 @@ _merged_records: list['MergedRecord'] = []
 
 # Topic hierarchy derived from merged records. Rebuilt once after scrape_all().
 _topic_hierarchy: dict = {}
+
+# Set to True once the first successful scrape_all() has completed.
+_ready: bool = False
+
+
+def is_ready() -> bool:
+    """Return True once GDC data has been loaded and processed at least once."""
+    return _ready
 
 
 @dataclass
@@ -143,7 +152,47 @@ def _parse_features(data: dict) -> list[WCMP2Record]:
     return [WCMP2Record.from_dict(f) for f in data.get('features', [])]
 
 
+async def _fetch_one(
+    client: httpx.AsyncClient,
+    r,
+    url: str,
+    key: str,
+    force: bool,
+) -> None:
+    """Fetch (or load from cache) one GDC source and populate gdc_records[key]."""
+    cache_key = f"gdc:cache:{key}"
+
+    if r and not force:
+        try:
+            cached = await r.get(cache_key)
+            if cached:
+                gdc_records[key] = _parse_features(json.loads(cached))
+                LOGGER.info(f"Loaded {key} from Redis cache ({len(gdc_records[key])} records)")
+                return
+        except Exception as e:
+            LOGGER.warning(f"Redis cache read failed for {key}, fetching from HTTP: {e}")
+
+    try:
+        response = await client.get(
+            f'{url}/collections/wis2-discovery-metadata/items?limit=2000&f=json',
+            timeout=30,
+        )
+        data = response.json()
+        gdc_records[key] = _parse_features(data)
+        LOGGER.info(f"Fetched {key} from HTTP ({len(gdc_records[key])} records)")
+
+        if r:
+            try:
+                await r.set(cache_key, json.dumps(data), ex=GDC_CACHE_TTL)
+            except Exception as e:
+                LOGGER.warning(f"Redis cache write failed for {key}: {e}")
+    except Exception as e:
+        LOGGER.error(f"Error fetching {key} GDC data from {url}: {e}")
+
+
 async def scrape_all(force: bool = False):
+    global _merged_records, _topic_hierarchy, _ready
+
     r = None
     try:
         r = aioredis.Redis(
@@ -158,43 +207,18 @@ async def scrape_all(force: bool = False):
 
     try:
         async with httpx.AsyncClient() as client:
-            for url, key in GDC_SOURCES:
-                cache_key = f"gdc:cache:{key}"
-
-                if r and not force:
-                    try:
-                        cached = await r.get(cache_key)
-                        if cached:
-                            gdc_records[key] = _parse_features(json.loads(cached))
-                            LOGGER.info(f"Loaded {key} from Redis cache ({len(gdc_records[key])} records)")
-                            continue
-                    except Exception as e:
-                        LOGGER.warning(f"Redis cache read failed for {key}, fetching from HTTP: {e}")
-
-                try:
-                    response = await client.get(
-                        f'{url}/collections/wis2-discovery-metadata/items?limit=2000&f=json',
-                        timeout=30,
-                    )
-                    data = response.json()
-                    gdc_records[key] = _parse_features(data)
-                    LOGGER.info(f"Fetched {key} from HTTP ({len(gdc_records[key])} records)")
-
-                    if r:
-                        try:
-                            await r.set(cache_key, json.dumps(data), ex=GDC_CACHE_TTL)
-                        except Exception as e:
-                            LOGGER.warning(f"Redis cache write failed for {key}: {e}")
-                except Exception as e:
-                    LOGGER.error(f"Error fetching {key} GDC data from {url}: {e}")
+            await asyncio.gather(*[
+                _fetch_one(client, r, url, key, force)
+                for url, key in GDC_SOURCES
+            ])
     finally:
         if r:
             await r.aclose()
 
-    global _merged_records, _topic_hierarchy
     _merged_records = _build_merged_records()
     LOGGER.info(f"Merged records built: {len(_merged_records)} unique records")
     _topic_hierarchy = _build_topic_hierarchy()
     LOGGER.info(f"Topic hierarchy built: {len(_topic_hierarchy)} top-level nodes")
+    _ready = True
 
 

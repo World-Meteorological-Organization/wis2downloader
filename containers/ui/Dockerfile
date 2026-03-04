@@ -1,15 +1,8 @@
 # Stage 1: build docs
-FROM ruby:3.3-alpine AS docs-builder
-RUN gem install asciidoctor
+FROM asciidoctor/docker-asciidoctor:latest AS docs-builder
 WORKDIR /repo
 COPY docs/ ./docs/
-RUN set -e; for lang in en fr es ar zh ru; do \
-      [ -d docs/$lang ] || continue; \
-      mkdir -p site/$lang; \
-      asciidoctor -a toc=left -a toclevels=3 -a icons=font \
-                  -D site/$lang docs/$lang/*.adoc; \
-    done; \
-    asciidoctor -a toc=left -D site docs/index.adoc
+RUN chmod +x docs/build.sh && docs/build.sh site
 
 # Stage 2: runtime image
 FROM zauberzeug/nicegui:latest
