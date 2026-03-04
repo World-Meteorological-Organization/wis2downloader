@@ -1,3 +1,5 @@
+NOTE: The previous wis2downloader Python package has been archived to https://github.com/world-Meteorological-Organization/wis2downloader-v1.
+
 = WIS2 Downloader
 :toc: macro
 :toc-title: Contents
@@ -60,8 +62,8 @@ WIS2 Downloader subscribes to MQTT topics on WIS2 Global Brokers, receives notif
 [source,bash]
 ----
 # Clone and configure
-git clone https://github.com/wmo-im/wis2downloader-v2.git
-cd wis2downloader-v2
+git clone https://github.com/World-Meteorological-Organization/wis2downloader.git
+cd wis2downloader
 cp default.env .env  # Customize if needed
 
 # Set up downloads directory permissions (containers run as UID 10001)
