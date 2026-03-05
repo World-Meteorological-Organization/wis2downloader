@@ -1,7 +1,5 @@
 """Spanish translations.
 
-NOTE: Machine-generated — must be reviewed by a native Spanish speaker,
-especially WMO/meteorological terms (WIS2, BUFR, GRIB, etc.).
 """
 
 STRINGS: dict[str, str] = {

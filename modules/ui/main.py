@@ -53,8 +53,9 @@ def main_page(client: Client):
     def show_view(name):
         state.current_view = name
         layout.content.clear()
-        layout.right_sidebar.value = False
-        layout.right_sidebar.clear()
+        if layout.right_sidebar:
+            layout.right_sidebar.set_visibility(False)
+            layout.right_sidebar.clear()
         with layout.content:
             if name in _GDC_VIEWS and not data_module.is_ready():
                 with ui.column().classes('items-center justify-center q-pa-xl full-width'):
@@ -64,8 +65,10 @@ def main_page(client: Client):
             if name == 'dashboard':
                 dashboard.render(layout.content)
             elif name == 'catalogue':
+                layout.right_sidebar.set_visibility(True)
                 catalogue.render(layout.content, state, layout)
             elif name == 'tree':
+                layout.right_sidebar.set_visibility(True)
                 tree.render(layout.content, state, layout)
             elif name == 'manual':
                 manual_subscription.render(layout.content)
@@ -109,4 +112,4 @@ def main_page(client: Client):
     show_view(app.storage.user.get('current_view', 'help'))
 
 
-ui.run(storage_secret=os.getenv('STORAGE_SECRET', 'wis2downloader-secret'))
+ui.run(storage_secret=os.getenv('STORAGE_SECRET', 'wis2downloader-secret'), favicon='assets/logo.png')

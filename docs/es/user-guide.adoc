@@ -6,13 +6,6 @@
 :source-highlighter: highlight.js
 :sectnums:
 
-[NOTE]
-====
-Este documento fue traducido automáticamente del inglés mediante Claude AI.
-Los términos del dominio WMO/meteorológico deben ser revisados por un hablante nativo antes
-de su uso en producción. Consulte el link:../en/[documento original en inglés] para la versión autorizada.
-====
-
 == Introducción
 
 WIS2 Downloader descarga automáticamente datos desde las memorias caché globales WIS2 (WMO Information System 2.0) en función de sus suscripciones. Usted crea suscripciones para especificar qué temas de datos le interesan, y el sistema gestiona la descarga y organización de los archivos.

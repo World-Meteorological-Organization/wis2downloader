@@ -30,7 +30,7 @@ DEFAULT_ACCEPTED_MEDIA_TYPES = [
 
 
 def clean_page(state, layout):
-    layout.right_sidebar.value = False
+    layout.right_sidebar.set_visibility(False)
     layout.right_sidebar.clear()
     state.selected_topics = []
 
@@ -124,10 +124,10 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
     topics = state.selected_topics
 
     if not topics:
-        layout.right_sidebar.value = False
+        layout.right_sidebar.set_visibility(False)
         return
 
-    layout.right_sidebar.value = True
+    layout.right_sidebar.set_visibility(True)
     with layout.right_sidebar:
         layout.right_sidebar.clear()
 
