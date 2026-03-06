@@ -16,7 +16,9 @@ Subscriptions can be created through the browser-based web interface (recommende
 
 == Web Interface
 
-The web interface is available at `http://localhost:8080`. It provides a visual way to discover available WIS2 datasets, browse the topic hierarchy, and create subscriptions without using the REST API directly.
+The web interface is available at `http://<host>:8080` (default `http://localhost:8080` when running locally). The actual host and port depend on how the system is deployed — check with your administrator if accessing a shared instance.
+
+It provides a visual way to discover available WIS2 datasets, browse the topic hierarchy, and create subscriptions without using the REST API directly.
 
 === Interface Language
 
@@ -62,11 +64,11 @@ The navigation drawer on the left (right in Arabic RTL mode) gives access to six
 |Embedded Grafana panels showing download rates, queue depth, and byte totals in real time
 
 |kbd:[Alt+2]
-|*Catalogue Search*
+|*Catalogue View*
 |Full-text search across all three Global Discovery Catalogues (GDC) with filtering by data policy, keywords, and bounding box
 
 |kbd:[Alt+3]
-|*Tree Search*
+|*Tree View*
 |Browse the complete WIS2 topic hierarchy as a navigable tree and select a topic to open the subscription sidebar
 
 |kbd:[Alt+4]
@@ -82,9 +84,9 @@ The navigation drawer on the left (right in Arabic RTL mode) gives access to six
 |View GDC record counts per catalogue and trigger a manual data refresh
 |===
 
-=== Catalogue Search
+=== Catalogue View
 
-The Catalogue Search view queries records fetched from the three WIS2 Global Discovery Catalogues (CMA, DWD, ECCC), merged into a single deduplicated list.
+The Catalogue View queries records fetched from the three WIS2 Global Discovery Catalogues (CMA, DWD, ECCC), merged into a single deduplicated list.
 
 ==== Search Filters
 
@@ -118,9 +120,9 @@ Each result card shows:
 * *Show Metadata* — opens a dialog with full record details and an interactive map of the dataset's geographic extent
 * *Select* / *Unselect* — adds or removes the dataset's MQTT topic to the subscription sidebar
 
-=== Tree Search
+=== Tree View
 
-The Tree Search view renders the complete WIS2 topic hierarchy derived from all loaded GDC records. Expand nodes to navigate down to individual topics. Type in the filter box at the top to search across all node labels. Click a leaf node to open the subscription sidebar.
+The Tree View renders the complete WIS2 topic hierarchy derived from all loaded GDC records. Expand nodes to navigate down to individual topics. Type in the filter box at the top to search across all node labels. Click a leaf node to open the subscription sidebar.
 
 NOTE: Only one topic can be active at a time in the tree view.
 
@@ -190,7 +192,7 @@ cache/a/wis2/{centre-id}/data/{data-policy}/{earth-system-domain}/{category}/...
 |All data from Deutscher Wetterdienst
 
 |`cache/a/wis2/+/data/core/weather/surface-based-observations/#`
-|Surface observations from all countries
+|Core surface observations from all WIS2 nodes
 
 |===
 
@@ -209,9 +211,9 @@ cache/a/wis2/{centre-id}/data/{data-policy}/{earth-system-domain}/{category}/...
 
 == Managing Subscriptions via the REST API
 
-Subscriptions can also be managed programmatically using the REST API at `http://localhost:5002`.
+Subscriptions can also be managed programmatically using the REST API. The default address is `http://localhost:5002`, but the actual host and port may differ depending on your deployment.
 
-TIP: Use the Swagger UI at `http://localhost:5002/swagger` for interactive API exploration.
+TIP: Use the Swagger UI at `http://<host>:5002/swagger` for interactive API exploration.
 
 === Creating a Subscription
 
@@ -276,19 +278,32 @@ Response:
 
 === Getting Subscription Details
 
+First list subscriptions to find the subscription ID (`a1b2c3d4-...`), then fetch by ID:
+
 [source,bash]
 ----
-curl "http://localhost:5002/subscriptions/cache/a/wis2/+/data/core/weather/surface-based-observations/%23"
+curl http://localhost:5002/subscriptions/<id>
 ----
 
-NOTE: The `#` character must be URL-encoded as `%23` (otherwise interpreted as a URL fragment). Slashes and `+` do not require encoding.
+Response:
+[source,json]
+----
+{
+  "id": "a1b2c3d4-...",
+  "topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#",
+  "save_path": "surface-obs",
+  "filter": {}
+}
+----
 
 === Deleting a Subscription
 
 [source,bash]
 ----
-curl -X DELETE "http://localhost:5002/subscriptions/cache/a/wis2/+/data/core/weather/surface-based-observations/%23"
+curl -X DELETE http://localhost:5002/subscriptions/<id>
 ----
+
+Where `<id>` is the subscription UUID from `GET /subscriptions`. If this is the last subscription for the topic, the MQTT connection is also closed.
 
 [[Filtering]]
 == Filtering
@@ -670,19 +685,21 @@ Default accepted types when no filter is specified:
 
 === File Organization
 
-Files are organized by date under your target directory:
+Files are organized under your target directory in a `YYYY/MM/DD` sub-directory based on the date the file was *downloaded* (not the observation time or data valid time):
 
 [source]
 ----
 /data/
 └── surface-obs/           # Your target directory
     └── 2026/
-        └── 01/
-            └── 28/
+        └── 03/
+            └── 05/        # Date downloaded (UTC)
                 ├── SYNOP_20260128T120000.bufr
                 ├── SYNOP_20260128T121500.bufr
                 └── ...
 ----
+
+NOTE: The directory date reflects when the file arrived, not when the data was produced or is valid for. Files from older observation periods that arrive late will appear in the directory corresponding to their download date.
 
 === File Naming
 
@@ -701,6 +718,8 @@ find downloads/ -name "*.bufr" | wc -l
 # Total size
 du -sh downloads/
 ----
+
+NOTE: `du` reports disk usage based on filesystem block allocation, not raw byte count. Many small files (such as BUFR bulletins) consume a full block each regardless of their actual size, so `du` results will typically be larger than the sum of individual file sizes reported by `ls -la`.
 
 == Monitoring
 
@@ -733,11 +752,11 @@ curl -s http://localhost:5002/metrics | grep wis2downloader_failed_total
 curl -s http://localhost:5002/metrics | grep wis2downloader_celery_queue_length
 ----
 
-=== Grafana Dashboard
+=== Dashboard View
 
-Access Grafana at `http://localhost:3000` for visual monitoring.
+The integrated Dashboard (kbd:[Alt+1]) shows download rates, queue depth, disk usage, and byte totals in real time. No separate login is required.
 
-NOTE: Default credentials are admin/admin. You should change the password after first login.
+TIP: The Dashboard is embedded directly in the web interface — no need to open Grafana separately.
 
 == Common Use Cases
 
@@ -863,7 +882,10 @@ Delete the existing subscription and recreate it with a `media_type` filter. Use
 
 [source,bash]
 ----
-# Delete old subscription (use the subscription ID from GET /subscriptions)
+# List subscriptions to find the UUID
+curl http://localhost:5002/subscriptions
+
+# Delete old subscription by UUID
 curl -X DELETE http://localhost:5002/subscriptions/<id>
 
 # Create new subscription with filter

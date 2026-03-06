@@ -19,8 +19,8 @@
 
 [source,bash]
 ----
-git clone <repository-url>
-cd wis2downloader-refactor
+git clone https://github.com/World-Meteorological-Organization/wis2downloader
+cd wis2downloader
 cp default.env .env
 ----
 
@@ -45,6 +45,27 @@ The `.env` file contains sensitive credentials. Ensure it is:
 * Not committed to version control (add to `.gitignore`)
 * Readable only by the deployment user (`chmod 600 .env`)
 * Backed up securely
+
+==== Access Control
+
+WARNING: WIS2 Downloader does not implement authentication or authorisation on the web interface or the subscription manager REST API. Anyone with network access to the UI (port 8080) or the API (port 5002) can view, create, modify, and delete subscriptions.
+
+In a shared or internet-facing environment you *must* restrict access at the network level. Recommended approaches:
+
+* **Reverse proxy with authentication** — Place nginx or Caddy in front of the UI and API ports, enforcing HTTP Basic Auth or OAuth before forwarding requests.  A minimal nginx configuration:
++
+[source,nginx]
+----
+location / {
+    auth_basic           "WIS2 Downloader";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+    proxy_pass           http://localhost:8080;
+}
+----
+* **Firewall rules** — Restrict ports 8080 and 5002 to trusted IP ranges using `iptables`, `ufw`, or cloud security groups.
+* **VPN / private network** — Deploy behind a VPN so that only authenticated VPN users can reach the services.
+
+If the system is running on a server rather than localhost, ensure port 8080 and 5002 are not publicly reachable before adding one of the access controls above.
 
 === Volume Permissions
 
@@ -158,6 +179,8 @@ sudo setfacl -R -d -m u:youruser:rx downloads
 ----
 
 === Verifying Deployment
+
+NOTE: The examples below use `localhost`. If the system is deployed on a remote server, replace `localhost` with the server's hostname or IP address. The ports (5002 for the API, 8080 for the UI) can be changed in `docker-compose.yaml` if required.
 
 [source,bash]
 ----
@@ -349,7 +372,7 @@ docker-compose logs -f subscriber
 
 [source]
 ----
-wis2downloader-refactor/
+wis2downloader/
 ├── config/
 │   ├── grafana/provisioning/    # Grafana datasource config
 │   ├── loki/                    # Loki configuration
@@ -456,15 +479,21 @@ All subscribers share the same Redis backend, so subscriptions created via the A
 
 Metrics endpoint: `http://localhost:5002/metrics`
 
+NOTE: Metrics are stored atomically in Redis using `HINCRBYFLOAT` and exposed at the `/metrics` endpoint in Prometheus text format. This approach is safe across multiple Celery worker containers without requiring a shared filesystem or the `prometheus_client` multiprocess directory.
+
 ==== Available Metrics
 
 [cols="2,1,3"]
 |===
 |Metric |Type |Description
 
+|`wis2downloader_notifications_received_total`
+|Counter
+|MQTT messages received before queuing (labels: broker); compare against `notifications_total` to detect queue failures
+
 |`wis2downloader_notifications_total`
 |Counter
-|Total notifications processed (labels: status)
+|Total notifications processed by Celery (labels: status)
 
 |`wis2downloader_downloads_total`
 |Counter
@@ -482,9 +511,29 @@ Metrics endpoint: `http://localhost:5002/metrics`
 |Counter
 |Failed downloads (labels: cache, reason)
 
+|`wis2downloader_queue_errors_total`
+|Counter
+|Failures to queue a Celery task from the subscriber (labels: broker)
+
 |`wis2downloader_celery_queue_length`
 |Gauge
 |Current number of tasks in the Celery queue
+
+|`wis2downloader_disk_total_bytes`
+|Gauge
+|Total disk capacity of the download volume
+
+|`wis2downloader_disk_used_bytes`
+|Gauge
+|Disk space used on the download volume
+
+|`wis2downloader_disk_free_bytes`
+|Gauge
+|Disk space available on the download volume
+
+|`wis2downloader_disk_downloads_bytes`
+|Gauge
+|Bytes used by downloaded files (tracked incrementally)
 |===
 
 ==== Example Queries
@@ -573,7 +622,7 @@ WARNING: These operations are destructive.
 [source,bash]
 ----
 # Clear all subscriptions
-docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:all_subscriptions
+docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:subscriptions
 
 # Clear deduplication cache (allows re-download of all data)
 docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli -a $REDIS_PASSWORD DEL
@@ -655,7 +704,7 @@ docker exec redis redis-cli -a $REDIS_PASSWORD PING
 +
 [source,bash]
 ----
-docker network inspect wis2downloader-refactor_redis-net
+docker network inspect wis2downloader_redis-net
 ----
 
 === High Memory Usage

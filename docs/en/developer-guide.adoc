@@ -78,9 +78,11 @@ modules/
 ├── task_manager/           # Celery tasks
 │   └── task_manager/
 │       ├── __init__.py
-│       ├── worker.py       # Celery app configuration
+│       ├── worker.py       # Celery app for download workers
+│       ├── scheduler.py    # Separate Celery app for periodic/housekeeping tasks
 │       ├── tasks/
-│       │   └── wis2.py     # Download tasks
+│       │   ├── wis2.py              # Download task
+│       │   └── scheduled_tasks.py  # Periodic tasks (disk check, file cleanup)
 │       └── workflows/
 │           └── __init__.py # Task chains
 │
@@ -203,9 +205,21 @@ class Subscriber:
         workflow = wis2_download(job)
         workflow.apply_async()
 
-    def subscribe(self, topic, target, filters):
+    def subscribe(self, topic, subscriptions):
+        # subscriptions: {sub_id: {id, save_path, filter}}
         self.client.subscribe(topic, qos=0)
-        self.active_subscriptions[topic] = {...}
+        self.active_subscriptions[topic] = {
+            "pattern": topic,
+            "subscriptions": subscriptions
+        }
+
+    def add_subscription(self, topic, sub_id, save_path, filter_config):
+        self.active_subscriptions[topic]["subscriptions"][sub_id] = {
+            "id": sub_id, "save_path": save_path, "filter": filter_config
+        }
+
+    def remove_subscription(self, topic, sub_id):
+        self.active_subscriptions[topic]["subscriptions"].pop(sub_id, None)
 
     def unsubscribe(self, topic):
         self.client.unsubscribe(topic)
@@ -231,14 +245,23 @@ class CommandListener(threading.Thread):
 
     def _process_command(self, message):
         command = json.loads(message['data'])
-        if command['action'] == 'subscribe':
-            self.subscriber.subscribe(
-                command['topic'],
-                command['save_path'],
-                command['filters']
+        action = command['action']
+        if action == 'subscribe':
+            self.subscriber.subscribe(command['topic'], command['subscriptions'])
+        elif action == 'add_subscription':
+            self.subscriber.add_subscription(
+                command['topic'], command['sub_id'],
+                command['save_path'], command['filter']
             )
-        elif command['action'] == 'unsubscribe':
+        elif action == 'remove_subscription':
+            self.subscriber.remove_subscription(command['topic'], command['sub_id'])
+        elif action == 'unsubscribe':
             self.subscriber.unsubscribe(command['topic'])
+        elif action == 'update_subscription':
+            self.subscriber.add_subscription(
+                command['topic'], command['sub_id'],
+                command['save_path'], command['filter']
+            )
 ----
 
 === Subscription Manager Module
@@ -254,34 +277,50 @@ Flask REST API for managing subscriptions.
 def add_subscription():
     data = get_json()
     topic = normalise_topic(data.get('topic'))
-    target = normalise_path(data.get('target', ''))
-    filters = data.get('filters', {})
+    save_path = normalise_path(data.get('target', ''))
+    filter_config = data.get('filter') or data.get('filters') or {}
 
-    # Publish command to subscriber via Redis PubSub
-    command = {
-        "action": "subscribe",
-        "topic": topic,
-        "save_path": target,
-        "filters": filters
-    }
-    publish_command(command, COMMAND_CHANNEL)
+    sub_id = str(uuid4())
+    sub_data = {'id': sub_id, 'topic': topic, 'save_path': save_path, 'filter': filter_config}
 
-    # Persist to Redis for durability
-    persist_subscription(topic, target, filters)
+    existing = _subs_for_topic(topic, _get_all_subscriptions())
+    is_new_topic = len(existing) == 0
 
-    return jsonify({"status": "accepted", ...}), 202
+    _persist_subscription(sub_id, sub_data)
+
+    if is_new_topic:
+        # First sub for this topic — open MQTT connection
+        command = {"action": "subscribe", "topic": topic,
+                   "subscriptions": {sub_id: sub_data}}
+    else:
+        # Topic already open — just register the new destination
+        command = {"action": "add_subscription", "topic": topic,
+                   "sub_id": sub_id, "save_path": save_path, "filter": filter_config}
+
+    publish_command(command)
+    return jsonify(sub_data), 201
 ----
 
 ==== Metrics Endpoint
+
+Metrics are stored in Redis using atomic `HINCRBYFLOAT` operations, making them safe across multiple Celery worker containers. The endpoint reads from Redis and renders Prometheus text format:
 
 [source,python]
 ----
 @app.route('/metrics')
 def expose_metrics():
-    # Collect from multiprocess directory
-    registry = CollectorRegistry()
-    multiprocess.MultiProcessCollector(registry, path=basedir)
-    return Response(generate_latest(registry), mimetype="text/plain")
+    # Update live gauge before exposing
+    queue_length = redis_client.llen(CELERY_DEFAULT_QUEUE)
+    set_gauge('celery_queue_length', {'queue_name': CELERY_DEFAULT_QUEUE}, queue_length)
+    return Response(generate_prometheus_text(), mimetype="text/plain")
+----
+
+Increment a counter from any worker:
+
+[source,python]
+----
+from shared import incr_counter
+incr_counter('downloads_total', {'cache': hostname, 'media_type': mime_type})
 ----
 
 === Task Manager Module
@@ -330,17 +369,27 @@ def download_from_wis2(self, job):
     # 4. Download file
     response = _pool.request('GET', download_url, ...)
 
-    # 5. Verify hash
+    # 5. Pre-download filter pass (no media_type/size yet)
+    pre_action, pre_reason = _apply_job_filter(job, ctx_pre)
+    if pre_action == 'reject':
+        result['status'] = STATUS_SKIPPED
+        return result
+
+    # 6. Download file
+    response = _pool.request('GET', download_url, ...)
+
+    # 7. Verify hash
     if hash_expected and hash_base64 != hash_expected:
         result['status'] = STATUS_FAILED
         return result
 
-    # 6. Check media type filter
-    if not _is_allowed_media_type(file_type, filters):
+    # 8. Post-download filter pass (media_type and size now known)
+    post_action, post_reason = _apply_job_filter(job, ctx_post)
+    if post_action == 'reject':
         result['status'] = STATUS_SKIPPED
         return result
 
-    # 7. Save file
+    # 9. Save file
     output_path.write_bytes(data)
     result['status'] = STATUS_SUCCESS
     return result
@@ -352,10 +401,32 @@ def download_from_wis2(self, job):
 [source,python]
 ----
 def wis2_download(args):
-    # Chain: download -> decode/ingest
-    workflow = download_from_wis2.s(args) | decode_and_ingest.s()
+    workflow = download_from_wis2.s(args)
     return workflow
 ----
+
+==== Scheduler (Periodic Tasks)
+
+A separate Celery app (`scheduler.py`) handles housekeeping using Celery Beat. It uses Redis databases 2/3 to avoid interfering with the download worker queues (databases 0/1). Periodic tasks are defined in `tasks/scheduled_tasks.py`:
+
+[cols="2,1,3"]
+|===
+|Task |Interval |Purpose
+
+|`check_disk_space`
+|Every 5 min
+|Sets `disk_total_bytes`, `disk_used_bytes`, `disk_free_bytes` gauges
+
+|`clean_directory`
+|Every 10 min
+|Deletes files older than `DOWNLOAD_RETENTION_PERIOD` days; decrements `disk_downloads_bytes` per deleted file
+
+|`recalibrate_downloads_size`
+|Daily
+|Full `os.walk` to correct any drift in the `disk_downloads_bytes` gauge
+|===
+
+The scheduler is started as two Docker Compose services: `celery-scheduler-workers` (runs tasks) and `celery-beats` (triggers them on schedule).
 
 == UI Module
 
@@ -809,25 +880,27 @@ def render(container):
 
 === Redis PubSub (Commands)
 
-Subscription Manager → Subscriber communication uses Redis PubSub:
+Subscription Manager → Subscriber communication uses Redis PubSub on channel `subscription_commands`:
 
 [source,json]
 ----
-// Channel: subscription_commands
+// First subscription for a topic — opens MQTT connection
+{"action": "subscribe", "topic": "cache/a/wis2/+/data/#",
+ "subscriptions": {"<uuid>": {"id": "<uuid>", "save_path": "all-data", "filter": {}}}}
 
-// Subscribe command
-{
-  "action": "subscribe",
-  "topic": "cache/a/wis2/+/data/#",
-  "save_path": "all-data",
-  "filters": {"accepted_media_types": ["application/bufr"]}
-}
+// Additional subscription for an already-open topic
+{"action": "add_subscription", "topic": "cache/a/wis2/+/data/#",
+ "sub_id": "<uuid>", "save_path": "grib-data", "filter": {"rules": [...]}}
 
-// Unsubscribe command
-{
-  "action": "unsubscribe",
-  "topic": "cache/a/wis2/+/data/#"
-}
+// Remove one subscription (MQTT stays open)
+{"action": "remove_subscription", "topic": "cache/a/wis2/+/data/#", "sub_id": "<uuid>"}
+
+// Last subscription removed — closes MQTT connection
+{"action": "unsubscribe", "topic": "cache/a/wis2/+/data/#"}
+
+// Update save_path or filter for an existing subscription
+{"action": "update_subscription", "topic": "cache/a/wis2/+/data/#",
+ "sub_id": "<uuid>", "save_path": "new-path", "filter": {}}
 ----
 
 === Celery Tasks (Downloads)
@@ -839,7 +912,7 @@ Subscriber → Celery Worker communication uses Celery task queue:
 job = {
     "topic": "cache/a/wis2/de-dwd/data/...",
     "target": "dwd-data",
-    "filters": {"accepted_media_types": [...]},
+    "filter": {"name": "...", "rules": [...]},   # subscription-level filter
     "_broker": "globalbroker.meteo.fr",
     "_received": "2026-01-28 10:15:30",
     "_queued": "2026-01-28 10:15:30",
@@ -863,20 +936,23 @@ job = {
 |===
 |Key Pattern |Purpose
 
-|`global:all_subscriptions`
-|Hash of all subscriptions (topic → JSON)
+|`global:subscriptions`
+|Hash of all subscriptions (sub_id → JSON `{id, topic, save_path, filter}`)
 
-|`wis2:notifications:data:tracker:by-msg-id:{id}`
-|Deduplication by message ID
-
-|`wis2:notifications:data:tracker:by-data-id:{id}`
-|Deduplication by data ID
-
-|`wis2:notifications:data:tracker:by-hash:{hash}`
-|Deduplication by file hash
+|`wis2:notification:status:{type}:{id}`
+|Deduplication tracking (types: `by-msg-id`, `by-data-id`, `by-hash`)
 
 |`wis2:notification:data:lock:{id}`
-|Distributed lock for concurrent downloads
+|Distributed lock preventing concurrent duplicate downloads
+
+|`gdc:cache:{name}`
+|Cached GDC catalogue JSON (CMA, DWD, ECCC); TTL set by `GDC_CACHE_TTL_SECONDS`
+
+|`wis2:metrics:{metric_name}`
+|Prometheus metrics hash (field = JSON label dict, value = float counter/gauge)
+
+|`subscriber:health:{id}`
+|Subscriber health heartbeat
 
 |`celery`
 |Celery task queue (default)
@@ -884,23 +960,35 @@ job = {
 
 == Extending the System
 
-=== Adding a New Filter
+=== Adding a New Match Condition to the Filter Engine
 
-1. Add filter field to OpenAPI spec (`openapi.yml`)
-2. Pass filter through subscription flow (app.py → command_listener.py → subscriber.py)
-3. Apply filter in download task (`wis2.py`)
+The filter engine lives in `modules/shared/shared/filters.py`. Each match condition is a key in the match object dispatched by `_evaluate_match()`.
 
-Example: Adding a `max_file_size` filter:
+To add a new built-in condition (e.g. matching on a new metadata field `station_id`):
 
+1. Add the field to `MatchContext` in `filters.py`:
++
 [source,python]
 ----
-# In wis2.py, after downloading:
-max_size = filters.get('max_file_size')
-if max_size and len(data) > max_size:
-    result['status'] = STATUS_SKIPPED
-    result['error_class'] = 'FileTooLarge'
-    return result
+@dataclass
+class MatchContext:
+    ...
+    station_id: str | None = None
 ----
+
+2. Populate it in `_build_context()` in `wis2.py` (pre- and/or post-download).
+
+3. Add a branch in `_evaluate_match()`:
++
+[source,python]
+----
+if 'station_id' in match:
+    return _match_string_field(ctx.station_id, match['station_id'])
+----
+
+4. Document the new field in `openapi.yml` and in the filter reference in the user guide.
+
+No changes are needed in `app.py`, `command_listener.py`, or `subscriber.py` — the filter object is passed through unchanged and evaluated at download time.
 
 === Adding a New Task
 
@@ -921,19 +1009,36 @@ def my_custom_task(data):
 
 === Adding a New Metric
 
+Metrics are stored in Redis via `shared.redis_metrics`. To add a new metric:
+
+1. Register it in the `METRICS` dict in `modules/shared/shared/redis_metrics.py`:
++
 [source,python]
 ----
-from prometheus_client import Counter
-
-MY_METRIC = Counter(
-    'wis2_my_metric',
-    'Description of the metric',
-    ['label1', 'label2']
-)
-
-# In task:
-MY_METRIC.labels(label1='value', label2='value').inc()
+METRICS = {
+    ...
+    'my_metric_total': MetricDef(
+        name='wis2downloader_my_metric_total',
+        help='Description of the metric',
+        type='counter',
+    ),
+}
 ----
+
+2. Increment it from any service (counter) or set it (gauge):
++
+[source,python]
+----
+from shared import incr_counter, set_gauge
+
+# Counter (e.g. in a Celery task)
+incr_counter('my_metric_total', {'label1': 'value', 'label2': 'value'})
+
+# Gauge (e.g. in a scheduled task)
+set_gauge('my_metric_total', {'label1': 'value'}, 42.0)
+----
+
+Only metrics registered in `METRICS` appear in the `/metrics` output.
 
 == Testing
 
@@ -1028,11 +1133,11 @@ docker-compose build --no-cache
 [source,bash]
 ----
 # Inspect active tasks
-docker exec -it wis2downloader-refactor-celery-1 \
+docker exec -it wis2downloader-celery-1 \
   celery -A task_manager.worker inspect active
 
 # Inspect reserved tasks
-docker exec -it wis2downloader-refactor-celery-1 \
+docker exec -it wis2downloader-celery-1 \
   celery -A task_manager.worker inspect reserved
 ----
 
@@ -1044,7 +1149,7 @@ docker exec -it wis2downloader-refactor-celery-1 \
 docker exec -it redis redis-cli -a $REDIS_PASSWORD
 
 # List subscriptions
-HGETALL global:all_subscriptions
+HGETALL global:subscriptions
 
 # Check queue length
 LLEN celery

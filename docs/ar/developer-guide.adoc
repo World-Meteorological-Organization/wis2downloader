@@ -128,10 +128,10 @@ modules/
 ----
 from shared import get_redis_client
 
-# Get Redis client (singleton)
+# الحصول على عميل Redis (نمط Singleton)
 redis = get_redis_client()
 
-# Use like normal Redis client
+# الاستخدام كعميل Redis عادي
 redis.set('key', 'value')
 redis.get('key')
 ----
@@ -149,10 +149,10 @@ redis.get('key')
 ----
 from shared import setup_logging
 
-# Configure root logger (call once at startup)
+# ضبط مسجّل الجذر (يُستدعى مرةً واحدة عند بدء التشغيل)
 setup_logging()
 
-# Get module-specific logger
+# الحصول على مسجّل خاص بالوحدة
 LOGGER = setup_logging(__name__)
 
 LOGGER.info("Message with UTC timestamp")
@@ -284,14 +284,24 @@ def add_subscription():
 
 ==== نقطة نهاية المقاييس
 
+تُخزَّن المقاييس في Redis باستخدام عمليات `HINCRBYFLOAT` الذرية، مما يجعلها آمنة عبر حاويات عامل Celery المتعددة. تقرأ نقطة النهاية من Redis وتُصيِّر تنسيق نص Prometheus:
+
 [source,python]
 ----
 @app.route('/metrics')
 def expose_metrics():
-    # Collect from multiprocess directory
-    registry = CollectorRegistry()
-    multiprocess.MultiProcessCollector(registry, path=basedir)
-    return Response(generate_latest(registry), mimetype="text/plain")
+    # Update live gauge before exposing
+    queue_length = redis_client.llen(CELERY_DEFAULT_QUEUE)
+    set_gauge('celery_queue_length', {'queue_name': CELERY_DEFAULT_QUEUE}, queue_length)
+    return Response(generate_prometheus_text(), mimetype="text/plain")
+----
+
+زيادة عداد من أي عامل:
+
+[source,python]
+----
+from shared import incr_counter
+incr_counter('downloads_total', {'cache': hostname, 'media_type': mime_type})
 ----
 
 === وحدة Task Manager
@@ -307,7 +317,7 @@ app = Celery('tasks',
              broker=CELERY_BROKER_URL,
              result_backend=CELERY_RESULT_BACKEND)
 
-# Auto-discover tasks
+# الاكتشاف التلقائي للمهام
 app.autodiscover_tasks(['task_manager.tasks', 'task_manager.tasks.wis2'])
 ----
 
@@ -362,10 +372,32 @@ def download_from_wis2(self, job):
 [source,python]
 ----
 def wis2_download(args):
-    # Chain: download -> decode/ingest
-    workflow = download_from_wis2.s(args) | decode_and_ingest.s()
+    workflow = download_from_wis2.s(args)
     return workflow
 ----
+
+==== المُجدوِل (المهام الدورية)
+
+يتولى تطبيق Celery منفصل (`scheduler.py`) مهام الصيانة باستخدام Celery Beat. يستخدم قواعد بيانات Redis 2/3 تجنبًا للتداخل مع قوائم انتظار عمال التنزيل (قواعد البيانات 0/1). تُعرَّف المهام الدورية في `tasks/scheduled_tasks.py`:
+
+[cols="2,1,3"]
+|===
+|المهمة |الفاصل الزمني |الغرض
+
+|`check_disk_space`
+|كل 5 دقائق
+|تُعيِّن مقاييس `disk_total_bytes` و`disk_used_bytes` و`disk_free_bytes`
+
+|`clean_directory`
+|كل 10 دقائق
+|تحذف الملفات الأقدم من `DOWNLOAD_RETENTION_PERIOD` يومًا؛ تُنقِص مقياس `disk_downloads_bytes` لكل ملف محذوف
+
+|`recalibrate_downloads_size`
+|يوميًا
+|تنفِّذ `os.walk` كاملًا لتصحيح أي انجراف في مقياس `disk_downloads_bytes`
+|===
+
+يُشغَّل المُجدوِل كخدمتَيْن في Docker Compose: `celery-scheduler-workers` (تُشغِّل المهام) و`celery-beats` (تُشغِّلها وفق الجدول الزمني).
 
 == وحدة واجهة المستخدم
 
@@ -625,10 +657,10 @@ class AppState:
 ----
 from i18n import t
 
-# Simple lookup
+# بحث بسيط
 label = t('nav.dashboard')                      # → 'Dashboard'
 
-# With interpolation (uses str.format)
+# مع إدراج القيم (يستخدم str.format)
 label = t('subscriptions.folder', path='./')    # → 'Folder: ./'
 ----
 
@@ -819,25 +851,27 @@ def render(container):
 
 === Redis PubSub (الأوامر)
 
-يستخدم التواصل بين Subscription Manager وSubscriber نظام Redis PubSub:
+يستخدم التواصل بين Subscription Manager وSubscriber نظام Redis PubSub على قناة `subscription_commands`:
 
 [source,json]
 ----
-// Channel: subscription_commands
+// First subscription for a topic — opens MQTT connection
+{"action": "subscribe", "topic": "cache/a/wis2/+/data/#",
+ "subscriptions": {"<uuid>": {"id": "<uuid>", "save_path": "all-data", "filter": {}}}}
 
-// Subscribe command
-{
-  "action": "subscribe",
-  "topic": "cache/a/wis2/+/data/#",
-  "save_path": "all-data",
-  "filters": {"accepted_media_types": ["application/bufr"]}
-}
+// Additional subscription for an already-open topic
+{"action": "add_subscription", "topic": "cache/a/wis2/+/data/#",
+ "sub_id": "<uuid>", "save_path": "grib-data", "filter": {"rules": [...]}}
 
-// Unsubscribe command
-{
-  "action": "unsubscribe",
-  "topic": "cache/a/wis2/+/data/#"
-}
+// Remove one subscription (MQTT stays open)
+{"action": "remove_subscription", "topic": "cache/a/wis2/+/data/#", "sub_id": "<uuid>"}
+
+// Last subscription removed — closes MQTT connection
+{"action": "unsubscribe", "topic": "cache/a/wis2/+/data/#"}
+
+// Update save_path or filter for an existing subscription
+{"action": "update_subscription", "topic": "cache/a/wis2/+/data/#",
+ "sub_id": "<uuid>", "save_path": "new-path", "filter": {}}
 ----
 
 === مهام Celery (التنزيلات)
@@ -849,7 +883,7 @@ def render(container):
 job = {
     "topic": "cache/a/wis2/de-dwd/data/...",
     "target": "dwd-data",
-    "filters": {"accepted_media_types": [...]},
+    "filter": {"name": "...", "rules": [...]},   # subscription-level filter
     "_broker": "globalbroker.meteo.fr",
     "_received": "2026-01-28 10:15:30",
     "_queued": "2026-01-28 10:15:30",
@@ -873,20 +907,23 @@ job = {
 |===
 |نمط المفتاح |الغرض
 
-|`global:all_subscriptions`
-|Hash لجميع الاشتراكات (الموضوع ← JSON)
+|`global:subscriptions`
+|Hash لجميع الاشتراكات (sub_id ← JSON `{id, topic, save_path, filter}`)
 
-|`wis2:notifications:data:tracker:by-msg-id:{id}`
-|إزالة التكرار حسب معرّف الرسالة
-
-|`wis2:notifications:data:tracker:by-data-id:{id}`
-|إزالة التكرار حسب معرّف البيانات
-
-|`wis2:notifications:data:tracker:by-hash:{hash}`
-|إزالة التكرار حسب هاش الملف
+|`wis2:notification:status:{type}:{id}`
+|تتبع إزالة التكرار (الأنواع: `by-msg-id`، `by-data-id`، `by-hash`)
 
 |`wis2:notification:data:lock:{id}`
 |قفل موزَّع للتنزيلات المتزامنة
+
+|`gdc:cache:{name}`
+|JSON كتالوج GDC المخزَّن مؤقتاً (CMA، DWD، ECCC)؛ مدة الصلاحية تُحدَّد بـ `GDC_CACHE_TTL_SECONDS`
+
+|`wis2:metrics:{metric_name}`
+|Hash مقاييس Prometheus (الحقل = قاموس labels بتنسيق JSON، القيمة = عداد/مقياس من النوع float)
+
+|`subscriber:health:{id}`
+|نبضة صحة المشترك
 
 |`celery`
 |قائمة انتظار مهام Celery (الافتراضية)
@@ -894,23 +931,35 @@ job = {
 
 == توسيع النظام
 
-=== إضافة مرشح جديد
+=== إضافة شرط مطابقة جديد لمحرك الفلتر
 
-1. إضافة حقل المرشح إلى مواصفة OpenAPI (`openapi.yml`)
-2. تمرير المرشح عبر تدفق الاشتراك (app.py → command_listener.py → subscriber.py)
-3. تطبيق المرشح في مهمة التنزيل (`wis2.py`)
+يقع محرك الفلتر في `modules/shared/shared/filters.py`. كل شرط مطابقة هو مفتاح في كائن المطابقة تُرسله `_evaluate_match()`.
 
-مثال: إضافة مرشح `max_file_size`:
+لإضافة شرط مدمج جديد (مثلاً المطابقة على حقل بيانات وصفية جديد `station_id`):
 
+1. أضف الحقل إلى `MatchContext` في `filters.py`:
++
 [source,python]
 ----
-# In wis2.py, after downloading:
-max_size = filters.get('max_file_size')
-if max_size and len(data) > max_size:
-    result['status'] = STATUS_SKIPPED
-    result['error_class'] = 'FileTooLarge'
-    return result
+@dataclass
+class MatchContext:
+    ...
+    station_id: str | None = None
 ----
+
+2. امْلأه في `_build_context()` في `wis2.py` (قبل التنزيل و/أو بعده).
+
+3. أضف فرعاً في `_evaluate_match()`:
++
+[source,python]
+----
+if 'station_id' in match:
+    return _match_string_field(ctx.station_id, match['station_id'])
+----
+
+4. وثِّق الحقل الجديد في `openapi.yml` وفي مرجع الفلتر في دليل المستخدم.
+
+لا يلزم إجراء أي تغييرات في `app.py` أو `command_listener.py` أو `subscriber.py` — يُمرَّر كائن الفلتر دون تعديل ويُقيَّم عند وقت التنزيل.
 
 === إضافة مهمة جديدة
 
@@ -931,18 +980,33 @@ def my_custom_task(data):
 
 === إضافة مقياس جديد
 
+تُخزَّن المقاييس في Redis عبر `shared.redis_metrics`. لإضافة مقياس جديد:
+
+1. سجِّله في قاموس `METRICS` في `modules/shared/shared/redis_metrics.py`:
++
 [source,python]
 ----
-from prometheus_client import Counter
+METRICS = {
+    ...
+    'my_metric_total': MetricDef(
+        name='wis2downloader_my_metric_total',
+        help='وصف المقياس',
+        type='counter',
+    ),
+}
+----
 
-MY_METRIC = Counter(
-    'wis2_my_metric',
-    'Description of the metric',
-    ['label1', 'label2']
-)
+2. زِد قيمته من أي خدمة (عداد) أو اضبطها (مقياس):
++
+[source,python]
+----
+from shared import incr_counter, set_gauge
 
-# In task:
-MY_METRIC.labels(label1='value', label2='value').inc()
+# عداد (مثلاً في مهمة Celery)
+incr_counter('my_metric_total', {'label1': 'value', 'label2': 'value'})
+
+# مقياس (مثلاً في مهمة مجدوَلة)
+set_gauge('my_metric_total', {'label1': 'value'}, 42.0)
 ----
 
 == الاختبار
@@ -951,13 +1015,13 @@ MY_METRIC.labels(label1='value', label2='value').inc()
 
 [source,bash]
 ----
-# Install test dependencies
+# تثبيت تبعيات الاختبار
 pip install pytest pytest-cov
 
-# Run tests
+# تشغيل الاختبارات
 pytest modules/
 
-# With coverage
+# مع تقرير التغطية
 pytest --cov=modules modules/
 ----
 
@@ -965,18 +1029,18 @@ pytest --cov=modules modules/
 
 [source,bash]
 ----
-# Start services
+# تشغيل الخدمات
 docker-compose up -d
 
-# Create test subscription
+# إنشاء اشتراك تجريبي
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/de-dwd/data/#", "target": "test"}'
 
-# Watch logs
+# مراقبة السجلات
 docker-compose logs -f subscriber celery
 
-# Check downloads
+# فحص التنزيلات
 ls -la downloads/test/
 ----
 
@@ -986,34 +1050,34 @@ ls -la downloads/test/
 
 [source,bash]
 ----
-# Create virtual environment
+# إنشاء بيئة افتراضية
 python -m venv venv
 source venv/bin/activate
 
-# Install modules in editable mode
+# تثبيت الوحدات في الوضع القابل للتعديل
 pip install -e modules/shared
 pip install -e modules/task_manager
 pip install -e modules/subscriber
 pip install -e modules/subscription_manager
 
-# Start Redis (single instance for dev)
+# تشغيل Redis (نسخة واحدة للتطوير)
 docker run -d -p 6379:6379 redis:7.2-alpine redis-server --requirepass devpassword
 
-# Set environment
+# ضبط البيئة
 export REDIS_HOST=localhost
 export REDIS_PORT=6379
 export REDIS_PASSWORD=devpassword
 export FLASK_SECRET_KEY=dev-secret-key
 export LOG_LEVEL=DEBUG
 
-# Run subscription manager
+# تشغيل مدير الاشتراكات
 python -m subscription_manager.app
 
-# Run subscriber (in another terminal)
+# تشغيل المشترك (في طرفية أخرى)
 export GLOBAL_BROKER_HOST=globalbroker.meteo.fr
 python -m subscriber.manager
 
-# Run celery worker (in another terminal)
+# تشغيل عامل Celery (في طرفية أخرى)
 celery -A task_manager.worker worker --loglevel=DEBUG
 ----
 
@@ -1021,13 +1085,13 @@ celery -A task_manager.worker worker --loglevel=DEBUG
 
 [source,bash]
 ----
-# Build all images
+# بناء جميع الصور
 docker-compose build
 
-# Build specific service
+# بناء خدمة محددة
 docker-compose build celery
 
-# Rebuild without cache
+# إعادة البناء دون ذاكرة مؤقتة
 docker-compose build --no-cache
 ----
 
@@ -1037,12 +1101,12 @@ docker-compose build --no-cache
 
 [source,bash]
 ----
-# Inspect active tasks
-docker exec -it wis2downloader-refactor-celery-1 \
+# فحص المهام النشطة
+docker exec -it wis2downloader-celery-1 \
   celery -A task_manager.worker inspect active
 
-# Inspect reserved tasks
-docker exec -it wis2downloader-refactor-celery-1 \
+# فحص المهام المحجوزة
+docker exec -it wis2downloader-celery-1 \
   celery -A task_manager.worker inspect reserved
 ----
 
@@ -1050,19 +1114,19 @@ docker exec -it wis2downloader-refactor-celery-1 \
 
 [source,bash]
 ----
-# Connect to Redis (use password from environment)
+# الاتصال بـ Redis (استخدم كلمة المرور من البيئة)
 docker exec -it redis redis-cli -a $REDIS_PASSWORD
 
-# List subscriptions
-HGETALL global:all_subscriptions
+# سرد الاشتراكات
+HGETALL global:subscriptions
 
-# Check queue length
+# فحص طول قائمة الانتظار
 LLEN celery
 
-# View deduplication keys
+# عرض مفاتيح إزالة التكرار
 KEYS wis2:notifications:*
 
-# View GDC catalogue cache (populated by the UI on startup)
+# عرض ذاكرة كتالوج GDC المؤقتة (تُملأ بواجهة المستخدم عند بدء التشغيل)
 KEYS gdc:cache:*
 TTL gdc:cache:CMA
 ----
@@ -1073,7 +1137,7 @@ NOTE: تتطلب جميع أوامر Redis المصادقة. علامة `-a $RED
 
 [source,bash]
 ----
-# Subscribe to topic manually (mosquitto-clients)
+# الاشتراك في موضوع يدويًا (mosquitto-clients)
 mosquitto_sub -h globalbroker.meteo.fr -p 443 \
   -t 'cache/a/wis2/de-dwd/data/#' \
   -u everyone -P everyone \

@@ -21,7 +21,9 @@ Las suscripciones pueden crearse a través de la interfaz web del navegador (rec
 
 == Interfaz web
 
-La interfaz web está disponible en `http://localhost:8080`. Proporciona una forma visual de descubrir los conjuntos de datos WIS2 disponibles, explorar la jerarquía de temas y crear suscripciones sin usar directamente la API REST.
+La interfaz web está disponible en `http://<host>:8080` (de forma predeterminada `http://localhost:8080` cuando se ejecuta localmente). El host y el puerto reales dependen de cómo esté desplegado el sistema — consulte con su administrador si accede a una instancia compartida.
+
+Proporciona una forma visual de descubrir los conjuntos de datos WIS2 disponibles, explorar la jerarquía de temas y crear suscripciones sin usar directamente la API REST.
 
 === Idioma de la interfaz
 
@@ -64,14 +66,14 @@ El cajón de navegación a la izquierda (a la derecha en modo RTL árabe) da acc
 
 |kbd:[Alt+1]
 |*Panel de control*
-|Paneles Grafana integrados que muestran tasas de descarga, profundidad de cola y totales de bytes en tiempo real
+|Paneles integrados que muestran tasas de descarga, profundidad de cola y totales de bytes en tiempo real
 
 |kbd:[Alt+2]
-|*Búsqueda en catálogo*
+|*Vista de catálogo*
 |Búsqueda de texto completo en los tres catálogos de descubrimiento globales (GDC) con filtrado por política de datos, palabras clave y bounding box
 
 |kbd:[Alt+3]
-|*Búsqueda en árbol*
+|*Vista de árbol*
 |Explore la jerarquía completa de temas WIS2 como un árbol navegable y seleccione un tema para abrir el panel lateral de suscripción
 
 |kbd:[Alt+4]
@@ -87,9 +89,9 @@ El cajón de navegación a la izquierda (a la derecha en modo RTL árabe) da acc
 |Ver recuentos de registros GDC por catálogo y activar una actualización manual de datos
 |===
 
-=== Búsqueda en catálogo
+=== Vista de catálogo
 
-La vista Búsqueda en catálogo consulta registros obtenidos de los tres catálogos de descubrimiento globales WIS2 (CMA, DWD, ECCC), fusionados en una única lista deduplicada.
+La vista de catálogo consulta registros obtenidos de los tres catálogos de descubrimiento globales WIS2 (CMA, DWD, ECCC), fusionados en una única lista deduplicada.
 
 ==== Filtros de búsqueda
 
@@ -123,15 +125,15 @@ Cada tarjeta de resultado muestra:
 * *Mostrar metadatos* — abre un diálogo con los detalles completos del registro y un mapa interactivo del alcance geográfico del conjunto de datos
 * *Seleccionar* / *Deseleccionar* — agrega o elimina el tema MQTT del conjunto de datos en el panel lateral de suscripción
 
-=== Búsqueda en árbol
+=== Vista de árbol
 
-La vista Búsqueda en árbol muestra la jerarquía completa de temas WIS2 derivada de todos los registros GDC cargados. Expanda los nodos para navegar hasta los temas individuales. Escriba en el cuadro de filtro en la parte superior para buscar entre todas las etiquetas de nodos. Haga clic en un nodo hoja para abrir el panel lateral de suscripción.
+La vista de árbol muestra la jerarquía completa de temas WIS2 derivada de todos los registros GDC cargados. Expanda los nodos para navegar hasta los temas individuales. Escriba en el cuadro de filtro en la parte superior para buscar entre todas las etiquetas de nodos. Haga clic en un nodo hoja para abrir el panel lateral de suscripción.
 
 NOTE: Solo un tema puede estar activo a la vez en la vista de árbol.
 
 === Crear una suscripción desde la interfaz
 
-Cuando se selecciona un tema (desde la búsqueda en catálogo o la vista de árbol), el panel lateral de suscripción se abre a la derecha.
+Cuando se selecciona un tema (desde la vista de catálogo o la vista de árbol), el panel lateral de suscripción se abre a la derecha.
 
 [cols="1,3"]
 |===
@@ -195,7 +197,7 @@ cache/a/wis2/{centre-id}/data/{data-policy}/{earth-system-domain}/{category}/...
 |Todos los datos del Deutscher Wetterdienst
 
 |`cache/a/wis2/+/data/core/weather/surface-based-observations/#`
-|Observaciones de superficie de todos los países
+|Observaciones de superficie básicas de todos los nodos WIS2
 
 |===
 
@@ -214,9 +216,9 @@ cache/a/wis2/{centre-id}/data/{data-policy}/{earth-system-domain}/{category}/...
 
 == Gestión de suscripciones mediante la API REST
 
-Las suscripciones también pueden gestionarse mediante programación usando la API REST en `http://localhost:5002`.
+Las suscripciones también pueden gestionarse mediante programación usando la API REST. La dirección predeterminada es `http://localhost:5002`, pero el host y el puerto reales pueden variar según el despliegue.
 
-TIP: Use la interfaz Swagger en `http://localhost:5002/swagger` para la exploración interactiva de la API.
+TIP: Use la interfaz Swagger en `http://<host>:5002/swagger` para la exploración interactiva de la API.
 
 === Crear una suscripción
 
@@ -281,19 +283,32 @@ Respuesta:
 
 === Obtener detalles de una suscripción
 
+Primero liste las suscripciones para encontrar el ID de suscripción (`a1b2c3d4-...`), luego consúltela por ID:
+
 [source,bash]
 ----
-curl "http://localhost:5002/subscriptions/cache/a/wis2/+/data/core/weather/surface-based-observations/%23"
+curl http://localhost:5002/subscriptions/<id>
 ----
 
-NOTE: El carácter `#` debe codificarse en URL como `%23` (de lo contrario se interpreta como fragmento de URL). Las barras oblicuas y `+` no requieren codificación.
+Respuesta:
+[source,json]
+----
+{
+  "id": "a1b2c3d4-...",
+  "topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#",
+  "save_path": "surface-obs",
+  "filter": {}
+}
+----
 
 === Eliminar una suscripción
 
 [source,bash]
 ----
-curl -X DELETE "http://localhost:5002/subscriptions/cache/a/wis2/+/data/core/weather/surface-based-observations/%23"
+curl -X DELETE http://localhost:5002/subscriptions/<id>
 ----
+
+NOTE: Donde `<id>` es el UUID de suscripción obtenido de `GET /subscriptions`. Si esta es la última suscripción para el tema, la conexión MQTT también se cierra.
 
 [[Filtrado]]
 == Filtrado
@@ -675,19 +690,21 @@ Tipos aceptados por defecto cuando no se especifica ningún filtro:
 
 === Organización de archivos
 
-Los archivos se organizan por fecha bajo su directorio destino:
+Los archivos se organizan bajo su directorio destino en un subdirectorio `YYYY/MM/DD` basado en la fecha en que el archivo fue *descargado* (no el tiempo de observación ni el tiempo de validez de los datos):
 
 [source]
 ----
 /data/
 └── surface-obs/           # Your target directory
     └── 2026/
-        └── 01/
-            └── 28/
-                ├── SYNOP_20260128T120000.bufr
-                ├── SYNOP_20260128T121500.bufr
+        └── 03/
+            └── 05/        # Date downloaded (UTC)
+                ├── SYNOP_20260305T120000.bufr
+                ├── SYNOP_20260305T121500.bufr
                 └── ...
 ----
+
+NOTE: La fecha del directorio refleja cuándo llegó el archivo, no cuándo se produjeron los datos ni para qué período son válidos. Los archivos de períodos de observación más antiguos que lleguen tarde aparecerán en el directorio correspondiente a su fecha de descarga.
 
 === Nomenclatura de archivos
 
@@ -697,15 +714,17 @@ Los archivos conservan sus nombres originales de la URL de descarga. Si ya exist
 
 [source,bash]
 ----
-# List recent downloads
+# Listar descargas recientes
 ls -la downloads/surface-obs/$(date +%Y/%m/%d)/
 
-# Count files by type
+# Contar archivos por tipo
 find downloads/ -name "*.bufr" | wc -l
 
-# Total size
+# Tamaño total
 du -sh downloads/
 ----
+
+NOTE: `du` informa el uso de disco basándose en la asignación de bloques del sistema de archivos, no en el recuento de bytes en bruto. Muchos archivos pequeños (como los boletines BUFR) consumen un bloque completo cada uno independientemente de su tamaño real, por lo que los resultados de `du` serán típicamente mayores que la suma de los tamaños de archivos individuales indicados por `ls -la`.
 
 == Monitoreo
 
@@ -728,21 +747,21 @@ Ver estadísticas de descarga:
 
 [source,bash]
 ----
-# Total downloads
+# Total de descargas
 curl -s http://localhost:5002/metrics | grep wis2downloader_downloads_total
 
-# Failed downloads
+# Descargas fallidas
 curl -s http://localhost:5002/metrics | grep wis2downloader_failed_total
 
-# Queue depth
+# Profundidad de la cola
 curl -s http://localhost:5002/metrics | grep wis2downloader_celery_queue_length
 ----
 
-=== Panel de control Grafana
+=== Vista de panel de control
 
-Acceda a Grafana en `http://localhost:3000` para monitoreo visual.
+El panel de control integrado (kbd:[Alt+1]) muestra tasas de descarga, profundidad de cola, uso de disco y totales de bytes en tiempo real. No se requiere inicio de sesión adicional.
 
-NOTE: Las credenciales predeterminadas son admin/admin. Debe cambiar la contraseña tras el primer inicio de sesión.
+TIP: El panel de control está integrado directamente en la interfaz web — no es necesario abrir Grafana por separado.
 
 == Casos de uso comunes
 
@@ -806,17 +825,17 @@ Cree suscripciones separadas para diferentes tipos de datos:
 
 [source,bash]
 ----
-# Surface observations
+# Observaciones de superficie
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#", "target": "surface"}'
 
-# Upper air
+# Viento en altura
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/+/data/core/weather/upper-air-observations/#", "target": "upper-air"}'
 
-# Forecasts
+# Pronósticos
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/+/data/core/weather/prediction/#", "target": "forecasts"}'
@@ -868,10 +887,13 @@ Elimine la suscripción existente y vuelva a crearla con un filtro `media_type`.
 
 [source,bash]
 ----
-# Delete old subscription (use the subscription ID from GET /subscriptions)
+# Listar suscripciones para encontrar el UUID
+curl http://localhost:5002/subscriptions
+
+# Eliminar suscripción antigua por UUID
 curl -X DELETE http://localhost:5002/subscriptions/<id>
 
-# Create new subscription with filter
+# Crear nueva suscripción con filtro
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{

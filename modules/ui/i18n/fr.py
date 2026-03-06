@@ -108,7 +108,11 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     # Manage Subscriptions view                                            #
     # ------------------------------------------------------------------ #
-    'subscriptions.folder': 'Dossier\u00a0: {path}',
+    'subscriptions.folder':        'Dossier\u00a0: {path}',
+    'subscriptions.id':            'ID\u00a0: {id}',
+    'subscriptions.filter_default':'Filtre\u00a0: par défaut',
+    'subscriptions.filter_named':  'Filtre\u00a0: {name}',
+    'subscriptions.filter_custom': 'Filtre\u00a0: personnalisé',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #

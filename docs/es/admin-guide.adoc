@@ -26,8 +26,8 @@ de su uso en producción. Consulte el link:../en/[documento original en inglés]
 
 [source,bash]
 ----
-git clone <repository-url>
-cd wis2downloader-refactor
+git clone https://github.com/World-Meteorological-Organization/wis2downloader
+cd wis2downloader
 cp default.env .env
 ----
 
@@ -52,6 +52,27 @@ El archivo `.env` contiene credenciales sensibles. Asegúrese de que:
 * No esté versionado (agréguelo a `.gitignore`)
 * Solo sea legible por el usuario de despliegue (`chmod 600 .env`)
 * Esté respaldado de forma segura
+
+==== Control de acceso
+
+WARNING: WIS2 Downloader no implementa autenticación ni autorización en la interfaz web ni en la API REST del gestor de suscripciones. Cualquier persona con acceso de red a la interfaz (puerto 8080) o a la API (puerto 5002) puede ver, crear, modificar y eliminar suscripciones.
+
+En un entorno compartido o expuesto a Internet, *debe* restringir el acceso a nivel de red. Los enfoques recomendados son:
+
+* **Proxy inverso con autenticación** — Coloque nginx o Caddy delante de los puertos de la interfaz y la API, aplicando autenticación básica HTTP u OAuth antes de reenviar las solicitudes. Una configuración mínima de nginx:
++
+[source,nginx]
+----
+location / {
+    auth_basic           "WIS2 Downloader";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+    proxy_pass           http://localhost:8080;
+}
+----
+* **Reglas de cortafuegos** — Restrinja los puertos 8080 y 5002 a rangos de IP de confianza usando `iptables`, `ufw` o grupos de seguridad en la nube.
+* **VPN / red privada** — Despliegue detrás de una VPN para que solo los usuarios VPN autenticados puedan acceder a los servicios.
+
+Si el sistema se ejecuta en un servidor en lugar de en localhost, asegúrese de que los puertos 8080 y 5002 no sean accesibles públicamente antes de añadir uno de los controles de acceso anteriores.
 
 === Permisos de volúmenes
 
@@ -84,13 +105,13 @@ Cree un usuario y grupo en el sistema host que coincidan con el UID/GID del cont
 
 [source,bash]
 ----
-# Create the wis2 group with GID 988
+# Crear el grupo wis2 con GID 988
 sudo groupadd -g 988 wis2
 
-# Create the wis2 user with UID 10001
+# Crear el usuario wis2 con UID 10001
 sudo useradd -u 10001 -g wis2 -M -s /usr/sbin/nologin wis2
 
-# Set ownership on the downloads directory
+# Establecer propiedad en el directorio de descargas
 sudo mkdir -p downloads
 sudo chown -R wis2:wis2 downloads
 ----
@@ -101,14 +122,14 @@ Si no puede crear un usuario/grupo coincidente, use listas de control de acceso 
 
 [source,bash]
 ----
-# Ensure ACL support is installed
+# Asegurarse de que el soporte ACL está instalado
 sudo apt-get install acl  # Debian/Ubuntu
 sudo yum install acl      # RHEL/CentOS
 
-# Create the downloads directory
+# Crear el directorio de descargas
 mkdir -p downloads
 
-# Grant UID 10001 full access
+# Conceder acceso completo a UID 10001
 sudo setfacl -R -m u:10001:rwx downloads
 sudo setfacl -R -d -m u:10001:rwx downloads  # Default ACL for new files
 ----
@@ -129,13 +150,13 @@ Pruebe que el contenedor puede escribir en el volumen:
 
 [source,bash]
 ----
-# Start the celery container
+# Iniciar el contenedor celery
 docker-compose up -d celery
 
-# Test write access from inside the container
+# Probar el acceso de escritura desde dentro del contenedor
 docker exec celery touch /data/test-write && echo "Write OK" || echo "Write FAILED"
 
-# Clean up
+# Limpiar
 docker exec celery rm -f /data/test-write
 ----
 
@@ -147,11 +168,11 @@ Si necesita que los usuarios del host lean los archivos descargados, agréguelos
 
 [source,bash]
 ----
-# Add your user to the wis2 group
+# Agregar su usuario al grupo wis2
 sudo usermod -aG wis2 $USER
 
-# Log out and back in for group membership to take effect
-# Then verify
+# Cerrar sesión y volver a iniciarla para que el grupo tenga efecto
+# Luego verificar
 groups  # Should include 'wis2'
 ----
 
@@ -159,25 +180,27 @@ También puede usar ACL para otorgar acceso de lectura a usuarios específicos:
 
 [source,bash]
 ----
-# Grant read access to a specific user
+# Conceder acceso de lectura a un usuario específico
 sudo setfacl -R -m u:youruser:rx downloads
 sudo setfacl -R -d -m u:youruser:rx downloads
 ----
 
 === Verificación del despliegue
 
+NOTE: Los ejemplos a continuación usan `localhost`. Si el sistema está desplegado en un servidor remoto, reemplace `localhost` por el nombre de host o la dirección IP del servidor. Los puertos (5002 para la API, 8080 para la interfaz) pueden cambiarse en `docker-compose.yaml` si es necesario.
+
 [source,bash]
 ----
-# Check all services are running
+# Verificar que todos los servicios están en ejecución
 docker-compose ps
 
-# Check health endpoint (subscription manager)
+# Verificar el punto de control de salud (gestor de suscripciones)
 curl http://localhost:5002/health
 
-# Check web UI is up
+# Verificar que la interfaz web está activa
 curl -o /dev/null -s -w "%{http_code}" http://localhost:8080
 
-# View logs
+# Ver registros
 docker-compose logs -f subscriber
 ----
 
@@ -356,7 +379,7 @@ docker-compose logs -f subscriber
 
 [source]
 ----
-wis2downloader-refactor/
+wis2downloader/
 ├── config/
 │   ├── grafana/provisioning/    # Grafana datasource config
 │   ├── loki/                    # Loki configuration
@@ -463,15 +486,21 @@ Todos los suscriptores comparten el mismo backend Redis, por lo que las suscripc
 
 Punto de acceso de métricas: `http://localhost:5002/metrics`
 
+NOTE: Las métricas se almacenan de forma atómica en Redis usando `HINCRBYFLOAT` y se exponen en el punto de acceso `/metrics` en formato de texto Prometheus. Este enfoque es seguro en múltiples contenedores de workers Celery sin requerir un sistema de archivos compartido ni el directorio multiproceso de `prometheus_client`.
+
 ==== Métricas disponibles
 
 [cols="2,1,3"]
 |===
 |Métrica |Tipo |Descripción
 
+|`wis2downloader_notifications_received_total`
+|Counter
+|Mensajes MQTT recibidos antes de encolar (etiquetas: broker); compare con `notifications_total` para detectar fallos de cola
+
 |`wis2downloader_notifications_total`
 |Counter
-|Total de notificaciones procesadas (etiquetas: status)
+|Total de notificaciones procesadas por Celery (etiquetas: status)
 
 |`wis2downloader_downloads_total`
 |Counter
@@ -489,28 +518,48 @@ Punto de acceso de métricas: `http://localhost:5002/metrics`
 |Counter
 |Descargas fallidas (etiquetas: cache, reason)
 
+|`wis2downloader_queue_errors_total`
+|Counter
+|Fallos al encolar una tarea Celery desde el suscriptor (etiquetas: broker)
+
 |`wis2downloader_celery_queue_length`
 |Gauge
 |Número actual de tareas en la cola Celery
+
+|`wis2downloader_disk_total_bytes`
+|Gauge
+|Capacidad total de disco del volumen de descargas
+
+|`wis2downloader_disk_used_bytes`
+|Gauge
+|Espacio de disco utilizado en el volumen de descargas
+
+|`wis2downloader_disk_free_bytes`
+|Gauge
+|Espacio de disco disponible en el volumen de descargas
+
+|`wis2downloader_disk_downloads_bytes`
+|Gauge
+|Bytes utilizados por los archivos descargados (seguimiento incremental)
 |===
 
 ==== Consultas de ejemplo
 
 [source,promql]
 ----
-# Download rate per minute
+# Tasa de descarga por minuto
 sum(rate(wis2downloader_downloads_total[1m]))
 
-# Downloads by cache
+# Descargas por caché
 sum by (cache) (rate(wis2downloader_downloads_total[5m]))
 
-# Failed downloads by reason
+# Descargas fallidas por razón
 sum by (reason) (wis2downloader_failed_total)
 
-# Bytes downloaded in last hour
+# Bytes descargados en la última hora
 sum(increase(wis2downloader_downloads_bytes_total[1h]))
 
-# Queue depth
+# Profundidad de la cola
 wis2downloader_celery_queue_length
 ----
 
@@ -538,13 +587,13 @@ Consulte los registros mediante Docker:
 
 [source,bash]
 ----
-# All services
+# Todos los servicios
 docker-compose logs -f
 
-# Specific service
+# Servicio específico
 docker-compose logs -f celery
 
-# With timestamps
+# Con marcas de tiempo
 docker-compose logs -f -t subscriber
 ----
 
@@ -558,10 +607,10 @@ Los registros también son recopilados por Loki y consultables en Grafana.
 
 [source,bash]
 ----
-# Trigger RDB snapshot
+# Activar instantánea RDB
 docker exec redis redis-cli -a $REDIS_PASSWORD BGSAVE
 
-# Copy snapshot
+# Copiar instantánea
 docker cp redis:/data/dump.rdb ./backup/
 ----
 
@@ -569,7 +618,7 @@ docker cp redis:/data/dump.rdb ./backup/
 
 [source,bash]
 ----
-# Backup downloads directory
+# Respaldar el directorio de descargas
 tar -czf wis2-downloads-$(date +%Y%m%d).tar.gz downloads/
 ----
 
@@ -579,13 +628,13 @@ WARNING: Estas operaciones son destructivas.
 
 [source,bash]
 ----
-# Clear all subscriptions
-docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:all_subscriptions
+# Borrar todas las suscripciones
+docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:subscriptions
 
-# Clear deduplication cache (allows re-download of all data)
+# Borrar caché de deduplicación (permite volver a descargar todos los datos)
 docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli -a $REDIS_PASSWORD DEL
 
-# Clear downloaded files
+# Borrar archivos descargados
 rm -rf downloads/*
 ----
 
@@ -593,13 +642,13 @@ rm -rf downloads/*
 
 [source,bash]
 ----
-# Restart single service
+# Reiniciar un servicio individual
 docker-compose restart subscriber
 
-# Restart all services
+# Reiniciar todos los servicios
 docker-compose restart
 
-# Full rebuild (after code changes)
+# Reconstrucción completa (después de cambios de código)
 docker-compose build && docker-compose up -d
 ----
 
@@ -609,13 +658,13 @@ docker-compose build && docker-compose up -d
 
 [source,bash]
 ----
-# Check logs
+# Verificar registros
 docker-compose logs <service-name>
 
-# Check container status
+# Verificar estado del contenedor
 docker-compose ps
 
-# Verify environment
+# Verificar entorno
 docker-compose config
 ----
 
@@ -662,7 +711,7 @@ docker exec redis redis-cli -a $REDIS_PASSWORD PING
 +
 [source,bash]
 ----
-docker network inspect wis2downloader-refactor_redis-net
+docker network inspect wis2downloader_redis-net
 ----
 
 === Uso elevado de memoria
@@ -679,7 +728,7 @@ docker network inspect wis2downloader-refactor_redis-net
 
 === Interfaz web: datos del catálogo no cargados
 
-Si las vistas Búsqueda en catálogo o Búsqueda en árbol muestran "Catalogue data not loaded":
+Si las vistas de catálogo o árbol muestran "Catalogue data not loaded":
 
 1. Verifique si el contenedor de la interfaz inició correctamente:
 +

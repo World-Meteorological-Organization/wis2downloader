@@ -21,7 +21,9 @@ Les abonnements peuvent être créés via l'interface web dans le navigateur (re
 
 == Interface web
 
-L'interface web est disponible sur `http://localhost:8080`. Elle offre un moyen visuel de découvrir les jeux de données WIS2 disponibles, parcourir la hiérarchie des rubriques et créer des abonnements sans utiliser directement l'API REST.
+L'interface web est disponible sur `http://<host>:8080` (par défaut `http://localhost:8080` lors d'une exécution locale). L'hôte et le port réels dépendent de la façon dont le système est déployé — consultez votre administrateur si vous accédez à une instance partagée.
+
+Elle offre un moyen visuel de découvrir les jeux de données WIS2 disponibles, parcourir la hiérarchie des rubriques et créer des abonnements sans utiliser directement l'API REST.
 
 === Langue de l'interface
 
@@ -67,11 +69,11 @@ Le tiroir de navigation à gauche (à droite en mode arabe RTL) donne accès à 
 |Panneaux Grafana intégrés affichant les taux de téléchargement, la profondeur de file d'attente et les totaux en octets en temps réel
 
 |kbd:[Alt+2]
-|*Recherche dans le catalogue*
+|*Vue Catalogue*
 |Recherche en texte intégral dans les trois catalogues de découverte mondiaux (GDC) avec filtrage par politique de données, mots-clés et zone géographique
 
 |kbd:[Alt+3]
-|*Recherche par arborescence*
+|*Vue Arborescence*
 |Parcourez la hiérarchie complète des rubriques WIS2 sous forme d'arbre navigable et sélectionnez une rubrique pour ouvrir le panneau d'abonnement
 
 |kbd:[Alt+4]
@@ -87,9 +89,9 @@ Le tiroir de navigation à gauche (à droite en mode arabe RTL) donne accès à 
 |Affiche le nombre d'enregistrements GDC par catalogue et permet de déclencher une actualisation manuelle des données
 |===
 
-=== Recherche dans le catalogue
+=== Vue Catalogue
 
-La vue Recherche dans le catalogue interroge les enregistrements récupérés des trois catalogues de découverte mondiaux WIS2 (CMA, DWD, ECCC), fusionnés en une liste dédupliquée unique.
+La Vue Catalogue interroge les enregistrements récupérés des trois catalogues de découverte mondiaux WIS2 (CMA, DWD, ECCC), fusionnés en une liste dédupliquée unique.
 
 ==== Filtres de recherche
 
@@ -123,15 +125,15 @@ Chaque carte de résultat affiche :
 * *Afficher les métadonnées* — ouvre un dialogue avec les détails complets de l'enregistrement et une carte interactive de l'étendue géographique du jeu de données
 * *Sélectionner* / *Désélectionner* — ajoute ou supprime la rubrique MQTT du jeu de données dans le panneau d'abonnement
 
-=== Recherche par arborescence
+=== Vue Arborescence
 
-La vue Recherche par arborescence affiche la hiérarchie complète des rubriques WIS2 dérivée de tous les enregistrements GDC chargés. Développez les nœuds pour naviguer jusqu'aux rubriques individuelles. Saisissez du texte dans le champ de filtre en haut pour rechercher parmi toutes les étiquettes de nœuds. Cliquez sur un nœud feuille pour ouvrir le panneau d'abonnement.
+La Vue Arborescence affiche la hiérarchie complète des rubriques WIS2 dérivée de tous les enregistrements GDC chargés. Développez les nœuds pour naviguer jusqu'aux rubriques individuelles. Saisissez du texte dans le champ de filtre en haut pour rechercher parmi toutes les étiquettes de nœuds. Cliquez sur un nœud feuille pour ouvrir le panneau d'abonnement.
 
 NOTE: Une seule rubrique peut être active à la fois dans la vue arborescence.
 
 === Création d'un abonnement depuis l'interface
 
-Lorsqu'une rubrique est sélectionnée (depuis la recherche dans le catalogue ou la vue arborescence), le panneau d'abonnement s'ouvre à droite.
+Lorsqu'une rubrique est sélectionnée (depuis la Vue Catalogue ou la Vue Arborescence), le panneau d'abonnement s'ouvre à droite.
 
 [cols="1,3"]
 |===
@@ -195,7 +197,7 @@ cache/a/wis2/{centre-id}/data/{data-policy}/{earth-system-domain}/{category}/...
 |Toutes les données du Deutscher Wetterdienst
 
 |`cache/a/wis2/+/data/core/weather/surface-based-observations/#`
-|Observations de surface de tous les pays
+|Observations de surface de base provenant de tous les nœuds WIS2
 
 |===
 
@@ -214,9 +216,9 @@ cache/a/wis2/{centre-id}/data/{data-policy}/{earth-system-domain}/{category}/...
 
 == Gestion des abonnements via l'API REST
 
-Les abonnements peuvent également être gérés de manière programmatique via l'API REST sur `http://localhost:5002`.
+Les abonnements peuvent également être gérés de manière programmatique via l'API REST. L'adresse par défaut est `http://localhost:5002`, mais l'hôte et le port réels peuvent différer selon votre déploiement.
 
-TIP: Utilisez l'interface Swagger sur `http://localhost:5002/swagger` pour l'exploration interactive de l'API.
+TIP: Utilisez l'interface Swagger sur `http://<host>:5002/swagger` pour l'exploration interactive de l'API.
 
 === Création d'un abonnement
 
@@ -281,19 +283,32 @@ Réponse :
 
 === Obtenir les détails d'un abonnement
 
+Commencez par lister les abonnements pour trouver l'identifiant d'abonnement (`a1b2c3d4-...`), puis récupérez-le par ID :
+
 [source,bash]
 ----
-curl "http://localhost:5002/subscriptions/cache/a/wis2/+/data/core/weather/surface-based-observations/%23"
+curl http://localhost:5002/subscriptions/<id>
 ----
 
-NOTE: Le caractère `#` doit être encodé en URL sous la forme `%23` (sinon interprété comme fragment d'URL). Les barres obliques et `+` ne nécessitent pas d'encodage.
+Réponse :
+[source,json]
+----
+{
+  "id": "a1b2c3d4-...",
+  "topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#",
+  "save_path": "surface-obs",
+  "filter": {}
+}
+----
 
 === Suppression d'un abonnement
 
 [source,bash]
 ----
-curl -X DELETE "http://localhost:5002/subscriptions/cache/a/wis2/+/data/core/weather/surface-based-observations/%23"
+curl -X DELETE http://localhost:5002/subscriptions/<id>
 ----
+
+NOTE: `<id>` désigne l'UUID d'abonnement obtenu via `GET /subscriptions`. Si c'est le dernier abonnement pour cette rubrique, la connexion MQTT est également fermée.
 
 [[Filtrage]]
 == Filtrage
@@ -675,19 +690,21 @@ Types acceptés par défaut lorsqu'aucun filtre n'est spécifié :
 
 === Organisation des fichiers
 
-Les fichiers sont organisés par date sous votre répertoire cible :
+Les fichiers sont organisés sous votre répertoire cible dans un sous-répertoire `YYYY/MM/DD` basé sur la date à laquelle le fichier a été *téléchargé* (et non l'heure d'observation ou la date de validité des données) :
 
 [source]
 ----
 /data/
 └── surface-obs/           # Your target directory
     └── 2026/
-        └── 01/
-            └── 28/
-                ├── SYNOP_20260128T120000.bufr
-                ├── SYNOP_20260128T121500.bufr
+        └── 03/
+            └── 05/        # Date downloaded (UTC)
+                ├── SYNOP_20260305T120000.bufr
+                ├── SYNOP_20260305T121500.bufr
                 └── ...
 ----
+
+NOTE: La date du répertoire reflète la date d'arrivée du fichier, et non la date de production ou de validité des données. Les fichiers provenant de périodes d'observation antérieures qui arrivent tardivement apparaîtront dans le répertoire correspondant à leur date de téléchargement.
 
 === Nommage des fichiers
 
@@ -697,15 +714,17 @@ Les fichiers conservent leur nom original depuis l'URL de téléchargement. Si u
 
 [source,bash]
 ----
-# List recent downloads
+# Lister les téléchargements récents
 ls -la downloads/surface-obs/$(date +%Y/%m/%d)/
 
-# Count files by type
+# Compter les fichiers par type
 find downloads/ -name "*.bufr" | wc -l
 
-# Total size
+# Taille totale
 du -sh downloads/
 ----
+
+NOTE: `du` rapporte l'utilisation du disque en fonction de l'allocation de blocs du système de fichiers, et non du nombre brut d'octets. De nombreux petits fichiers (tels que les bulletins BUFR) consomment chacun un bloc entier quelle que soit leur taille réelle, de sorte que les résultats de `du` seront généralement supérieurs à la somme des tailles individuelles des fichiers rapportées par `ls -la`.
 
 == Surveillance
 
@@ -728,21 +747,21 @@ Consultez les statistiques de téléchargement :
 
 [source,bash]
 ----
-# Total downloads
+# Total des téléchargements
 curl -s http://localhost:5002/metrics | grep wis2downloader_downloads_total
 
-# Failed downloads
+# Téléchargements échoués
 curl -s http://localhost:5002/metrics | grep wis2downloader_failed_total
 
-# Queue depth
+# Profondeur de la file d'attente
 curl -s http://localhost:5002/metrics | grep wis2downloader_celery_queue_length
 ----
 
-=== Tableau de bord Grafana
+=== Vue Tableau de bord
 
-Accédez à Grafana sur `http://localhost:3000` pour une surveillance visuelle.
+Le Tableau de bord intégré (kbd:[Alt+1]) affiche les taux de téléchargement, la profondeur de la file d'attente, l'utilisation du disque et les totaux en octets en temps réel. Aucune connexion séparée n'est requise.
 
-NOTE: Les identifiants par défaut sont admin/admin. Vous devriez changer le mot de passe après la première connexion.
+TIP: Le Tableau de bord est intégré directement dans l'interface web — il n'est pas nécessaire d'ouvrir Grafana séparément.
 
 == Cas d'utilisation courants
 
@@ -806,17 +825,17 @@ Créez des abonnements séparés pour différents types de données :
 
 [source,bash]
 ----
-# Surface observations
+# Observations de surface
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#", "target": "surface"}'
 
-# Upper air
+# Observations en altitude
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/+/data/core/weather/upper-air-observations/#", "target": "upper-air"}'
 
-# Forecasts
+# Prévisions
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/+/data/core/weather/prediction/#", "target": "forecasts"}'
@@ -868,10 +887,13 @@ Supprimez l'abonnement existant et recréez-le avec un filtre `media_type`. Util
 
 [source,bash]
 ----
-# Delete old subscription (use the subscription ID from GET /subscriptions)
+# Lister les abonnements pour trouver l'UUID
+curl http://localhost:5002/subscriptions
+
+# Supprimer l'ancien abonnement par UUID
 curl -X DELETE http://localhost:5002/subscriptions/<id>
 
-# Create new subscription with filter
+# Créer un nouvel abonnement avec filtre
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{

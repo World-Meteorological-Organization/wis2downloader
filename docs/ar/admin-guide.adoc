@@ -28,8 +28,8 @@
 
 [source,bash]
 ----
-git clone <repository-url>
-cd wis2downloader-refactor
+git clone https://github.com/World-Meteorological-Organization/wis2downloader
+cd wis2downloader
 cp default.env .env
 ----
 
@@ -54,6 +54,27 @@ IMPORTANT: قبل النشر في بيئة الإنتاج، يجب عليك ته
 * غير مُرفَق بنظام التحكم في الإصدارات (أضفه إلى `.gitignore`)
 * قابل للقراءة فقط من قِبل مستخدم النشر (`chmod 600 .env`)
 * مدعوم نسخًا احتياطيًا بشكل آمن
+
+==== التحكم في الوصول
+
+WARNING: لا يُطبِّق WIS2 Downloader أي مصادقة أو تفويض على واجهة المستخدم أو REST API لمدير الاشتراكات. يستطيع أي شخص يملك وصولًا شبكيًا إلى الواجهة (المنفذ 8080) أو API (المنفذ 5002) عرض الاشتراكات وإنشاؤها وتعديلها وحذفها.
+
+في بيئة مشتركة أو مواجهة للإنترنت، يجب *حتمًا* تقييد الوصول على مستوى الشبكة. الأساليب الموصى بها:
+
+* **وكيل عكسي مع مصادقة** — ضع nginx أو Caddy أمام منفذَي الواجهة وAPI، مع إلزامية HTTP Basic Auth أو OAuth قبل إعادة توجيه الطلبات. تهيئة nginx بسيطة:
++
+[source,nginx]
+----
+location / {
+    auth_basic           "WIS2 Downloader";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+    proxy_pass           http://localhost:8080;
+}
+----
+* **قواعد جدار الحماية** — قيِّد المنفذَين 8080 و5002 على نطاقات IP موثوقة باستخدام `iptables` أو `ufw` أو مجموعات أمان سحابية.
+* **VPN / شبكة خاصة** — انشر النظام خلف VPN بحيث لا يتمكن من الوصول إليه إلا مستخدمو VPN المصادَق عليهم.
+
+إذا كان النظام يعمل على خادم بدلًا من localhost، فتأكد من عدم إمكانية الوصول العام إلى المنفذَين 8080 و5002 قبل إضافة أحد أساليب التحكم في الوصول المذكورة أعلاه.
 
 === أذونات وحدات التخزين
 
@@ -86,13 +107,13 @@ IMPORTANT: قبل النشر في بيئة الإنتاج، يجب عليك ته
 
 [source,bash]
 ----
-# Create the wis2 group with GID 988
+# إنشاء مجموعة wis2 بـ GID 988
 sudo groupadd -g 988 wis2
 
-# Create the wis2 user with UID 10001
+# إنشاء مستخدم wis2 بـ UID 10001
 sudo useradd -u 10001 -g wis2 -M -s /usr/sbin/nologin wis2
 
-# Set ownership on the downloads directory
+# تعيين الملكية على دليل التنزيلات
 sudo mkdir -p downloads
 sudo chown -R wis2:wis2 downloads
 ----
@@ -103,14 +124,14 @@ sudo chown -R wis2:wis2 downloads
 
 [source,bash]
 ----
-# Ensure ACL support is installed
+# التأكد من تثبيت دعم ACL
 sudo apt-get install acl  # Debian/Ubuntu
 sudo yum install acl      # RHEL/CentOS
 
-# Create the downloads directory
+# إنشاء دليل التنزيلات
 mkdir -p downloads
 
-# Grant UID 10001 full access
+# منح UID 10001 وصولاً كاملاً
 sudo setfacl -R -m u:10001:rwx downloads
 sudo setfacl -R -d -m u:10001:rwx downloads  # Default ACL for new files
 ----
@@ -131,13 +152,13 @@ chmod 777 downloads
 
 [source,bash]
 ----
-# Start the celery container
+# تشغيل حاوية celery
 docker-compose up -d celery
 
-# Test write access from inside the container
+# اختبار صلاحية الكتابة من داخل الحاوية
 docker exec celery touch /data/test-write && echo "Write OK" || echo "Write FAILED"
 
-# Clean up
+# التنظيف
 docker exec celery rm -f /data/test-write
 ----
 
@@ -149,11 +170,11 @@ docker exec celery rm -f /data/test-write
 
 [source,bash]
 ----
-# Add your user to the wis2 group
+# إضافة مستخدمك إلى مجموعة wis2
 sudo usermod -aG wis2 $USER
 
-# Log out and back in for group membership to take effect
-# Then verify
+# تسجيل الخروج والدخول مجدداً لتفعيل عضوية المجموعة
+# ثم التحقق
 groups  # Should include 'wis2'
 ----
 
@@ -161,25 +182,27 @@ groups  # Should include 'wis2'
 
 [source,bash]
 ----
-# Grant read access to a specific user
+# منح صلاحية القراءة لمستخدم محدد
 sudo setfacl -R -m u:youruser:rx downloads
 sudo setfacl -R -d -m u:youruser:rx downloads
 ----
 
 === التحقق من النشر
 
+NOTE: تستخدم الأمثلة التالية `localhost`. إذا كان النظام منشورًا على خادم بعيد، استبدل `localhost` باسم مضيف الخادم أو عنوان IP الخاص به. يمكن تغيير المنافذ (5002 لـ API، و8080 للواجهة) في `docker-compose.yaml` إذا لزم الأمر.
+
 [source,bash]
 ----
-# Check all services are running
+# التحقق من تشغيل جميع الخدمات
 docker-compose ps
 
-# Check health endpoint (subscription manager)
+# التحقق من نقطة نهاية الصحة (مدير الاشتراكات)
 curl http://localhost:5002/health
 
-# Check web UI is up
+# التحقق من تشغيل واجهة الويب
 curl -o /dev/null -s -w "%{http_code}" http://localhost:8080
 
-# View logs
+# عرض السجلات
 docker-compose logs -f subscriber
 ----
 
@@ -358,7 +381,7 @@ docker-compose logs -f subscriber
 
 [source]
 ----
-wis2downloader-refactor/
+wis2downloader/
 ├── config/
 │   ├── grafana/provisioning/    # Grafana datasource config
 │   ├── loki/                    # Loki configuration
@@ -465,15 +488,21 @@ IMPORTANT: يجب أن يكون لكل مشترك `container_name` فريد.
 
 نقطة نهاية المقاييس: `http://localhost:5002/metrics`
 
+NOTE: تُخزَّن المقاييس بصورة ذرية في Redis باستخدام `HINCRBYFLOAT` وتُعرَض عند نقطة النهاية `/metrics` بتنسيق نص Prometheus. هذا الأسلوب آمن عبر حاويات عامل Celery المتعددة دون الحاجة إلى نظام ملفات مشترك أو مجلد متعدد العمليات لـ `prometheus_client`.
+
 ==== المقاييس المتاحة
 
 [cols="2,1,3"]
 |===
 |المقياس |النوع |الوصف
 
+|`wis2downloader_notifications_received_total`
+|Counter
+|رسائل MQTT المستلَمة قبل وضعها في قائمة الانتظار (التسميات: broker)؛ قارنها بـ `notifications_total` لاكتشاف إخفاقات قائمة الانتظار
+
 |`wis2downloader_notifications_total`
 |Counter
-|إجمالي الإشعارات المعالَجة (التسميات: status)
+|إجمالي الإشعارات المعالَجة بواسطة Celery (التسميات: status)
 
 |`wis2downloader_downloads_total`
 |Counter
@@ -491,28 +520,48 @@ IMPORTANT: يجب أن يكون لكل مشترك `container_name` فريد.
 |Counter
 |التنزيلات الفاشلة (التسميات: cache, reason)
 
+|`wis2downloader_queue_errors_total`
+|Counter
+|إخفاقات وضع مهمة Celery في قائمة الانتظار من قِبل المشترك (التسميات: broker)
+
 |`wis2downloader_celery_queue_length`
 |Gauge
 |العدد الحالي للمهام في قائمة انتظار Celery
+
+|`wis2downloader_disk_total_bytes`
+|Gauge
+|إجمالي سعة القرص لوحدة تخزين التنزيل
+
+|`wis2downloader_disk_used_bytes`
+|Gauge
+|مساحة القرص المستخدَمة على وحدة تخزين التنزيل
+
+|`wis2downloader_disk_free_bytes`
+|Gauge
+|مساحة القرص المتاحة على وحدة تخزين التنزيل
+
+|`wis2downloader_disk_downloads_bytes`
+|Gauge
+|البايتات المستخدَمة من قِبل الملفات المُنزَّلة (يُتتبَّع بصورة تراكمية)
 |===
 
 ==== أمثلة على الاستعلامات
 
 [source,promql]
 ----
-# Download rate per minute
+# معدل التنزيل في الدقيقة
 sum(rate(wis2downloader_downloads_total[1m]))
 
-# Downloads by cache
+# التنزيلات حسب الذاكرة المؤقتة
 sum by (cache) (rate(wis2downloader_downloads_total[5m]))
 
-# Failed downloads by reason
+# التنزيلات الفاشلة حسب السبب
 sum by (reason) (wis2downloader_failed_total)
 
-# Bytes downloaded in last hour
+# البايتات المنزَّلة في الساعة الأخيرة
 sum(increase(wis2downloader_downloads_bytes_total[1h]))
 
-# Queue depth
+# عمق قائمة الانتظار
 wis2downloader_celery_queue_length
 ----
 
@@ -540,13 +589,13 @@ IMPORTANT: غيِّر كلمة مرور Grafana الافتراضية بعد تس
 
 [source,bash]
 ----
-# All services
+# جميع الخدمات
 docker-compose logs -f
 
-# Specific service
+# خدمة محددة
 docker-compose logs -f celery
 
-# With timestamps
+# مع الطوابع الزمنية
 docker-compose logs -f -t subscriber
 ----
 
@@ -560,10 +609,10 @@ docker-compose logs -f -t subscriber
 
 [source,bash]
 ----
-# Trigger RDB snapshot
+# تشغيل لقطة RDB
 docker exec redis redis-cli -a $REDIS_PASSWORD BGSAVE
 
-# Copy snapshot
+# نسخ اللقطة
 docker cp redis:/data/dump.rdb ./backup/
 ----
 
@@ -571,7 +620,7 @@ docker cp redis:/data/dump.rdb ./backup/
 
 [source,bash]
 ----
-# Backup downloads directory
+# النسخ الاحتياطي لدليل التنزيلات
 tar -czf wis2-downloads-$(date +%Y%m%d).tar.gz downloads/
 ----
 
@@ -581,13 +630,13 @@ WARNING: هذه العمليات مدمِّرة.
 
 [source,bash]
 ----
-# Clear all subscriptions
-docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:all_subscriptions
+# مسح جميع الاشتراكات
+docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:subscriptions
 
-# Clear deduplication cache (allows re-download of all data)
+# مسح ذاكرة إزالة التكرار (يتيح إعادة تنزيل جميع البيانات)
 docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli -a $REDIS_PASSWORD DEL
 
-# Clear downloaded files
+# مسح الملفات المنزَّلة
 rm -rf downloads/*
 ----
 
@@ -595,13 +644,13 @@ rm -rf downloads/*
 
 [source,bash]
 ----
-# Restart single service
+# إعادة تشغيل خدمة واحدة
 docker-compose restart subscriber
 
-# Restart all services
+# إعادة تشغيل جميع الخدمات
 docker-compose restart
 
-# Full rebuild (after code changes)
+# إعادة بناء كاملة (بعد تغييرات الكود)
 docker-compose build && docker-compose up -d
 ----
 
@@ -611,13 +660,13 @@ docker-compose build && docker-compose up -d
 
 [source,bash]
 ----
-# Check logs
+# فحص السجلات
 docker-compose logs <service-name>
 
-# Check container status
+# فحص حالة الحاوية
 docker-compose ps
 
-# Verify environment
+# التحقق من البيئة
 docker-compose config
 ----
 
@@ -664,7 +713,7 @@ docker exec redis redis-cli -a $REDIS_PASSWORD PING
 +
 [source,bash]
 ----
-docker network inspect wis2downloader-refactor_redis-net
+docker network inspect wis2downloader_redis-net
 ----
 
 === الاستخدام العالي للذاكرة

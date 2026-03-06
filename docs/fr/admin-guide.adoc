@@ -26,8 +26,8 @@ toute utilisation en production. Consultez le lien:../en/[document original en a
 
 [source,bash]
 ----
-git clone <repository-url>
-cd wis2downloader-refactor
+git clone https://github.com/World-Meteorological-Organization/wis2downloader
+cd wis2downloader
 cp default.env .env
 ----
 
@@ -52,6 +52,27 @@ Le fichier `.env` contient des identifiants sensibles. Assurez-vous qu'il est :
 * Non versionné (ajoutez-le à `.gitignore`)
 * Lisible uniquement par l'utilisateur de déploiement (`chmod 600 .env`)
 * Sauvegardé de manière sécurisée
+
+==== Contrôle d'accès
+
+WARNING: WIS2 Downloader n'implémente pas d'authentification ni d'autorisation sur l'interface web ou l'API REST du gestionnaire d'abonnements. Toute personne ayant accès au réseau sur l'interface (port 8080) ou l'API (port 5002) peut consulter, créer, modifier et supprimer des abonnements.
+
+Dans un environnement partagé ou accessible depuis Internet, vous *devez* restreindre l'accès au niveau réseau. Approches recommandées :
+
+* **Proxy inverse avec authentification** — Placez nginx ou Caddy devant les ports de l'interface et de l'API, en imposant une authentification HTTP Basic ou OAuth avant de transmettre les requêtes. Une configuration nginx minimale :
++
+[source,nginx]
+----
+location / {
+    auth_basic           "WIS2 Downloader";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+    proxy_pass           http://localhost:8080;
+}
+----
+* **Règles de pare-feu** — Restreignez les ports 8080 et 5002 aux plages d'adresses IP de confiance à l'aide de `iptables`, `ufw` ou de groupes de sécurité cloud.
+* **VPN / réseau privé** — Déployez derrière un VPN afin que seuls les utilisateurs VPN authentifiés puissent atteindre les services.
+
+Si le système s'exécute sur un serveur plutôt que sur localhost, assurez-vous que les ports 8080 et 5002 ne sont pas accessibles publiquement avant d'ajouter l'un des contrôles d'accès ci-dessus.
 
 === Permissions de volumes
 
@@ -84,13 +105,13 @@ Créez un utilisateur et un groupe sur le système hôte correspondant aux UID/G
 
 [source,bash]
 ----
-# Create the wis2 group with GID 988
+# Créer le groupe wis2 avec GID 988
 sudo groupadd -g 988 wis2
 
-# Create the wis2 user with UID 10001
+# Créer l'utilisateur wis2 avec UID 10001
 sudo useradd -u 10001 -g wis2 -M -s /usr/sbin/nologin wis2
 
-# Set ownership on the downloads directory
+# Définir les droits sur le répertoire de téléchargements
 sudo mkdir -p downloads
 sudo chown -R wis2:wis2 downloads
 ----
@@ -101,14 +122,14 @@ Si vous ne pouvez pas créer un utilisateur/groupe correspondant, utilisez les l
 
 [source,bash]
 ----
-# Ensure ACL support is installed
+# Vérifier que le support ACL est installé
 sudo apt-get install acl  # Debian/Ubuntu
 sudo yum install acl      # RHEL/CentOS
 
-# Create the downloads directory
+# Créer le répertoire de téléchargements
 mkdir -p downloads
 
-# Grant UID 10001 full access
+# Accorder un accès complet à UID 10001
 sudo setfacl -R -m u:10001:rwx downloads
 sudo setfacl -R -d -m u:10001:rwx downloads  # Default ACL for new files
 ----
@@ -129,13 +150,13 @@ Testez que le conteneur peut écrire dans le volume :
 
 [source,bash]
 ----
-# Start the celery container
+# Démarrer le conteneur celery
 docker-compose up -d celery
 
-# Test write access from inside the container
+# Tester l'accès en écriture depuis l'intérieur du conteneur
 docker exec celery touch /data/test-write && echo "Write OK" || echo "Write FAILED"
 
-# Clean up
+# Nettoyer
 docker exec celery rm -f /data/test-write
 ----
 
@@ -147,11 +168,11 @@ Si vous avez besoin que des utilisateurs hôtes puissent lire les fichiers tél�
 
 [source,bash]
 ----
-# Add your user to the wis2 group
+# Ajouter votre utilisateur au groupe wis2
 sudo usermod -aG wis2 $USER
 
-# Log out and back in for group membership to take effect
-# Then verify
+# Se déconnecter et se reconnecter pour activer l'appartenance au groupe
+# Puis vérifier
 groups  # Should include 'wis2'
 ----
 
@@ -159,25 +180,27 @@ Vous pouvez également utiliser les ACL pour accorder un accès en lecture à de
 
 [source,bash]
 ----
-# Grant read access to a specific user
+# Accorder un accès en lecture à un utilisateur spécifique
 sudo setfacl -R -m u:youruser:rx downloads
 sudo setfacl -R -d -m u:youruser:rx downloads
 ----
 
 === Vérification du déploiement
 
+NOTE: Les exemples ci-dessous utilisent `localhost`. Si le système est déployé sur un serveur distant, remplacez `localhost` par le nom d'hôte ou l'adresse IP du serveur. Les ports (5002 pour l'API, 8080 pour l'interface) peuvent être modifiés dans `docker-compose.yaml` si nécessaire.
+
 [source,bash]
 ----
-# Check all services are running
+# Vérifier que tous les services sont en cours d'exécution
 docker-compose ps
 
-# Check health endpoint (subscription manager)
+# Vérifier le point de terminaison de santé (gestionnaire d'abonnements)
 curl http://localhost:5002/health
 
-# Check web UI is up
+# Vérifier que l'interface web est opérationnelle
 curl -o /dev/null -s -w "%{http_code}" http://localhost:8080
 
-# View logs
+# Afficher les journaux
 docker-compose logs -f subscriber
 ----
 
@@ -356,7 +379,7 @@ docker-compose logs -f subscriber
 
 [source]
 ----
-wis2downloader-refactor/
+wis2downloader/
 ├── config/
 │   ├── grafana/provisioning/    # Grafana datasource config
 │   ├── loki/                    # Loki configuration
@@ -463,15 +486,21 @@ Tous les abonnés partagent le même backend Redis, de sorte que les abonnements
 
 Point de terminaison des métriques : `http://localhost:5002/metrics`
 
+NOTE: Les métriques sont stockées de manière atomique dans Redis via `HINCRBYFLOAT` et exposées au point de terminaison `/metrics` au format texte Prometheus. Cette approche est sûre pour plusieurs conteneurs de workers Celery sans nécessiter de système de fichiers partagé ni le répertoire multiprocessus de `prometheus_client`.
+
 ==== Métriques disponibles
 
 [cols="2,1,3"]
 |===
 |Métrique |Type |Description
 
+|`wis2downloader_notifications_received_total`
+|Counter
+|Messages MQTT reçus avant la mise en file d'attente (étiquettes : broker) ; à comparer avec `notifications_total` pour détecter les échecs de file d'attente
+
 |`wis2downloader_notifications_total`
 |Counter
-|Total des notifications traitées (étiquettes : status)
+|Total des notifications traitées par Celery (étiquettes : status)
 
 |`wis2downloader_downloads_total`
 |Counter
@@ -489,28 +518,48 @@ Point de terminaison des métriques : `http://localhost:5002/metrics`
 |Counter
 |Téléchargements échoués (étiquettes : cache, reason)
 
+|`wis2downloader_queue_errors_total`
+|Counter
+|Échecs de mise en file d'attente d'une tâche Celery depuis l'abonné (étiquettes : broker)
+
 |`wis2downloader_celery_queue_length`
 |Gauge
 |Nombre actuel de tâches dans la file d'attente Celery
+
+|`wis2downloader_disk_total_bytes`
+|Gauge
+|Capacité totale du disque du volume de téléchargement
+
+|`wis2downloader_disk_used_bytes`
+|Gauge
+|Espace disque utilisé sur le volume de téléchargement
+
+|`wis2downloader_disk_free_bytes`
+|Gauge
+|Espace disque disponible sur le volume de téléchargement
+
+|`wis2downloader_disk_downloads_bytes`
+|Gauge
+|Octets utilisés par les fichiers téléchargés (suivi incrémentiel)
 |===
 
 ==== Exemples de requêtes
 
 [source,promql]
 ----
-# Download rate per minute
+# Taux de téléchargement par minute
 sum(rate(wis2downloader_downloads_total[1m]))
 
-# Downloads by cache
+# Téléchargements par cache
 sum by (cache) (rate(wis2downloader_downloads_total[5m]))
 
-# Failed downloads by reason
+# Téléchargements échoués par raison
 sum by (reason) (wis2downloader_failed_total)
 
-# Bytes downloaded in last hour
+# Octets téléchargés dans la dernière heure
 sum(increase(wis2downloader_downloads_bytes_total[1h]))
 
-# Queue depth
+# Profondeur de la file d'attente
 wis2downloader_celery_queue_length
 ----
 
@@ -538,13 +587,13 @@ Consultez les journaux via Docker :
 
 [source,bash]
 ----
-# All services
+# Tous les services
 docker-compose logs -f
 
-# Specific service
+# Service spécifique
 docker-compose logs -f celery
 
-# With timestamps
+# Avec les horodatages
 docker-compose logs -f -t subscriber
 ----
 
@@ -558,10 +607,10 @@ Les journaux sont également collectés par Loki et interrogeables dans Grafana.
 
 [source,bash]
 ----
-# Trigger RDB snapshot
+# Déclencher un instantané RDB
 docker exec redis redis-cli -a $REDIS_PASSWORD BGSAVE
 
-# Copy snapshot
+# Copier l'instantané
 docker cp redis:/data/dump.rdb ./backup/
 ----
 
@@ -569,7 +618,7 @@ docker cp redis:/data/dump.rdb ./backup/
 
 [source,bash]
 ----
-# Backup downloads directory
+# Sauvegarder le répertoire de téléchargements
 tar -czf wis2-downloads-$(date +%Y%m%d).tar.gz downloads/
 ----
 
@@ -579,13 +628,13 @@ WARNING: Ces opérations sont destructives.
 
 [source,bash]
 ----
-# Clear all subscriptions
+# Effacer tous les abonnements
 docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:all_subscriptions
 
-# Clear deduplication cache (allows re-download of all data)
+# Effacer le cache de déduplication (permet de re-télécharger toutes les données)
 docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli -a $REDIS_PASSWORD DEL
 
-# Clear downloaded files
+# Effacer les fichiers téléchargés
 rm -rf downloads/*
 ----
 
@@ -593,13 +642,13 @@ rm -rf downloads/*
 
 [source,bash]
 ----
-# Restart single service
+# Redémarrer un service unique
 docker-compose restart subscriber
 
-# Restart all services
+# Redémarrer tous les services
 docker-compose restart
 
-# Full rebuild (after code changes)
+# Reconstruction complète (après des modifications du code)
 docker-compose build && docker-compose up -d
 ----
 
@@ -609,13 +658,13 @@ docker-compose build && docker-compose up -d
 
 [source,bash]
 ----
-# Check logs
+# Vérifier les journaux
 docker-compose logs <service-name>
 
-# Check container status
+# Vérifier le statut du conteneur
 docker-compose ps
 
-# Verify environment
+# Vérifier l'environnement
 docker-compose config
 ----
 
@@ -662,7 +711,7 @@ docker exec redis redis-cli -a $REDIS_PASSWORD PING
 +
 [source,bash]
 ----
-docker network inspect wis2downloader-refactor_redis-net
+docker network inspect wis2downloader_redis-net
 ----
 
 === Utilisation élevée de la mémoire

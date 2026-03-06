@@ -24,7 +24,9 @@
 
 == واجهة المستخدم
 
-تتوفر واجهة المستخدم على العنوان `http://localhost:8080`. توفر طريقة مرئية لاكتشاف مجموعات بيانات WIS2 المتاحة، واستعراض التسلسل الهرمي للموضوعات، وإنشاء الاشتراكات دون استخدام REST API مباشرةً.
+تتوفر واجهة المستخدم على العنوان `http://<host>:8080` (الافتراضي `http://localhost:8080` عند التشغيل محليًا). يعتمد المضيف والمنفذ الفعليان على طريقة نشر النظام — تواصل مع المسؤول إذا كنت تصل إلى نسخة مشتركة.
+
+توفر طريقة مرئية لاكتشاف مجموعات بيانات WIS2 المتاحة، واستعراض التسلسل الهرمي للموضوعات، وإنشاء الاشتراكات دون استخدام REST API مباشرةً.
 
 === لغة الواجهة
 
@@ -70,11 +72,11 @@ NOTE: ترجمات الواجهة مُولَّدة آليًا. إذا لاحظت
 |لوحات Grafana مُدمَجة تعرض معدلات التنزيل وعمق قائمة الانتظار وإجماليات البايتات في الوقت الفعلي
 
 |kbd:[Alt+2]
-|*بحث الكتالوج*
+|*عرض الكتالوج*
 |بحث نصي كامل في الكتالوجات الثلاثة لاكتشاف البيانات العالمية (GDC) مع التصفية حسب سياسة البيانات والكلمات المفتاحية والنطاق الجغرافي
 
 |kbd:[Alt+3]
-|*بحث الشجرة*
+|*عرض الشجرة*
 |استعراض التسلسل الهرمي الكامل لموضوعات WIS2 كشجرة قابلة للتنقل وتحديد موضوع لفتح الشريط الجانبي للاشتراك
 
 |kbd:[Alt+4]
@@ -90,9 +92,9 @@ NOTE: ترجمات الواجهة مُولَّدة آليًا. إذا لاحظت
 |عرض أعداد سجلات GDC لكل كتالوج وتشغيل تحديث يدوي للبيانات
 |===
 
-=== بحث الكتالوج
+=== عرض الكتالوج
 
-تستعلم طريقة عرض بحث الكتالوج عن السجلات المُجلَبة من كتالوجات اكتشاف البيانات العالمية الثلاثة لـ WIS2 (CMA وDWD وECCC)، مُدمَجةً في قائمة موحدة خالية من التكرار.
+تستعلم طريقة عرض الكتالوج عن السجلات المُجلَبة من كتالوجات اكتشاف البيانات العالمية الثلاثة لـ WIS2 (CMA وDWD وECCC)، مُدمَجةً في قائمة موحدة خالية من التكرار.
 
 ==== فلاتر البحث
 
@@ -126,9 +128,9 @@ NOTE: ترجمات الواجهة مُولَّدة آليًا. إذا لاحظت
 * *عرض البيانات الوصفية* — يفتح مربع حوار بتفاصيل السجل الكاملة وخريطة تفاعلية للنطاق الجغرافي لمجموعة البيانات
 * *تحديد* / *إلغاء التحديد* — يُضيف أو يُزيل موضوع MQTT لمجموعة البيانات إلى/من الشريط الجانبي للاشتراك
 
-=== بحث الشجرة
+=== عرض الشجرة
 
-تُعرض في طريقة عرض بحث الشجرة التسلسل الهرمي الكامل لموضوعات WIS2 المُشتَقة من جميع سجلات GDC المُحمَّلة. وسِّع العقد للتنقل وصولًا إلى الموضوعات الفردية. اكتب في مربع الفلتر أعلى الصفحة للبحث عبر جميع تسميات العقد. انقر على عقدة نهائية لفتح الشريط الجانبي للاشتراك.
+تُعرض في طريقة عرض الشجرة التسلسل الهرمي الكامل لموضوعات WIS2 المُشتَقة من جميع سجلات GDC المُحمَّلة. وسِّع العقد للتنقل وصولًا إلى الموضوعات الفردية. اكتب في مربع الفلتر أعلى الصفحة للبحث عبر جميع تسميات العقد. انقر على عقدة نهائية لفتح الشريط الجانبي للاشتراك.
 
 NOTE: لا يمكن تفعيل سوى موضوع واحد في آنٍ واحد في طريقة عرض الشجرة.
 
@@ -198,7 +200,7 @@ cache/a/wis2/{centre-id}/data/{data-policy}/{earth-system-domain}/{category}/...
 |جميع البيانات من Deutscher Wetterdienst
 
 |`cache/a/wis2/+/data/core/weather/surface-based-observations/#`
-|الرصدات السطحية من جميع الدول
+|الرصدات السطحية الأساسية من جميع عقد WIS2
 
 |===
 
@@ -217,9 +219,9 @@ cache/a/wis2/{centre-id}/data/{data-policy}/{earth-system-domain}/{category}/...
 
 == إدارة الاشتراكات عبر REST API
 
-يمكن أيضًا إدارة الاشتراكات برمجيًا باستخدام REST API على `http://localhost:5002`.
+يمكن أيضًا إدارة الاشتراكات برمجيًا باستخدام REST API. العنوان الافتراضي هو `http://localhost:5002`، غير أن المضيف والمنفذ الفعليين قد يختلفان بحسب بيئة النشر.
 
-TIP: استخدم واجهة Swagger على `http://localhost:5002/swagger` للاستكشاف التفاعلي لـ API.
+TIP: استخدم واجهة Swagger على `http://<host>:5002/swagger` للاستكشاف التفاعلي لـ API.
 
 === إنشاء اشتراك
 
@@ -284,19 +286,32 @@ curl http://localhost:5002/subscriptions
 
 === الحصول على تفاصيل الاشتراك
 
+أولًا، اسرد الاشتراكات للحصول على معرّف الاشتراك (`a1b2c3d4-...`)، ثم اجلبه بالمعرّف:
+
 [source,bash]
 ----
-curl "http://localhost:5002/subscriptions/cache/a/wis2/+/data/core/weather/surface-based-observations/%23"
+curl http://localhost:5002/subscriptions/<id>
 ----
 
-NOTE: يجب ترميز الحرف `#` بـ URL كـ `%23` (وإلا يُفسَّر كجزء من URL). لا تتطلب الشُّرَط المائلة والـ`+` أي ترميز.
+الاستجابة:
+[source,json]
+----
+{
+  "id": "a1b2c3d4-...",
+  "topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#",
+  "save_path": "surface-obs",
+  "filter": {}
+}
+----
 
 === حذف اشتراك
 
 [source,bash]
 ----
-curl -X DELETE "http://localhost:5002/subscriptions/cache/a/wis2/+/data/core/weather/surface-based-observations/%23"
+curl -X DELETE http://localhost:5002/subscriptions/<id>
 ----
+
+حيث `<id>` هو UUID الاشتراك من `GET /subscriptions`. إذا كان هذا آخر اشتراك للموضوع، يُغلَق اتصال MQTT أيضًا.
 
 [[التصفية]]
 == التصفية
@@ -678,19 +693,21 @@ WARNING: لا تُعرَف `media_type` و`size` إلا *بعد* تنزيل ال
 
 === تنظيم الملفات
 
-تُنظَّم الملفات حسب التاريخ تحت مجلدك المستهدف:
+تُنظَّم الملفات تحت مجلدك المستهدف في مجلدات فرعية بتنسيق `YYYY/MM/DD` استنادًا إلى تاريخ *تنزيل* الملف (وليس وقت الرصد أو وقت صلاحية البيانات):
 
 [source]
 ----
 /data/
 └── surface-obs/           # Your target directory
     └── 2026/
-        └── 01/
-            └── 28/
+        └── 03/
+            └── 05/        # Date downloaded (UTC)
                 ├── SYNOP_20260128T120000.bufr
                 ├── SYNOP_20260128T121500.bufr
                 └── ...
 ----
+
+NOTE: يعكس تاريخ المجلد وقت وصول الملف، لا وقت إنتاج البيانات أو صلاحيتها. ستظهر الملفات التي تصل متأخرةً من فترات رصد سابقة في المجلد المقابل لتاريخ تنزيلها.
 
 === تسمية الملفات
 
@@ -700,15 +717,17 @@ WARNING: لا تُعرَف `media_type` و`size` إلا *بعد* تنزيل ال
 
 [source,bash]
 ----
-# List recent downloads
+# سرد أحدث التنزيلات
 ls -la downloads/surface-obs/$(date +%Y/%m/%d)/
 
-# Count files by type
+# عدّ الملفات حسب النوع
 find downloads/ -name "*.bufr" | wc -l
 
-# Total size
+# الحجم الإجمالي
 du -sh downloads/
 ----
+
+NOTE: يُبلِّغ `du` عن استخدام القرص استنادًا إلى تخصيص الكتل في نظام الملفات، لا عدد البايتات الفعلي. تستهلك الملفات الصغيرة الكثيرة (كنشرات BUFR) كتلةً كاملةً لكلٍّ منها بغض النظر عن حجمها الفعلي، لذا قد تكون نتائج `du` أكبر من مجموع أحجام الملفات الفردية الظاهرة في `ls -la`.
 
 == المراقبة
 
@@ -731,21 +750,21 @@ curl http://localhost:5002/health
 
 [source,bash]
 ----
-# Total downloads
+# إجمالي التنزيلات
 curl -s http://localhost:5002/metrics | grep wis2downloader_downloads_total
 
-# Failed downloads
+# التنزيلات الفاشلة
 curl -s http://localhost:5002/metrics | grep wis2downloader_failed_total
 
-# Queue depth
+# عمق قائمة الانتظار
 curl -s http://localhost:5002/metrics | grep wis2downloader_celery_queue_length
 ----
 
-=== لوحة تحكم Grafana
+=== طريقة عرض لوحة التحكم
 
-الوصول إلى Grafana على `http://localhost:3000` للمراقبة المرئية.
+تعرض لوحة التحكم المدمجة (kbd:[Alt+1]) معدلات التنزيل وعمق قائمة الانتظار ومساحة القرص وإجماليات البايتات في الوقت الفعلي. لا يلزم تسجيل دخول منفصل.
 
-NOTE: بيانات الاعتماد الافتراضية هي admin/admin. يجب تغيير كلمة المرور بعد تسجيل الدخول الأول.
+TIP: لوحة التحكم مُدمَجة مباشرةً في واجهة المستخدم — لا داعي لفتح Grafana بشكل منفصل.
 
 == حالات الاستخدام الشائعة
 
@@ -809,17 +828,17 @@ curl -X POST http://localhost:5002/subscriptions \
 
 [source,bash]
 ----
-# Surface observations
+# الرصدات السطحية
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#", "target": "surface"}'
 
-# Upper air
+# الرصدات الجوية العلوية
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/+/data/core/weather/upper-air-observations/#", "target": "upper-air"}'
 
-# Forecasts
+# التنبؤات
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/+/data/core/weather/prediction/#", "target": "forecasts"}'
@@ -871,10 +890,13 @@ curl -s http://localhost:5002/metrics | grep wis2downloader_skipped_total
 
 [source,bash]
 ----
-# Delete old subscription (use the subscription ID from GET /subscriptions)
+# سرد الاشتراكات للعثور على UUID
+curl http://localhost:5002/subscriptions
+
+# حذف الاشتراك القديم باستخدام UUID
 curl -X DELETE http://localhost:5002/subscriptions/<id>
 
-# Create new subscription with filter
+# إنشاء اشتراك جديد مع فلتر
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{

@@ -125,10 +125,10 @@ Fournit des utilitaires communs utilisés dans tous les services.
 ----
 from shared import get_redis_client
 
-# Get Redis client (singleton)
+# Obtenir le client Redis (singleton)
 redis = get_redis_client()
 
-# Use like normal Redis client
+# Utiliser comme un client Redis normal
 redis.set('key', 'value')
 redis.get('key')
 ----
@@ -146,10 +146,10 @@ Le client :
 ----
 from shared import setup_logging
 
-# Configure root logger (call once at startup)
+# Configurer le logger racine (appeler une fois au démarrage)
 setup_logging()
 
-# Get module-specific logger
+# Obtenir un logger spécifique au module
 LOGGER = setup_logging(__name__)
 
 LOGGER.info("Message with UTC timestamp")
@@ -281,6 +281,8 @@ def add_subscription():
 
 ==== Point de terminaison des métriques
 
+Les métriques sont stockées dans Redis via des opérations `HINCRBYFLOAT` atomiques, ce qui les rend sûres pour plusieurs conteneurs de workers Celery. Le point de terminaison lit depuis Redis et génère le format texte Prometheus :
+
 [source,python]
 ----
 @app.route('/metrics')
@@ -289,6 +291,14 @@ def expose_metrics():
     registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(registry, path=basedir)
     return Response(generate_latest(registry), mimetype="text/plain")
+----
+
+Incrémenter un compteur depuis n'importe quel worker :
+
+[source,python]
+----
+from shared import incr_counter
+incr_counter('downloads_total', {'cache': hostname, 'media_type': mime_type})
 ----
 
 === Module gestionnaire de tâches
@@ -304,7 +314,7 @@ app = Celery('tasks',
              broker=CELERY_BROKER_URL,
              result_backend=CELERY_RESULT_BACKEND)
 
-# Auto-discover tasks
+# Découverte automatique des tâches
 app.autodiscover_tasks(['task_manager.tasks', 'task_manager.tasks.wis2'])
 ----
 
@@ -363,6 +373,29 @@ def wis2_download(args):
     workflow = download_from_wis2.s(args) | decode_and_ingest.s()
     return workflow
 ----
+
+==== Planificateur (tâches périodiques)
+
+Une application Celery distincte (`scheduler.py`) gère les tâches de maintenance via Celery Beat. Elle utilise les bases de données Redis 2/3 pour éviter d'interférer avec les files d'attente du worker de téléchargement (bases de données 0/1). Les tâches périodiques sont définies dans `tasks/scheduled_tasks.py` :
+
+[cols="2,1,3"]
+|===
+|Tâche |Intervalle |Objectif
+
+|`check_disk_space`
+|Toutes les 5 min
+|Définit les jauges `disk_total_bytes`, `disk_used_bytes`, `disk_free_bytes`
+
+|`clean_directory`
+|Toutes les 10 min
+|Supprime les fichiers plus anciens que `DOWNLOAD_RETENTION_PERIOD` jours ; décrémente `disk_downloads_bytes` par fichier supprimé
+
+|`recalibrate_downloads_size`
+|Quotidiennement
+|Parcours complet via `os.walk` pour corriger toute dérive dans la jauge `disk_downloads_bytes`
+|===
+
+Le planificateur est démarré en tant que deux services Docker Compose : `celery-scheduler-workers` (exécute les tâches) et `celery-beats` (les déclenche selon le calendrier).
 
 == Module d'interface
 
@@ -622,10 +655,10 @@ La langue active est stockée par session de navigateur dans `app.storage.user['
 ----
 from i18n import t
 
-# Simple lookup
+# Recherche simple
 label = t('nav.dashboard')                      # → 'Dashboard'
 
-# With interpolation (uses str.format)
+# Avec interpolation (utilise str.format)
 label = t('subscriptions.folder', path='./')    # → 'Folder: ./'
 ----
 
@@ -816,7 +849,7 @@ def render(container):
 
 === Redis PubSub (Commandes)
 
-La communication gestionnaire d'abonnements → abonné utilise Redis PubSub :
+La communication gestionnaire d'abonnements → abonné utilise Redis PubSub sur le canal `subscription_commands` :
 
 [source,json]
 ----
@@ -870,20 +903,23 @@ job = {
 |===
 |Modèle de clé |Objectif
 
-|`global:all_subscriptions`
-|Hash de tous les abonnements (rubrique → JSON)
+|`global:subscriptions`
+|Hash de tous les abonnements (sub_id → JSON `{id, topic, save_path, filter}`)
 
-|`wis2:notifications:data:tracker:by-msg-id:{id}`
-|Déduplication par ID de message
-
-|`wis2:notifications:data:tracker:by-data-id:{id}`
-|Déduplication par ID de données
-
-|`wis2:notifications:data:tracker:by-hash:{hash}`
-|Déduplication par hash de fichier
+|`wis2:notification:status:{type}:{id}`
+|Suivi de déduplication (types : `by-msg-id`, `by-data-id`, `by-hash`)
 
 |`wis2:notification:data:lock:{id}`
-|Verrou distribué pour les téléchargements concurrents
+|Verrou distribué empêchant les téléchargements en double concurrents
+
+|`gdc:cache:{name}`
+|JSON du catalogue GDC en cache (CMA, DWD, ECCC) ; TTL défini par `GDC_CACHE_TTL_SECONDS`
+
+|`wis2:metrics:{metric_name}`
+|Hash des métriques Prometheus (champ = dict JSON d'étiquettes, valeur = compteur/jauge flottant)
+
+|`subscriber:health:{id}`
+|Signal de santé de l'abonné
 
 |`celery`
 |File d'attente de tâches Celery (par défaut)
@@ -891,23 +927,35 @@ job = {
 
 == Extension du système
 
-=== Ajout d'un nouveau filtre
+=== Ajout d'une nouvelle condition de correspondance dans le moteur de filtres
 
-1. Ajoutez le champ de filtre à la spec OpenAPI (`openapi.yml`)
-2. Transmettez le filtre dans le flux d'abonnement (app.py → command_listener.py → subscriber.py)
-3. Appliquez le filtre dans la tâche de téléchargement (`wis2.py`)
+Le moteur de filtres se trouve dans `modules/shared/shared/filters.py`. Chaque condition de correspondance est une clé dans l'objet match distribué par `_evaluate_match()`.
 
-Exemple : Ajout d'un filtre `max_file_size` :
+Pour ajouter une nouvelle condition intégrée (ex. correspondance sur un nouveau champ de métadonnées `station_id`) :
 
+1. Ajoutez le champ à `MatchContext` dans `filters.py` :
++
 [source,python]
 ----
-# In wis2.py, after downloading:
-max_size = filters.get('max_file_size')
-if max_size and len(data) > max_size:
-    result['status'] = STATUS_SKIPPED
-    result['error_class'] = 'FileTooLarge'
-    return result
+@dataclass
+class MatchContext:
+    ...
+    station_id: str | None = None
 ----
+
+2. Renseignez-le dans `_build_context()` dans `wis2.py` (avant et/ou après le téléchargement).
+
+3. Ajoutez une branche dans `_evaluate_match()` :
++
+[source,python]
+----
+if 'station_id' in match:
+    return _match_string_field(ctx.station_id, match['station_id'])
+----
+
+4. Documentez le nouveau champ dans `openapi.yml` et dans la référence de filtre du guide utilisateur.
+
+Aucune modification n'est nécessaire dans `app.py`, `command_listener.py` ou `subscriber.py` — l'objet filtre est transmis tel quel et évalué au moment du téléchargement.
 
 === Ajout d'une nouvelle tâche
 
@@ -928,19 +976,36 @@ def my_custom_task(data):
 
 === Ajout d'une nouvelle métrique
 
+Les métriques sont stockées dans Redis via `shared.redis_metrics`. Pour ajouter une nouvelle métrique :
+
+1. Enregistrez-la dans le dict `METRICS` dans `modules/shared/shared/redis_metrics.py` :
++
 [source,python]
 ----
-from prometheus_client import Counter
-
-MY_METRIC = Counter(
-    'wis2_my_metric',
-    'Description of the metric',
-    ['label1', 'label2']
-)
-
-# In task:
-MY_METRIC.labels(label1='value', label2='value').inc()
+METRICS = {
+    ...
+    'my_metric_total': MetricDef(
+        name='wis2downloader_my_metric_total',
+        help='Description of the metric',
+        type='counter',
+    ),
+}
 ----
+
+2. Incrémentez-la depuis n'importe quel service (compteur) ou définissez-la (jauge) :
++
+[source,python]
+----
+from shared import incr_counter, set_gauge
+
+# Compteur (ex. dans une tâche Celery)
+incr_counter('my_metric_total', {'label1': 'value', 'label2': 'value'})
+
+# Jauge (ex. dans une tâche planifiée)
+set_gauge('my_metric_total', {'label1': 'value'}, 42.0)
+----
+
+Seules les métriques enregistrées dans `METRICS` apparaissent dans la sortie `/metrics`.
 
 == Tests
 
@@ -948,13 +1013,13 @@ MY_METRIC.labels(label1='value', label2='value').inc()
 
 [source,bash]
 ----
-# Install test dependencies
+# Installer les dépendances de test
 pip install pytest pytest-cov
 
-# Run tests
+# Exécuter les tests
 pytest modules/
 
-# With coverage
+# Avec couverture
 pytest --cov=modules modules/
 ----
 
@@ -962,18 +1027,18 @@ pytest --cov=modules modules/
 
 [source,bash]
 ----
-# Start services
+# Démarrer les services
 docker-compose up -d
 
-# Create test subscription
+# Créer un abonnement de test
 curl -X POST http://localhost:5002/subscriptions \
   -H "Content-Type: application/json" \
   -d '{"topic": "cache/a/wis2/de-dwd/data/#", "target": "test"}'
 
-# Watch logs
+# Surveiller les journaux
 docker-compose logs -f subscriber celery
 
-# Check downloads
+# Vérifier les téléchargements
 ls -la downloads/test/
 ----
 
@@ -983,34 +1048,34 @@ ls -la downloads/test/
 
 [source,bash]
 ----
-# Create virtual environment
+# Créer un environnement virtuel
 python -m venv venv
 source venv/bin/activate
 
-# Install modules in editable mode
+# Installer les modules en mode éditable
 pip install -e modules/shared
 pip install -e modules/task_manager
 pip install -e modules/subscriber
 pip install -e modules/subscription_manager
 
-# Start Redis (single instance for dev)
+# Démarrer Redis (instance unique pour le développement)
 docker run -d -p 6379:6379 redis:7.2-alpine redis-server --requirepass devpassword
 
-# Set environment
+# Configurer l'environnement
 export REDIS_HOST=localhost
 export REDIS_PORT=6379
 export REDIS_PASSWORD=devpassword
 export FLASK_SECRET_KEY=dev-secret-key
 export LOG_LEVEL=DEBUG
 
-# Run subscription manager
+# Exécuter le gestionnaire d'abonnements
 python -m subscription_manager.app
 
-# Run subscriber (in another terminal)
+# Exécuter le souscripteur (dans un autre terminal)
 export GLOBAL_BROKER_HOST=globalbroker.meteo.fr
 python -m subscriber.manager
 
-# Run celery worker (in another terminal)
+# Exécuter le worker Celery (dans un autre terminal)
 celery -A task_manager.worker worker --loglevel=DEBUG
 ----
 
@@ -1018,13 +1083,13 @@ celery -A task_manager.worker worker --loglevel=DEBUG
 
 [source,bash]
 ----
-# Build all images
+# Construire toutes les images
 docker-compose build
 
-# Build specific service
+# Construire un service spécifique
 docker-compose build celery
 
-# Rebuild without cache
+# Reconstruire sans cache
 docker-compose build --no-cache
 ----
 
@@ -1034,12 +1099,12 @@ docker-compose build --no-cache
 
 [source,bash]
 ----
-# Inspect active tasks
-docker exec -it wis2downloader-refactor-celery-1 \
+# Inspecter les tâches actives
+docker exec -it wis2downloader-celery-1 \
   celery -A task_manager.worker inspect active
 
-# Inspect reserved tasks
-docker exec -it wis2downloader-refactor-celery-1 \
+# Inspecter les tâches réservées
+docker exec -it wis2downloader-celery-1 \
   celery -A task_manager.worker inspect reserved
 ----
 
@@ -1047,19 +1112,19 @@ docker exec -it wis2downloader-refactor-celery-1 \
 
 [source,bash]
 ----
-# Connect to Redis (use password from environment)
+# Se connecter à Redis (utiliser le mot de passe de l'environnement)
 docker exec -it redis redis-cli -a $REDIS_PASSWORD
 
-# List subscriptions
+# Lister les abonnements
 HGETALL global:all_subscriptions
 
-# Check queue length
+# Vérifier la longueur de la file d'attente
 LLEN celery
 
-# View deduplication keys
+# Voir les clés de déduplication
 KEYS wis2:notifications:*
 
-# View GDC catalogue cache (populated by the UI on startup)
+# Voir le cache du catalogue GDC (rempli par l'interface au démarrage)
 KEYS gdc:cache:*
 TTL gdc:cache:CMA
 ----
@@ -1070,7 +1135,7 @@ NOTE: Toutes les commandes Redis nécessitent une authentification. Le drapeau `
 
 [source,bash]
 ----
-# Subscribe to topic manually (mosquitto-clients)
+# S'abonner manuellement à un sujet (mosquitto-clients)
 mosquitto_sub -h globalbroker.meteo.fr -p 443 \
   -t 'cache/a/wis2/de-dwd/data/#' \
   -u everyone -P everyone \

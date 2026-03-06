@@ -107,7 +107,11 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     # Manage Subscriptions view                                            #
     # ------------------------------------------------------------------ #
-    'subscriptions.folder': '文件夹：{path}',
+    'subscriptions.folder':        '文件夹：{path}',
+    'subscriptions.id':            'ID：{id}',
+    'subscriptions.filter_default':'过滤器：默认',
+    'subscriptions.filter_named':  '过滤器：{name}',
+    'subscriptions.filter_custom': '过滤器：自定义',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #
