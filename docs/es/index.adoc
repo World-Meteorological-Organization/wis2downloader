@@ -4,13 +4,6 @@
 :toclevels: 2
 :icons: font
 
-[NOTE]
-====
-Este documento fue traducido automáticamente del inglés mediante Claude AI.
-Los términos del dominio WMO/meteorológico deben ser revisados por un hablante nativo antes
-de su uso en producción. Consulte el link:../en/[documento original en inglés] para la versión autorizada.
-====
-
 Bienvenido a la documentación de WIS2 Downloader.
 
 == Guías

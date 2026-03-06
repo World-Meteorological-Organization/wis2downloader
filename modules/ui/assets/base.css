@@ -36,6 +36,10 @@
     margin-right: 0 !important;
 }
 
+body, .q-layout {
+  overflow-x: hidden;
+}
+
 /* -- Header ---------------------------------------------------- */
 
 .header-bg {
@@ -430,6 +434,11 @@ label, .q-label {
     max-height: 75vh;
 }
 
+.dialog-metadata {
+    min-width: min(80vw, 1000px) !important;
+    max-height: 80vh;
+}   
+
 .dialog-input {
     width: 20vh;
 }
@@ -482,6 +491,7 @@ label, .q-label {
 .lang-select {
     min-width: 100px;
     color: #fff !important;
+    background-color: #2f6cbc !important;
 }
 
 .lang-select .q-field__native,

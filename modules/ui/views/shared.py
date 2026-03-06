@@ -125,6 +125,7 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
 
     if not topics:
         layout.right_sidebar.value = False
+        layout.right_sidebar.clear()
         return
 
     layout.right_sidebar.value = True
@@ -309,7 +310,7 @@ async def show_metadata(dataset_id):
         (m.record for m in merged_records() if m.record.id == dataset_id),
         None
     )
-    with ui.dialog() as dialog, ui.card():
+    with ui.dialog() as dialog, ui.card().classes("dialog-metadata"):
         with ui.scroll_area().classes("dialog-scroll"):
             if dataset is None:
                 LOGGER.error(f"Metadata not found for: {dataset_id}")
