@@ -5,8 +5,8 @@ STRINGS: dict[str, str] = {
     # Navigation                                                           #
     # ------------------------------------------------------------------ #
     'nav.dashboard':  'Dashboard',
-    'nav.catalogue':  'Catalogue Search',
-    'nav.tree':       'Tree Search',
+    'nav.catalogue':  'Catalogue View',
+    'nav.tree':       'Tree View',
     'nav.manual':     'Manual Subscribe',
     'nav.manage':     'Manage Subscriptions',
     'nav.settings':   'Settings',

@@ -287,10 +287,9 @@ Les métriques sont stockées dans Redis via des opérations `HINCRBYFLOAT` atom
 ----
 @app.route('/metrics')
 def expose_metrics():
-    # Collect from multiprocess directory
-    registry = CollectorRegistry()
-    multiprocess.MultiProcessCollector(registry, path=basedir)
-    return Response(generate_latest(registry), mimetype="text/plain")
+    from shared.redis_metrics import generate_prometheus_text, set_gauge
+    set_gauge('celery_queue_length', {}, get_queue_length())
+    return Response(generate_prometheus_text(), mimetype='text/plain')
 ----
 
 Incrémenter un compteur depuis n'importe quel worker :

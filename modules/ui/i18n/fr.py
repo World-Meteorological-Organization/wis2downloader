@@ -9,8 +9,8 @@ STRINGS: dict[str, str] = {
     # Navigation                                                           #
     # ------------------------------------------------------------------ #
     'nav.dashboard':  'Tableau de bord',
-    'nav.catalogue':  'Recherche dans le catalogue',
-    'nav.tree':       'Recherche arborescente',
+    'nav.catalogue':  'Vue du catalogue',
+    'nav.tree':       'Vue arborescente',
     'nav.manual':     'Abonnement manuel',
     'nav.manage':     'Gérer les abonnements',
     'nav.settings':   'Paramètres',
