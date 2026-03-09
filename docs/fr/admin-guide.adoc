@@ -629,7 +629,7 @@ WARNING: Ces opérations sont destructives.
 [source,bash]
 ----
 # Effacer tous les abonnements
-docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:all_subscriptions
+docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:subscriptions
 
 # Effacer le cache de déduplication (permet de re-télécharger toutes les données)
 docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli -a $REDIS_PASSWORD DEL

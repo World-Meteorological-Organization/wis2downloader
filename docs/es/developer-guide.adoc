@@ -974,13 +974,11 @@ Las métricas se almacenan en Redis a través de `shared.redis_metrics`. Para ag
 +
 [source,python]
 ----
-METRICS = {
+# short name → (prometheus type, help text)
+METRICS: dict[str, tuple[str, str]] = {
     ...
-    'my_metric_total': MetricDef(
-        name='wis2downloader_my_metric_total',
-        help='Description of the metric',
-        type='counter',
-    ),
+    'my_counter_total': ('counter', 'Description of the counter.'),
+    'my_gauge':         ('gauge',   'Description of the gauge.'),
 }
 ----
 
@@ -991,10 +989,10 @@ METRICS = {
 from shared import incr_counter, set_gauge
 
 # Contador (por ej. en una tarea Celery)
-incr_counter('my_metric_total', {'label1': 'value', 'label2': 'value'})
+incr_counter('my_counter_total', {'label1': 'value', 'label2': 'value'})
 
 # Medidor (por ej. en una tarea programada)
-set_gauge('my_metric_total', {'label1': 'value'}, 42.0)
+set_gauge('my_gauge', {'label1': 'value'}, 42.0)
 ----
 
 Solo las métricas registradas en `METRICS` aparecen en la salida de `/metrics`.
@@ -1108,7 +1106,7 @@ docker exec -it wis2downloader-celery-1 \
 docker exec -it redis redis-cli -a $REDIS_PASSWORD
 
 # Listar suscripciones
-HGETALL global:all_subscriptions
+HGETALL global:subscriptions
 
 # Verificar longitud de la cola
 LLEN celery

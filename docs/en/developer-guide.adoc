@@ -1015,13 +1015,11 @@ Metrics are stored in Redis via `shared.redis_metrics`. To add a new metric:
 +
 [source,python]
 ----
-METRICS = {
+# short name → (prometheus type, help text)
+METRICS: dict[str, tuple[str, str]] = {
     ...
-    'my_metric_total': MetricDef(
-        name='wis2downloader_my_metric_total',
-        help='Description of the metric',
-        type='counter',
-    ),
+    'my_counter_total': ('counter', 'Description of the counter.'),
+    'my_gauge':         ('gauge',   'Description of the gauge.'),
 }
 ----
 
@@ -1032,10 +1030,10 @@ METRICS = {
 from shared import incr_counter, set_gauge
 
 # Counter (e.g. in a Celery task)
-incr_counter('my_metric_total', {'label1': 'value', 'label2': 'value'})
+incr_counter('my_counter_total', {'label1': 'value', 'label2': 'value'})
 
 # Gauge (e.g. in a scheduled task)
-set_gauge('my_metric_total', {'label1': 'value'}, 42.0)
+set_gauge('my_gauge', {'label1': 'value'}, 42.0)
 ----
 
 Only metrics registered in `METRICS` appear in the `/metrics` output.

@@ -981,13 +981,11 @@ def my_custom_task(data):
 +
 [source,python]
 ----
-METRICS = {
+# short name → (prometheus type, help text)
+METRICS: dict[str, tuple[str, str]] = {
     ...
-    'my_metric_total': MetricDef(
-        name='wis2downloader_my_metric_total',
-        help='Description of the metric',
-        type='counter',
-    ),
+    'my_counter_total': ('counter', 'Description of the counter.'),
+    'my_gauge':         ('gauge',   'Description of the gauge.'),
 }
 ----
 
@@ -998,10 +996,10 @@ METRICS = {
 from shared import incr_counter, set_gauge
 
 # 计数器（例如在 Celery 任务中）
-incr_counter('my_metric_total', {'label1': 'value', 'label2': 'value'})
+incr_counter('my_counter_total', {'label1': 'value', 'label2': 'value'})
 
 # 仪表（例如在定时任务中）
-set_gauge('my_metric_total', {'label1': 'value'}, 42.0)
+set_gauge('my_gauge', {'label1': 'value'}, 42.0)
 ----
 
 只有在 `METRICS` 中注册的指标才会出现在 `/metrics` 输出中。
@@ -1115,7 +1113,7 @@ docker exec -it wis2downloader-celery-1 \
 docker exec -it redis redis-cli -a $REDIS_PASSWORD
 
 # 列出订阅
-HGETALL global:all_subscriptions
+HGETALL global:subscriptions
 
 # 检查队列长度
 LLEN celery

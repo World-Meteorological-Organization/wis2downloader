@@ -986,13 +986,11 @@ def my_custom_task(data):
 +
 [source,python]
 ----
-METRICS = {
+# short name → (prometheus type, help text)
+METRICS: dict[str, tuple[str, str]] = {
     ...
-    'my_metric_total': MetricDef(
-        name='wis2downloader_my_metric_total',
-        help='وصف المقياس',
-        type='counter',
-    ),
+    'my_counter_total': ('counter', 'Description of the counter.'),
+    'my_gauge':         ('gauge',   'Description of the gauge.'),
 }
 ----
 
@@ -1003,10 +1001,10 @@ METRICS = {
 from shared import incr_counter, set_gauge
 
 # عداد (مثلاً في مهمة Celery)
-incr_counter('my_metric_total', {'label1': 'value', 'label2': 'value'})
+incr_counter('my_counter_total', {'label1': 'value', 'label2': 'value'})
 
 # مقياس (مثلاً في مهمة مجدوَلة)
-set_gauge('my_metric_total', {'label1': 'value'}, 42.0)
+set_gauge('my_gauge', {'label1': 'value'}, 42.0)
 ----
 
 == الاختبار
