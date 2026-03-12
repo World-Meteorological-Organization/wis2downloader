@@ -14,7 +14,7 @@ jobs:
         run: sudo gem install asciidoctor
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 
@@ -26,14 +26,19 @@ jobs:
       - name: Verify build
         run: find /tmp/site -name "*.html" | sort
 
-      - name: Publish to gh-pages
+      - name: Checkout pages branch
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: gh-pages
+          create-branch: true
+          path: gh-pages
+
+      - name: Copy files
         run: |
           git config user.email "dberry@wmo.int"
           git config user.name "David I. Berry"
-          git fetch origin
-          git checkout gh-pages || git checkout --orphan gh-pages
           git rm -rf . --quiet 2>/dev/null || true
           cp -r /tmp/site/. .
           git add .
           git diff --cached --quiet || git commit -m "Publish docs ${GITHUB_REF_NAME:-manual}"
-          git push origin gh-pages
+          git push 
