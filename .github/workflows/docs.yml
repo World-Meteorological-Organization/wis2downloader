@@ -37,7 +37,7 @@ jobs:
           git config user.email "dberry@wmo.int" \
           && git config user.name "David I. Berry" \
           && git rm -rf ./pages --quiet 2>/dev/null || true \
-          && mv /tmp/site/* ./pages \
+          && mv /tmp/site/* pages/ \
           && git add . \
           && git diff --cached --quiet || git commit -m "Publish docs ${GITHUB_REF_NAME:-manual}" \
           && git push
