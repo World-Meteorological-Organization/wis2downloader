@@ -7,9 +7,13 @@ from data import gdc_records, MergedRecord, merged_records
 from models.wcmp2 import WCMP2Record
 from i18n import t
 
-_GDC_CHIP_COLOURS = {'CMA': 'blue', 'DWD': 'teal', 'ECCC': 'orange'}
+from shared import setup_logging
+
 from views.shared import on_topics_picked, show_metadata, clean_page
 
+_GDC_CHIP_COLOURS = {'CMA': 'blue', 'DWD': 'teal', 'ECCC': 'orange'}
+setup_logging()
+LOGGER = setup_logging(__name__)
 
 class _Event:
     """Minimal event stub so on_topics_picked can be called from search results."""
@@ -20,7 +24,6 @@ class _Event:
 # ---------------------------------------------------------------------------
 # Pure filter helpers (no state dependency)
 # ---------------------------------------------------------------------------
-
 def filter_feature(record: WCMP2Record, query: str) -> bool:
     q = query.lower()
     if q in record.id.lower():
@@ -55,25 +58,34 @@ def filter_by_keywords(record: WCMP2Record, keywords: str) -> bool:
     return all(kw in record_keywords for kw in keyword_list)
 
 
-def filter_by_bbox(record: WCMP2Record, bbox) -> bool | None:
+def filter_by_bbox(record: WCMP2Record, bbox, spatial_rel = 'intersects') -> bool :
     if not all(v is not None for v in bbox):
         return True
-    if record.geometry is not None:
-        coordinates = record.geometry.coordinates
-        geom_type = record.geometry.type
-        bbox_polygon = Polygon(
-            [(bbox[1], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[0]), (bbox[1], bbox[0])]
-        )
-        if geom_type == 'Point':
-            return Point(coordinates[0], coordinates[1]).within(bbox_polygon)
-        elif geom_type == 'MultiPoint':
-            return MultiPoint([(c[0], c[1]) for c in coordinates]).within(bbox_polygon)
-        elif geom_type == 'Polygon':
-            return Polygon(coordinates[0]).intersects(bbox_polygon)
-        elif geom_type == 'MultiPolygon':
-            return MultiPolygon([Polygon(part) for part in coordinates[0]]).intersects(bbox_polygon)
-    return None  # Preserve original behaviour: None filters record out when bbox is active
 
+    if record.geometry is None:
+        return False
+
+    coordinates = record.geometry.coordinates
+    geom_type = record.geometry.type
+    bbox_polygon = Polygon(
+        [(bbox[1], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[0]), (bbox[1], bbox[0])]
+    )
+
+    # convert to shapely geometry
+    if geom_type == 'Point':
+        geom = Point(coordinates[0], coordinates[1])
+    elif geom_type == 'MultiPoint':
+        geom = MultiPoint([(c[0], c[1]) for c in coordinates])
+    elif geom_type == 'Polygon':
+        geom = Polygon(coordinates[0])
+    elif geom_type == 'MultiPolygon':
+        geom = MultiPolygon([Polygon(part) for part in coordinates[0]])
+    else:
+        LOGGER.warning(f"Unsupported geometry type '{geom_type}' in bbox filter; rejecting")
+        return False
+
+    # apply filter
+    return geom.within(bbox_polygon) if spatial_rel == 'within' else geom.intersects(bbox_polygon)
 
 # ---------------------------------------------------------------------------
 # Search result functions
@@ -157,8 +169,8 @@ async def update_search_results(page_selector, query, records: list[MergedRecord
                         )
 
 
-async def perform_search(query, data_policy, keywords, bbox, state, layout,
-                         results_container):
+async def perform_search(query, data_policy, keywords, bbox, spatial_rel,
+                         state, layout, results_container):
     clean_page(state, layout)
     results_container.clear()
 
@@ -166,7 +178,7 @@ async def perform_search(query, data_policy, keywords, bbox, state, layout,
     records = [m for m in records if filter_feature(m.record, query)]
     records = [m for m in records if filter_by_data_policy(m.record, data_policy)]
     records = [m for m in records if filter_by_keywords(m.record, keywords)]
-    records = [m for m in records if filter_by_bbox(m.record, bbox)]
+    records = [m for m in records if filter_by_bbox(m.record, bbox, spatial_rel)]
 
     if not records:
         with results_container:
@@ -195,47 +207,58 @@ async def perform_search(query, data_policy, keywords, bbox, state, layout,
 def render(container, state, layout):
     clean_page(state, layout)
     with container:
-        ui.label(t('catalogue.title')).classes("page-title")
+        with ui.column().classes("catalogue-page"):
+            ui.label(t('catalogue.title')).classes("page-title")
+            if not any(gdc_records.values()):
+                with ui.card().classes("info-card"):
+                    ui.icon('info').classes("info-card-icon")
+                    ui.label(t('catalogue.not_loaded')).classes("text-h6")
+                    ui.label(t('catalogue.not_loaded_msg')).classes("text-body2 text-grey-7")
+                return
 
-        if not any(gdc_records.values()):
-            with ui.card().classes("info-card"):
-                ui.icon('info').classes("info-card-icon")
-                ui.label(t('catalogue.not_loaded')).classes("text-h6")
-                ui.label(t('catalogue.not_loaded_msg')).classes("text-body2 text-grey-7")
-            return
+            with ui.card().classes("search-form-card"):
+                with ui.card_section():
+                    # Free text filter
+                    search_input = ui.input(
+                        label=t('catalogue.search_label'),
+                        placeholder=t('catalogue.search_hint'),
+                    ).classes("search-input")
+                    with ui.row().classes("filter-row"):
+                        # Data policy filter
+                        search_data_type = ui.select(
+                            options=['all', 'core', 'recommended'],
+                            label=t('catalogue.data_policy'), value='all',
+                        ).classes("filter-select")
+                        # keyword filter
+                        search_keyword = ui.input(
+                            label=t('catalogue.keywords_label')
+                        ).classes("filter-input")
+                    with ui.row().classes("filter-row"):
+                        # Bounding box filter
+                        ui.label(t('catalogue.bbox_label')).classes("bbox-label")
+                        search_bbox_north = ui.number(label=t('sidebar.north'), max=90,  min=-90).classes("bbox-input")
+                        search_bbox_west  = ui.number(label=t('sidebar.west'),  max=180, min=-180).classes("bbox-input")
+                        search_bbox_east  = ui.number(label=t('sidebar.east'),  max=180, min=-180).classes("bbox-input")
+                        search_bbox_south = ui.number(label=t('sidebar.south'), max=90,  min=-90).classes("bbox-input")
+                    with ui.row().classes("filter-row"):
+                        ui.label(t('catalogue.bbox_spatial_rel')).classes("bbox-label")
+                        search_spatial_rel = ui.radio(
+                            {'intersects': t('catalogue.bbox_intersects'), 'within': t('catalogue.bbox_within')},
+                            value='intersects',
+                        ).props('inline')
+                    with ui.row().classes("justify-end"):
+                        search_btn = ui.button(t('btn.filter'), icon='search')
 
-        with ui.card().classes("search-form-card"):
-            with ui.card_section():
-                search_input = ui.input(
-                    label=t('catalogue.search_label'),
-                    placeholder=t('catalogue.search_hint'),
-                ).classes("search-input")
-                with ui.row().classes("filter-row"):
-                    search_data_type = ui.select(
-                        options=['all', 'core', 'recommended'],
-                        label=t('catalogue.data_policy'), value='all',
-                    ).classes("filter-select")
-                    search_keyword = ui.input(
-                        label=t('catalogue.keywords_label')
-                    ).classes("filter-input")
-                with ui.row().classes("filter-row"):
-                    ui.label(t('catalogue.bbox_label')).classes("bbox-label")
-                    search_bbox_north = ui.number(label=t('sidebar.north'), max=90,  min=-90).classes("bbox-input")
-                    search_bbox_west  = ui.number(label=t('sidebar.west'),  max=180, min=-180).classes("bbox-input")
-                    search_bbox_east  = ui.number(label=t('sidebar.east'),  max=180, min=-180).classes("bbox-input")
-                    search_bbox_south = ui.number(label=t('sidebar.south'), max=90,  min=-90).classes("bbox-input")
-                with ui.row().classes("justify-end"):
-                    search_btn = ui.button(t('btn.filter'), icon='search')
+            results_col = ui.column().classes("results-column")
 
-        results_col = ui.column().classes("results-column")
-
-        search_btn.on(
-            'click',
-            lambda: perform_search(
-                search_input.value,
-                search_data_type.value, search_keyword.value,
-                [search_bbox_north.value, search_bbox_west.value,
-                 search_bbox_east.value, search_bbox_south.value],
-                state, layout, results_col,
-            ),
-        )
+            search_btn.on(
+                'click',
+                lambda: perform_search(
+                    search_input.value,
+                    search_data_type.value, search_keyword.value,
+                    [search_bbox_north.value, search_bbox_west.value,
+                     search_bbox_east.value, search_bbox_south.value],
+                    search_spatial_rel.value,
+                    state, layout, results_col,
+                ),
+            )

@@ -88,11 +88,14 @@ STRINGS: dict[str, str] = {
         'Данные GDC ещё загружаются. Попробуйте снова через момент '
         'или перейдите в Настройки для ручного обновления.'
     ),
-    'catalogue.search_label':       'Поиск тем',
+    'catalogue.search_label':       'Поиск по тексту:',
     'catalogue.search_hint':        'напр. наземные наблюдения',
     'catalogue.data_policy':        'Политика данных',
     'catalogue.keywords_label':     'Ключевые слова (через запятую)',
     'catalogue.bbox_label':         'Географический охват:',
+    'catalogue.bbox_spatial_rel':   'Пространственное соотношение:',
+    'catalogue.bbox_intersects':    'Пересекает',
+    'catalogue.bbox_within':        'Внутри',
     'catalogue.no_results':         'Результаты не найдены.',
     'catalogue.page':               'Страница',
     'catalogue.discrepancy':        'Содержимое записи различается между каталогами',

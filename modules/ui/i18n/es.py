@@ -86,11 +86,14 @@ STRINGS: dict[str, str] = {
         'Los datos GDC aún se están obteniendo. Inténtelo de nuevo en un '
         'momento, o visite Configuración para activar una actualización manual.'
     ),
-    'catalogue.search_label':       'Buscar temas',
+    'catalogue.search_label':       'Búsqueda de texto libre:',
     'catalogue.search_hint':        'ej. observaciones de superficie',
     'catalogue.data_policy':        'Política de datos',
     'catalogue.keywords_label':     'Palabras clave (separadas por comas)',
     'catalogue.bbox_label':         'Extensión geográfica:',
+    'catalogue.bbox_spatial_rel':   'Relación espacial:',
+    'catalogue.bbox_intersects':    'Intersecta',
+    'catalogue.bbox_within':        'Contenido en',
     'catalogue.no_results':         'No se encontraron resultados.',
     'catalogue.page':               'Página',
     'catalogue.discrepancy':        'El contenido del registro difiere entre catálogos',

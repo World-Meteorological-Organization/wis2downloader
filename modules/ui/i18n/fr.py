@@ -89,11 +89,14 @@ STRINGS: dict[str, str] = {
         'Réessayez dans un moment ou visitez les Paramètres pour '
         'déclencher une actualisation manuelle.'
     ),
-    'catalogue.search_label':       'Rechercher des sujets',
+    'catalogue.search_label':       'Recherche en texte libre\u00a0:',
     'catalogue.search_hint':        'ex. observations de surface',
     'catalogue.data_policy':        'Politique de données',
     'catalogue.keywords_label':     'Mots-clés (séparés par des virgules)',
     'catalogue.bbox_label':         'Emprise géographique\u00a0:',
+    'catalogue.bbox_spatial_rel':   'Relation spatiale\u00a0:',
+    'catalogue.bbox_intersects':    'Intersecte',
+    'catalogue.bbox_within':        'Contenu dans',
     'catalogue.no_results':         'Aucun résultat trouvé.',
     'catalogue.page':               'Page',
     'catalogue.discrepancy':        'Le contenu diffère entre les catalogues',

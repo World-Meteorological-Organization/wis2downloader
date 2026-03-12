@@ -84,11 +84,14 @@ STRINGS: dict[str, str] = {
         'GDC data is still being fetched. Try again in a moment, '
         'or visit Settings to trigger a manual refresh.'
     ),
-    'catalogue.search_label':       'Search topics',
+    'catalogue.search_label':       'Free text search:',
     'catalogue.search_hint':        'e.g. surface observations',
     'catalogue.data_policy':        'Data Policy',
     'catalogue.keywords_label':     'Keywords (comma-separated)',
     'catalogue.bbox_label':         'Bounding box:',
+    'catalogue.bbox_spatial_rel':   'Spatial relationship:',
+    'catalogue.bbox_intersects':    'Intersects',
+    'catalogue.bbox_within':        'Within',
     'catalogue.no_results':         'No results found.',
     'catalogue.page':               'Page',
     'catalogue.discrepancy':        'Record content differs between catalogues',

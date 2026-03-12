@@ -175,7 +175,7 @@ async def _fetch_one(
     try:
         response = await client.get(
             f'{url}/collections/wis2-discovery-metadata/items?limit=2000&f=json',
-            timeout=30,
+            timeout=5,
         )
         data = response.json()
         gdc_records[key] = _parse_features(data)

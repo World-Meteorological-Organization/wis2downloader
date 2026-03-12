@@ -88,11 +88,14 @@ STRINGS: dict[str, str] = {
         'لا تزال بيانات GDC قيد الجلب. حاول مرة أخرى بعد لحظة، '
         'أو قم بزيارة الإعدادات لبدء تحديث يدوي.'
     ),
-    'catalogue.search_label':       'البحث في المواضيع',
+    'catalogue.search_label':       'بحث نصي حر:',
     'catalogue.search_hint':        'مثال: ملاحظات السطح',
     'catalogue.data_policy':        'سياسة البيانات',
     'catalogue.keywords_label':     'الكلمات المفتاحية (مفصولة بفواصل)',
     'catalogue.bbox_label':         'النطاق الجغرافي:',
+    'catalogue.bbox_spatial_rel':   'العلاقة المكانية:',
+    'catalogue.bbox_intersects':    'يتقاطع مع',
+    'catalogue.bbox_within':        'ضمن',
     'catalogue.no_results':         'لم يتم العثور على نتائج.',
     'catalogue.page':               'صفحة',
     'catalogue.discrepancy':        'يختلف محتوى السجل بين الكتالوجات',

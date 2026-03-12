@@ -204,8 +204,6 @@ services:
       env_file: *default-env
       ports:
         - 8081:8080
-      #volumes:
-      #  - ./modules/ui:/app # mounting local app directory
       networks:
       - redis-net
 

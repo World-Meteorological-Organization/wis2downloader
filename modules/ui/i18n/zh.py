@@ -88,11 +88,14 @@ STRINGS: dict[str, str] = {
         'GDC 数据仍在获取中，请稍后重试，'
         '或前往设置页面手动触发刷新。'
     ),
-    'catalogue.search_label':       '搜索主题',
+    'catalogue.search_label':       '全文搜索：',
     'catalogue.search_hint':        '例如：地面观测',
     'catalogue.data_policy':        '数据政策',
     'catalogue.keywords_label':     '关键词（逗号分隔）',
     'catalogue.bbox_label':         '地理范围：',
+    'catalogue.bbox_spatial_rel':   '空间关系：',
+    'catalogue.bbox_intersects':    '相交',
+    'catalogue.bbox_within':        '包含于',
     'catalogue.no_results':         '未找到结果。',
     'catalogue.page':               '页',
     'catalogue.discrepancy':        '记录内容在各目录间存在差异',

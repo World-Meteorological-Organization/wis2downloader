@@ -237,6 +237,12 @@ body, .q-layout {
 
 /* -- Search form ----------------------------------------------- */
 
+.catalogue-page {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
 .search-form-card {
     width: 100% !important;
     max-width: 800px;

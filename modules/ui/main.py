@@ -18,7 +18,13 @@ if os.path.isdir('site'):
     app.add_static_files('/docs', 'site')
 ui.add_head_html('<link rel="stylesheet" type="text/css" href="/assets/base.css">', shared=True)
 
+_startup_done = False
+
 async def _startup():
+    global _startup_done
+    if _startup_done:
+        return
+    _startup_done = True
     asyncio.create_task(scrape_all())
 
 app.on_startup(_startup)
@@ -110,4 +116,6 @@ def main_page(client: Client):
     show_view(app.storage.user.get('current_view', 'help'))
 
 
-ui.run(storage_secret=os.getenv('STORAGE_SECRET', 'wis2downloader-secret'), favicon='assets/logo.png')
+ui.run(storage_secret=os.getenv('STORAGE_SECRET', 'wis2downloader-secret'),
+       reload=False,
+       favicon='assets/logo.png')
