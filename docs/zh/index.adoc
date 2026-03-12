@@ -13,9 +13,15 @@ WMO/气象领域术语在正式使用前应由母语人士审阅。
 
 欢迎阅读 WIS2 Downloader 文档。
 
+== 快速开始
+
+初次使用 WIS2 Downloader？从这里开始：
+
+link:quick-start.html[*快速入门指南*] — 几分钟内完成安装、配置并下载您的第一批数据。
+
 == 指南
 
-* link:user-guide.html[用户指南] — 快速入门、Web 界面、创建订阅
-* link:admin-guide.html[管理指南] — 部署、配置、监控
+* link:user-guide.html[用户指南] — Web 界面使用、创建和管理订阅、数据过滤
+* link:admin-guide.html[管理指南] — 部署、安全加固、配置、监控
 * link:developer-guide.html[开发者指南] — 架构、贡献、扩展
 * link:api-reference.html[API 参考] — REST API 端点和数据格式

@@ -1,0 +1,139 @@
+= Guide de démarrage rapide WIS2 Downloader
+:toc: left
+:toc-title: Sommaire
+:toclevels: 2
+:icons: font
+:source-highlighter: highlight.js
+
+[NOTE]
+====
+Ce document a été traduit automatiquement depuis l'anglais par Claude AI.
+Les termes du domaine WMO/météorologique doivent être vérifiés par un locuteur natif avant
+toute utilisation en production. Consultez le link:../en/[document original en anglais] pour la version faisant autorité.
+====
+
+Mettez WIS2 Downloader en service et téléchargez vos premières données en quelques minutes.
+
+== Prérequis
+
+* https://docs.docker.com/get-docker/[Docker] 20.10+
+* https://docs.docker.com/compose/install/[Docker Compose] 2.0+
+* Accès réseau à un Global Broker WIS2 (port 443)
+
+== 1. Téléchargement et extraction
+
+Téléchargez l'archive de la https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[dernière version] et extrayez-la :
+
+[source,bash]
+----
+tar -xzf wis2downloader-*.tar.gz
+cd wis2downloader-*
+----
+
+TIP: Pour suivre la dernière version de développement, clonez le dépôt : `git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`
+
+== 2. Configuration
+
+Exécutez le script de configuration pour créer un fichier `.env` avec des secrets générés aléatoirement :
+
+[source,bash]
+----
+bash setup.sh
+----
+
+Ce script copie `default.env` vers `.env` et génère des valeurs aléatoires pour `FLASK_SECRET_KEY` et `REDIS_PASSWORD`. Examinez le fichier `.env` et ajustez les paramètres si nécessaire — les valeurs par défaut conviennent à un déploiement sur une seule machine.
+
+IMPORTANT: Protégez le fichier `.env`. Il contient des identifiants sensibles et ne doit pas être versionnalisé.
+
+== 3. Configuration du répertoire de téléchargement
+
+Les conteneurs s'exécutent en tant qu'utilisateur non-root (UID 10001, GID 988). Sur Linux, vous devez configurer le répertoire de téléchargement avant de démarrer :
+
+[source,bash]
+----
+sudo groupadd -g 988 wis2
+sudo useradd -u 10001 -g wis2 -M -s /usr/sbin/nologin wis2
+mkdir -p downloads
+sudo chown wis2:wis2 downloads
+----
+
+NOTE: Sur macOS et Windows (Docker Desktop), cette étape n'est pas nécessaire — Docker Desktop gère automatiquement les permissions des volumes.
+
+Si vous ne pouvez pas créer un utilisateur correspondant, consultez la section link:admin-guide.html#_volume_permissions[Permissions des volumes] du Guide d'administration pour les alternatives basées sur les ACL.
+
+== 4. Démarrage des services
+
+[source,bash]
+----
+docker compose up -d
+----
+
+Cette commande démarre tous les services : gestionnaire d'abonnements, abonnés MQTT (Global Brokers France et Brésil), workers Celery de téléchargement, Redis, Prometheus, Grafana et Loki.
+
+Vérifiez que tout fonctionne :
+
+[source,bash]
+----
+docker compose ps
+----
+
+Attendez que le contrôle de santé de `subscription-manager` soit validé (environ 30 secondes), puis confirmez qu'il est opérationnel :
+
+[source,bash]
+----
+curl http://localhost:5002/health
+----
+
+== 5. Créer un abonnement
+
+=== Via l'interface web (recommandé)
+
+Ouvrez http://localhost:8080 dans votre navigateur.
+
+Utilisez la *Vue Catalogue* ou la *Vue Arborescente* pour parcourir les jeux de données WIS2 disponibles, sélectionnez un sujet, choisissez un répertoire de sauvegarde, puis cliquez sur *S'abonner*.
+
+=== Via l'API
+
+[source,bash]
+----
+curl -X POST http://localhost:5002/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#",
+    "target": "surface-obs"
+  }'
+----
+
+Cet abonnement couvre toutes les observations de surface de n'importe quel centre de données et enregistre les fichiers dans `downloads/surface-obs/`.
+
+== 6. Consulter les téléchargements
+
+Les fichiers apparaissent dans le répertoire `downloads/`, organisés par date :
+
+[source,bash]
+----
+ls -la downloads/surface-obs/
+----
+
+Surveillez l'activité de téléchargement dans Grafana à l'adresse http://localhost:3000 (identifiants par défaut : `admin` / `admin`).
+
+IMPORTANT: Changez le mot de passe Grafana par défaut après la première connexion.
+
+== Étapes suivantes
+
+[cols="1,3"]
+|===
+|Guide |Contenu
+
+|link:user-guide.html[Guide utilisateur]
+|Utilisation de l'interface web, création et gestion des abonnements, filtrage des données
+
+|link:admin-guide.html[Guide d'administration]
+|Sécurisation, mise à l'échelle, variables d'environnement, surveillance, maintenance
+
+|link:api-reference.html[Référence API]
+|Documentation complète de l'API REST ; interface Swagger interactive à l'adresse `http://localhost:5002/swagger`
+
+|link:developer-guide.html[Guide du développeur]
+|Architecture, modules internes, extension du système
+|===

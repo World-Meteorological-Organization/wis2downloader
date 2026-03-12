@@ -6,9 +6,15 @@
 
 Bienvenido a la documentación de WIS2 Downloader.
 
+== Primeros pasos
+
+¿Es nuevo en WIS2 Downloader? Empiece aquí:
+
+link:quick-start.html[*Guía de inicio rápido*] — Instale, configure y descargue sus primeros datos en minutos.
+
 == Guías
 
-* link:user-guide.html[Guía de usuario] — Primeros pasos, interfaz web, creación de suscripciones
-* link:admin-guide.html[Guía de administración] — Despliegue, configuración, monitorización
+* link:user-guide.html[Guía de usuario] — Interfaz web, creación y gestión de suscripciones, filtrado de datos
+* link:admin-guide.html[Guía de administración] — Despliegue, seguridad, configuración, monitorización
 * link:developer-guide.html[Guía del desarrollador] — Arquitectura, contribuciones, extensión
 * link:api-reference.html[Referencia de la API] — Endpoints de la REST API y formatos de datos

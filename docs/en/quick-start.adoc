@@ -1,0 +1,132 @@
+= WIS2 Downloader Quick Start
+:toc: left
+:toc-title: Contents
+:toclevels: 2
+:icons: font
+:source-highlighter: highlight.js
+
+Get WIS2 Downloader running and downloading data in a few minutes.
+
+== Prerequisites
+
+* https://docs.docker.com/get-docker/[Docker] 20.10+
+* https://docs.docker.com/compose/install/[Docker Compose] 2.0+
+* Network access to a WIS2 Global Broker (port 443)
+
+== 1. Download and Extract
+
+Download the https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[latest release] tarball and extract it:
+
+[source,bash]
+----
+tar -xzf wis2downloader-*.tar.gz
+cd wis2downloader-*
+----
+
+TIP: To follow the latest development version instead, clone the repository: `git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`
+
+== 2. Configure
+
+Run the setup script to create a `.env` file with randomised secrets:
+
+[source,bash]
+----
+bash setup.sh
+----
+
+This copies `default.env` to `.env` and generates random values for `FLASK_SECRET_KEY` and `REDIS_PASSWORD`. Review `.env` and adjust any settings if needed — the defaults are suitable for a single-machine deployment.
+
+IMPORTANT: Keep `.env` secure. It contains credentials and should not be committed to version control.
+
+== 3. Set Up Download Directory
+
+The containers run as a non-root user (UID 10001, GID 988). On Linux you must set up the downloads directory before starting:
+
+[source,bash]
+----
+sudo groupadd -g 988 wis2
+sudo useradd -u 10001 -g wis2 -M -s /usr/sbin/nologin wis2
+mkdir -p downloads
+sudo chown wis2:wis2 downloads
+----
+
+NOTE: On macOS and Windows (Docker Desktop) this step is not required — Docker Desktop handles volume permissions automatically.
+
+If you cannot create a matching user, see the link:admin-guide.html#_volume_permissions[Volume Permissions] section of the Admin Guide for ACL-based alternatives.
+
+== 4. Start Services
+
+[source,bash]
+----
+docker compose up -d
+----
+
+This starts all services: subscription manager, MQTT subscribers (France and Brazil Global Brokers), Celery download workers, Redis, Prometheus, Grafana, and Loki.
+
+Check everything is running:
+
+[source,bash]
+----
+docker compose ps
+----
+
+Wait for the `subscription-manager` health check to pass (about 30 seconds), then confirm it is up:
+
+[source,bash]
+----
+curl http://localhost:5002/health
+----
+
+== 5. Create a Subscription
+
+=== Via the Web Interface (recommended)
+
+Open http://localhost:8080 in your browser.
+
+Use the *Catalogue View* or *Tree View* to browse available WIS2 datasets, select a topic, choose a save directory, and click *Subscribe*.
+
+=== Via the API
+
+[source,bash]
+----
+curl -X POST http://localhost:5002/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#",
+    "target": "surface-obs"
+  }'
+----
+
+This subscribes to all surface-based observations from any data centre and saves them under `downloads/surface-obs/`.
+
+== 6. View Downloads
+
+Files appear under the `downloads/` directory, organised by date:
+
+[source,bash]
+----
+ls -la downloads/surface-obs/
+----
+
+Monitor download activity in Grafana at http://localhost:3000 (default login: `admin` / `admin`).
+
+IMPORTANT: Change the default Grafana password after first login.
+
+== Next Steps
+
+[cols="1,3"]
+|===
+|Guide |What it covers
+
+|link:user-guide.html[User Guide]
+|Using the web interface, creating and managing subscriptions, filtering data
+
+|link:admin-guide.html[Admin Guide]
+|Security hardening, scaling, environment variables, monitoring, maintenance
+
+|link:api-reference.html[API Reference]
+|Full REST API documentation; interactive Swagger UI at `http://localhost:5002/swagger`
+
+|link:developer-guide.html[Developer Guide]
+|Architecture, module internals, extending the system
+|===

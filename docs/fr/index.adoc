@@ -13,9 +13,15 @@ toute utilisation en production. Consultez le lien:../en/[document original en a
 
 Bienvenue dans la documentation de WIS2 Downloader.
 
+== Démarrage
+
+Vous découvrez WIS2 Downloader ? Commencez ici :
+
+link:quick-start.html[*Guide de démarrage rapide*] — Installez, configurez et téléchargez vos premières données en quelques minutes.
+
 == Guides
 
-* link:user-guide.html[Guide utilisateur] — Démarrage rapide, interface web, création d'abonnements
-* link:admin-guide.html[Guide d'administration] — Déploiement, configuration, surveillance
+* link:user-guide.html[Guide utilisateur] — Interface web, création et gestion des abonnements, filtrage des données
+* link:admin-guide.html[Guide d'administration] — Déploiement, sécurité, configuration, surveillance
 * link:developer-guide.html[Guide du développeur] — Architecture, contribution, extension du système
 * link:api-reference.html[Référence API] — Points de terminaison REST API et formats de données
