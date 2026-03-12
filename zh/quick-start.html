@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.26">
-<title>توثيق WIS2 Downloader</title>
+<title>WIS2 Downloader 快速入门指南</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /*! Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -434,42 +434,27 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 @media amzn-kf8{#header,#content,#footnotes,#footer{padding:0}}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-<!-- docs/ar/docinfo.html -->
-<style>
-body {
-    direction: rtl;
-    text-align: right;
-}
-#header, #content, #footnotes, #footer {
-    direction: rtl;
-    text-align: right;
-}
-#toc, #toctitle, .toc, .sectlevel1, .sectlevel2, .sectlevel3 {
-    direction: rtl;
-    text-align: right;
-}
-table {
-    direction: rtl;
-}
-th, td {
-    text-align: right;
-}
-pre, code, .listingblock, .literalblock {
-    direction: ltr;
-    text-align: left;
-}
-</style>
-
-
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/styles/github.min.css">
 </head>
-<body class="article toc2 toc-right">
+<body class="article toc2 toc-left">
 <div id="header">
-<h1>توثيق WIS2 Downloader</h1>
+<h1>WIS2 Downloader 快速入门指南</h1>
 <div id="toc" class="toc2">
-<div id="toctitle">المحتويات</div>
+<div id="toctitle">目录</div>
 <ul class="sectlevel1">
-<li><a href="#_البدء">البدء</a></li>
-<li><a href="#_الأدلة">الأدلة</a></li>
+<li><a href="#_前提条件">前提条件</a></li>
+<li><a href="#_1_下载并解压">1. 下载并解压</a></li>
+<li><a href="#_2_配置">2. 配置</a></li>
+<li><a href="#_3_设置下载目录">3. 设置下载目录</a></li>
+<li><a href="#_4_启动服务">4. 启动服务</a></li>
+<li><a href="#_5_创建订阅">5. 创建订阅</a>
+<ul class="sectlevel2">
+<li><a href="#_通过_web_界面推荐">通过 Web 界面（推荐）</a></li>
+<li><a href="#_通过_api">通过 API</a></li>
+</ul>
+</li>
+<li><a href="#_6_查看下载内容">6. 查看下载内容</a></li>
+<li><a href="#_后续步骤">后续步骤</a></li>
 </ul>
 </div>
 </div>
@@ -484,49 +469,242 @@ pre, code, .listingblock, .literalblock {
 </td>
 <td class="content">
 <div class="paragraph">
-<p>تُرجمت هذه الوثيقة آليًا من الإنجليزية باستخدام Claude AI.
-ينبغي مراجعة المصطلحات المتعلقة بمجال WMO/الأرصاد الجوية من قِبل متحدث أصلي قبل
-الاستخدام الإنتاجي. راجع <a href="../en/">النسخة الإنجليزية الأصلية</a> للاطلاع على النسخة المرجعية.</p>
+<p>本文档由 Claude AI 从英文自动翻译。
+WMO/气象领域术语在正式使用前应由母语人士审阅。
+请参阅 <a href="../en/">英文原版</a> 以获取权威版本。</p>
 </div>
 </td>
 </tr>
 </table>
 </div>
 <div class="paragraph">
-<p>مرحبًا بكم في توثيق WIS2 Downloader.</p>
+<p>只需几分钟，即可启动 WIS2 Downloader 并开始下载数据。</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_البدء">البدء</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>هل أنت جديد على WIS2 Downloader؟ ابدأ من هنا:</p>
-</div>
-<div class="paragraph">
-<p><a href="quick-start.html"><strong>دليل البدء السريع</strong></a> — ثبّت البرنامج وهيّئه وابدأ تنزيل بياناتك الأولى في غضون دقائق.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_الأدلة">الأدلة</h2>
+<h2 id="_前提条件">前提条件</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p><a href="user-guide.html">دليل المستخدم</a> — واجهة الويب، إنشاء الاشتراكات وإدارتها، تصفية البيانات</p>
+<p><a href="https://docs.docker.com/get-docker/">Docker</a> 20.10+</p>
 </li>
 <li>
-<p><a href="admin-guide.html">دليل الإدارة</a> — النشر، تعزيز الأمان، التهيئة، المراقبة</p>
+<p><a href="https://docs.docker.com/compose/install/">Docker Compose</a> 2.0+</p>
 </li>
 <li>
-<p><a href="developer-guide.html">دليل المطور</a> — البنية المعمارية، المساهمة، التوسعة</p>
-</li>
-<li>
-<p><a href="api-reference.html">مرجع API</a> — نقاط نهاية REST API وصيغ البيانات</p>
+<p>能够访问 WIS2 Global Broker 的网络连接（端口 443）</p>
 </li>
 </ul>
 </div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_1_下载并解压">1. 下载并解压</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>下载 <a href="https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest">最新版本</a> 的压缩包并解压：</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">tar -xzf wis2downloader-*.tar.gz
+cd wis2downloader-*</code></pre>
+</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+若要使用最新开发版本，请克隆代码仓库：<code>git clone <a href="https://github.com/World-Meteorological-Organization/wis2downloader.git" class="bare">https://github.com/World-Meteorological-Organization/wis2downloader.git</a></code>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_2_配置">2. 配置</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>运行安装脚本，生成包含随机密钥的 <code>.env</code> 文件：</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bash setup.sh</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>该脚本会将 <code>default.env</code> 复制为 <code>.env</code>，并为 <code>FLASK_SECRET_KEY</code> 和 <code>REDIS_PASSWORD</code> 生成随机值。请检查 <code>.env</code> 文件并根据需要调整配置——默认值适用于单机部署。</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+请妥善保管 <code>.env</code> 文件。该文件包含敏感凭据，不得提交到版本控制系统。
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_3_设置下载目录">3. 设置下载目录</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>容器以非 root 用户身份运行（UID 10001，GID 988）。在 Linux 上，启动前必须配置下载目录权限：</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo groupadd -g 988 wis2
+sudo useradd -u 10001 -g wis2 -M -s /usr/sbin/nologin wis2
+mkdir -p downloads
+sudo chown wis2:wis2 downloads</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+在 macOS 和 Windows（Docker Desktop）上无需此步骤——Docker Desktop 会自动处理卷权限。
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>如果无法创建匹配的用户，请参阅管理指南中的 <a href="admin-guide.html#_volume_permissions">卷权限</a> 章节，了解基于 ACL 的替代方案。</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_4_启动服务">4. 启动服务</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">docker compose up -d</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>此命令将启动所有服务：订阅管理器、MQTT 订阅者（法国和巴西 Global Broker）、Celery 下载工作进程、Redis、Prometheus、Grafana 和 Loki。</p>
+</div>
+<div class="paragraph">
+<p>检查所有服务是否正常运行：</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">docker compose ps</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>等待 <code>subscription-manager</code> 健康检查通过（约 30 秒），然后确认其已就绪：</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl http://localhost:5002/health</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_5_创建订阅">5. 创建订阅</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_通过_web_界面推荐">通过 Web 界面（推荐）</h3>
+<div class="paragraph">
+<p>在浏览器中打开 <a href="http://localhost:8080。" class="bare">http://localhost:8080。</a></p>
+</div>
+<div class="paragraph">
+<p>使用 <strong>目录视图</strong> 或 <strong>树形视图</strong> 浏览可用的 WIS2 数据集，选择一个主题，指定保存目录，然后点击 <strong>订阅</strong>。</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_通过_api">通过 API</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -X POST http://localhost:5002/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#",
+    "target": "surface-obs"
+  }'</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>此操作将订阅来自任意数据中心的所有地面观测数据，并将文件保存到 <code>downloads/surface-obs/</code>。</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_6_查看下载内容">6. 查看下载内容</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>文件按日期组织，存放在 <code>downloads/</code> 目录下：</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">ls -la downloads/surface-obs/</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>通过 Grafana 监控下载活动，访问地址：http://localhost:3000（默认登录凭据：<code>admin</code> / <code>admin</code>）。</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+首次登录后请立即修改 Grafana 的默认密码。
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_后续步骤">后续步骤</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">指南</th>
+<th class="tableblock halign-left valign-top">内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="user-guide.html">用户指南</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Web 界面使用方法、创建和管理订阅、数据过滤</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="admin-guide.html">管理指南</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">安全加固、扩展部署、环境变量、监控、维护</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="api-reference.html">API 参考</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">完整的 REST API 文档；交互式 Swagger 界面：<code><a href="http://localhost:5002/swagger" class="bare">http://localhost:5002/swagger</a></code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="developer-guide.html">开发者指南</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">系统架构、模块内部结构、系统扩展</p></td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
@@ -535,5 +713,12 @@ pre, code, .listingblock, .literalblock {
 Last updated 2026-03-12 21:13:37 UTC
 </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/highlight.min.js"></script>
+<script>
+if (!hljs.initHighlighting.called) {
+  hljs.initHighlighting.called = true
+  ;[].slice.call(document.querySelectorAll('pre.highlight > code[data-lang]')).forEach(function (el) { hljs.highlightBlock(el) })
+}
+</script>
 </body>
 </html>

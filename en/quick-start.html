@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.26">
-<title>توثيق WIS2 Downloader</title>
+<title>WIS2 Downloader Quick Start</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /*! Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -434,48 +434,124 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 @media amzn-kf8{#header,#content,#footnotes,#footer{padding:0}}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-<!-- docs/ar/docinfo.html -->
-<style>
-body {
-    direction: rtl;
-    text-align: right;
-}
-#header, #content, #footnotes, #footer {
-    direction: rtl;
-    text-align: right;
-}
-#toc, #toctitle, .toc, .sectlevel1, .sectlevel2, .sectlevel3 {
-    direction: rtl;
-    text-align: right;
-}
-table {
-    direction: rtl;
-}
-th, td {
-    text-align: right;
-}
-pre, code, .listingblock, .literalblock {
-    direction: ltr;
-    text-align: left;
-}
-</style>
-
-
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/styles/github.min.css">
 </head>
-<body class="article toc2 toc-right">
+<body class="article toc2 toc-left">
 <div id="header">
-<h1>توثيق WIS2 Downloader</h1>
+<h1>WIS2 Downloader Quick Start</h1>
 <div id="toc" class="toc2">
-<div id="toctitle">المحتويات</div>
+<div id="toctitle">Contents</div>
 <ul class="sectlevel1">
-<li><a href="#_البدء">البدء</a></li>
-<li><a href="#_الأدلة">الأدلة</a></li>
+<li><a href="#_prerequisites">Prerequisites</a></li>
+<li><a href="#_1_download_and_extract">1. Download and Extract</a></li>
+<li><a href="#_2_configure">2. Configure</a></li>
+<li><a href="#_3_set_up_download_directory">3. Set Up Download Directory</a></li>
+<li><a href="#_4_start_services">4. Start Services</a></li>
+<li><a href="#_5_create_a_subscription">5. Create a Subscription</a>
+<ul class="sectlevel2">
+<li><a href="#_via_the_web_interface_recommended">Via the Web Interface (recommended)</a></li>
+<li><a href="#_via_the_api">Via the API</a></li>
+</ul>
+</li>
+<li><a href="#_6_view_downloads">6. View Downloads</a></li>
+<li><a href="#_next_steps">Next Steps</a></li>
 </ul>
 </div>
 </div>
 <div id="content">
 <div id="preamble">
 <div class="sectionbody">
+<div class="paragraph">
+<p>Get WIS2 Downloader running and downloading data in a few minutes.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.docker.com/get-docker/">Docker</a> 20.10+</p>
+</li>
+<li>
+<p><a href="https://docs.docker.com/compose/install/">Docker Compose</a> 2.0+</p>
+</li>
+<li>
+<p>Network access to a WIS2 Global Broker (port 443)</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_1_download_and_extract">1. Download and Extract</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Download the <a href="https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest">latest release</a> tarball and extract it:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">tar -xzf wis2downloader-*.tar.gz
+cd wis2downloader-*</code></pre>
+</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+To follow the latest development version instead, clone the repository: <code>git clone <a href="https://github.com/World-Meteorological-Organization/wis2downloader.git" class="bare">https://github.com/World-Meteorological-Organization/wis2downloader.git</a></code>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_2_configure">2. Configure</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Run the setup script to create a <code>.env</code> file with randomised secrets:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bash setup.sh</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This copies <code>default.env</code> to <code>.env</code> and generates random values for <code>FLASK_SECRET_KEY</code> and <code>REDIS_PASSWORD</code>. Review <code>.env</code> and adjust any settings if needed — the defaults are suitable for a single-machine deployment.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+Keep <code>.env</code> secure. It contains credentials and should not be committed to version control.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_3_set_up_download_directory">3. Set Up Download Directory</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The containers run as a non-root user (UID 10001, GID 988). On Linux you must set up the downloads directory before starting:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo groupadd -g 988 wis2
+sudo useradd -u 10001 -g wis2 -M -s /usr/sbin/nologin wis2
+mkdir -p downloads
+sudo chown wis2:wis2 downloads</code></pre>
+</div>
+</div>
 <div class="admonitionblock note">
 <table>
 <tr>
@@ -483,50 +559,136 @@ pre, code, .listingblock, .literalblock {
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-<div class="paragraph">
-<p>تُرجمت هذه الوثيقة آليًا من الإنجليزية باستخدام Claude AI.
-ينبغي مراجعة المصطلحات المتعلقة بمجال WMO/الأرصاد الجوية من قِبل متحدث أصلي قبل
-الاستخدام الإنتاجي. راجع <a href="../en/">النسخة الإنجليزية الأصلية</a> للاطلاع على النسخة المرجعية.</p>
-</div>
+On macOS and Windows (Docker Desktop) this step is not required — Docker Desktop handles volume permissions automatically.
 </td>
 </tr>
 </table>
 </div>
 <div class="paragraph">
-<p>مرحبًا بكم في توثيق WIS2 Downloader.</p>
+<p>If you cannot create a matching user, see the <a href="admin-guide.html#_volume_permissions">Volume Permissions</a> section of the Admin Guide for ACL-based alternatives.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_البدء">البدء</h2>
+<h2 id="_4_start_services">4. Start Services</h2>
 <div class="sectionbody">
-<div class="paragraph">
-<p>هل أنت جديد على WIS2 Downloader؟ ابدأ من هنا:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">docker compose up -d</code></pre>
+</div>
 </div>
 <div class="paragraph">
-<p><a href="quick-start.html"><strong>دليل البدء السريع</strong></a> — ثبّت البرنامج وهيّئه وابدأ تنزيل بياناتك الأولى في غضون دقائق.</p>
+<p>This starts all services: subscription manager, MQTT subscribers (France and Brazil Global Brokers), Celery download workers, Redis, Prometheus, Grafana, and Loki.</p>
+</div>
+<div class="paragraph">
+<p>Check everything is running:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">docker compose ps</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Wait for the <code>subscription-manager</code> health check to pass (about 30 seconds), then confirm it is up:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl http://localhost:5002/health</code></pre>
+</div>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_الأدلة">الأدلة</h2>
+<h2 id="_5_create_a_subscription">5. Create a Subscription</h2>
 <div class="sectionbody">
-<div class="ulist">
-<ul>
-<li>
-<p><a href="user-guide.html">دليل المستخدم</a> — واجهة الويب، إنشاء الاشتراكات وإدارتها، تصفية البيانات</p>
-</li>
-<li>
-<p><a href="admin-guide.html">دليل الإدارة</a> — النشر، تعزيز الأمان، التهيئة، المراقبة</p>
-</li>
-<li>
-<p><a href="developer-guide.html">دليل المطور</a> — البنية المعمارية، المساهمة، التوسعة</p>
-</li>
-<li>
-<p><a href="api-reference.html">مرجع API</a> — نقاط نهاية REST API وصيغ البيانات</p>
-</li>
-</ul>
+<div class="sect2">
+<h3 id="_via_the_web_interface_recommended">Via the Web Interface (recommended)</h3>
+<div class="paragraph">
+<p>Open <a href="http://localhost:8080" class="bare">http://localhost:8080</a> in your browser.</p>
 </div>
+<div class="paragraph">
+<p>Use the <strong>Catalogue View</strong> or <strong>Tree View</strong> to browse available WIS2 datasets, select a topic, choose a save directory, and click <strong>Subscribe</strong>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_via_the_api">Via the API</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -X POST http://localhost:5002/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#",
+    "target": "surface-obs"
+  }'</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This subscribes to all surface-based observations from any data centre and saves them under <code>downloads/surface-obs/</code>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_6_view_downloads">6. View Downloads</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Files appear under the <code>downloads/</code> directory, organised by date:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">ls -la downloads/surface-obs/</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Monitor download activity in Grafana at <a href="http://localhost:3000" class="bare">http://localhost:3000</a> (default login: <code>admin</code> / <code>admin</code>).</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+Change the default Grafana password after first login.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_next_steps">Next Steps</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Guide</th>
+<th class="tableblock halign-left valign-top">What it covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="user-guide.html">User Guide</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Using the web interface, creating and managing subscriptions, filtering data</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="admin-guide.html">Admin Guide</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Security hardening, scaling, environment variables, monitoring, maintenance</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="api-reference.html">API Reference</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Full REST API documentation; interactive Swagger UI at <code><a href="http://localhost:5002/swagger" class="bare">http://localhost:5002/swagger</a></code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="developer-guide.html">Developer Guide</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Architecture, module internals, extending the system</p></td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
@@ -535,5 +697,12 @@ pre, code, .listingblock, .literalblock {
 Last updated 2026-03-12 21:13:37 UTC
 </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/highlight.min.js"></script>
+<script>
+if (!hljs.initHighlighting.called) {
+  hljs.initHighlighting.called = true
+  ;[].slice.call(document.querySelectorAll('pre.highlight > code[data-lang]')).forEach(function (el) { hljs.highlightBlock(el) })
+}
+</script>
 </body>
 </html>

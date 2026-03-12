@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.26">
-<title>توثيق WIS2 Downloader</title>
+<title>دليل البدء السريع لـ WIS2 Downloader</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /*! Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -434,6 +434,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 @media amzn-kf8{#header,#content,#footnotes,#footer{padding:0}}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/styles/github.min.css">
 <!-- docs/ar/docinfo.html -->
 <style>
 body {
@@ -464,12 +465,23 @@ pre, code, .listingblock, .literalblock {
 </head>
 <body class="article toc2 toc-right">
 <div id="header">
-<h1>توثيق WIS2 Downloader</h1>
+<h1>دليل البدء السريع لـ WIS2 Downloader</h1>
 <div id="toc" class="toc2">
 <div id="toctitle">المحتويات</div>
 <ul class="sectlevel1">
-<li><a href="#_البدء">البدء</a></li>
-<li><a href="#_الأدلة">الأدلة</a></li>
+<li><a href="#_المتطلبات_الأساسية">المتطلبات الأساسية</a></li>
+<li><a href="#_1_التنزيل_والاستخراج">1. التنزيل والاستخراج</a></li>
+<li><a href="#_2_التهيئة">2. التهيئة</a></li>
+<li><a href="#_3_إعداد_مجلد_التنزيلات">3. إعداد مجلد التنزيلات</a></li>
+<li><a href="#_4_تشغيل_الخدمات">4. تشغيل الخدمات</a></li>
+<li><a href="#_5_إنشاء_اشتراك">5. إنشاء اشتراك</a>
+<ul class="sectlevel2">
+<li><a href="#_عبر_واجهة_الويب_موصى_به">عبر واجهة الويب (موصى به)</a></li>
+<li><a href="#_عبر_api">عبر API</a></li>
+</ul>
+</li>
+<li><a href="#_6_عرض_التنزيلات">6. عرض التنزيلات</a></li>
+<li><a href="#_الخطوات_التالية">الخطوات التالية</a></li>
 </ul>
 </div>
 </div>
@@ -493,40 +505,233 @@ pre, code, .listingblock, .literalblock {
 </table>
 </div>
 <div class="paragraph">
-<p>مرحبًا بكم في توثيق WIS2 Downloader.</p>
+<p>ابدأ تشغيل WIS2 Downloader وتنزيل بياناتك الأولى في غضون دقائق.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_البدء">البدء</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>هل أنت جديد على WIS2 Downloader؟ ابدأ من هنا:</p>
-</div>
-<div class="paragraph">
-<p><a href="quick-start.html"><strong>دليل البدء السريع</strong></a> — ثبّت البرنامج وهيّئه وابدأ تنزيل بياناتك الأولى في غضون دقائق.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_الأدلة">الأدلة</h2>
+<h2 id="_المتطلبات_الأساسية">المتطلبات الأساسية</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p><a href="user-guide.html">دليل المستخدم</a> — واجهة الويب، إنشاء الاشتراكات وإدارتها، تصفية البيانات</p>
+<p><a href="https://docs.docker.com/get-docker/">Docker</a> 20.10+</p>
 </li>
 <li>
-<p><a href="admin-guide.html">دليل الإدارة</a> — النشر، تعزيز الأمان، التهيئة، المراقبة</p>
+<p><a href="https://docs.docker.com/compose/install/">Docker Compose</a> 2.0+</p>
 </li>
 <li>
-<p><a href="developer-guide.html">دليل المطور</a> — البنية المعمارية، المساهمة، التوسعة</p>
-</li>
-<li>
-<p><a href="api-reference.html">مرجع API</a> — نقاط نهاية REST API وصيغ البيانات</p>
+<p>اتصال شبكي بـ Global Broker الخاص بـ WIS2 (المنفذ 443)</p>
 </li>
 </ul>
 </div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_1_التنزيل_والاستخراج">1. التنزيل والاستخراج</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>نزّل أرشيف <a href="https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest">أحدث إصدار</a> واستخرج محتوياته:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">tar -xzf wis2downloader-*.tar.gz
+cd wis2downloader-*</code></pre>
+</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+للمتابعة مع أحدث إصدار تطويري، استنسخ المستودع: <code>git clone <a href="https://github.com/World-Meteorological-Organization/wis2downloader.git" class="bare">https://github.com/World-Meteorological-Organization/wis2downloader.git</a></code>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_2_التهيئة">2. التهيئة</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>شغّل سكريبت الإعداد لإنشاء ملف <code>.env</code> بمفاتيح سرية عشوائية:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bash setup.sh</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>يقوم هذا السكريبت بنسخ <code>default.env</code> إلى <code>.env</code> وتوليد قيم عشوائية لـ <code>FLASK_SECRET_KEY</code> و`REDIS_PASSWORD`. راجع ملف <code>.env</code> وعدّل الإعدادات إذا لزم الأمر — القيم الافتراضية مناسبة للنشر على جهاز واحد.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+احتفظ بملف <code>.env</code> في مكان آمن. يحتوي على بيانات اعتماد حساسة ويجب عدم إدراجه في نظام إدارة الإصدارات.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_3_إعداد_مجلد_التنزيلات">3. إعداد مجلد التنزيلات</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>تعمل الحاويات بصلاحيات مستخدم غير جذري (UID 10001، GID 988). على نظام Linux، يجب إعداد مجلد التنزيلات قبل البدء:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo groupadd -g 988 wis2
+sudo useradd -u 10001 -g wis2 -M -s /usr/sbin/nologin wis2
+mkdir -p downloads
+sudo chown wis2:wis2 downloads</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+على نظامَي macOS وWindows (Docker Desktop)، هذه الخطوة غير مطلوبة — يتولى Docker Desktop إدارة صلاحيات الأحجام تلقائيًا.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>إن تعذّر عليك إنشاء مستخدم مطابق، راجع قسم <a href="admin-guide.html#_volume_permissions">صلاحيات الأحجام</a> في دليل الإدارة للاطلاع على البدائل المستندة إلى ACL.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_4_تشغيل_الخدمات">4. تشغيل الخدمات</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">docker compose up -d</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>يُشغّل هذا الأمر جميع الخدمات: مدير الاشتراكات، مشتركو MQTT (Global Brokers لفرنسا والبرازيل)، عمّال Celery للتنزيل، Redis، Prometheus، Grafana، وLoki.</p>
+</div>
+<div class="paragraph">
+<p>تحقق من تشغيل جميع الخدمات:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">docker compose ps</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>انتظر حتى يجتاز <code>subscription-manager</code> فحص الصحة (نحو 30 ثانية)، ثم تأكد من تشغيله:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl http://localhost:5002/health</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_5_إنشاء_اشتراك">5. إنشاء اشتراك</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_عبر_واجهة_الويب_موصى_به">عبر واجهة الويب (موصى به)</h3>
+<div class="paragraph">
+<p>افتح <a href="http://localhost:8080" class="bare">http://localhost:8080</a> في متصفحك.</p>
+</div>
+<div class="paragraph">
+<p>استخدم <strong>عرض الكتالوج</strong> أو <strong>عرض الشجرة</strong> لاستعراض مجموعات بيانات WIS2 المتاحة، واختر موضوعًا، وحدد مجلد الحفظ، ثم انقر على <strong>اشتراك</strong>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_عبر_api">عبر API</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -X POST http://localhost:5002/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#",
+    "target": "surface-obs"
+  }'</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>يُنشئ هذا اشتراكًا بجميع رصد السطح من أي مركز بيانات ويحفظ الملفات في <code>downloads/surface-obs/</code>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_6_عرض_التنزيلات">6. عرض التنزيلات</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>تظهر الملفات في مجلد <code>downloads/</code> مرتّبةً حسب التاريخ:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">ls -la downloads/surface-obs/</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>راقب نشاط التنزيل في Grafana على <a href="http://localhost:3000" class="bare">http://localhost:3000</a> (بيانات الاعتماد الافتراضية: <code>admin</code> / <code>admin</code>).</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+غيّر كلمة المرور الافتراضية لـ Grafana بعد تسجيل الدخول الأول.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_الخطوات_التالية">الخطوات التالية</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">الدليل</th>
+<th class="tableblock halign-left valign-top">المحتوى</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="user-guide.html">دليل المستخدم</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">استخدام واجهة الويب، إنشاء الاشتراكات وإدارتها، تصفية البيانات</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="admin-guide.html">دليل الإدارة</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">تعزيز الأمان، التوسع، متغيرات البيئة، المراقبة، الصيانة</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="api-reference.html">مرجع API</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">توثيق REST API الكامل؛ واجهة Swagger التفاعلية على <code><a href="http://localhost:5002/swagger" class="bare">http://localhost:5002/swagger</a></code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="developer-guide.html">دليل المطور</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">البنية المعمارية، المكونات الداخلية، توسعة النظام</p></td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
@@ -535,5 +740,12 @@ pre, code, .listingblock, .literalblock {
 Last updated 2026-03-12 21:13:37 UTC
 </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/highlight.min.js"></script>
+<script>
+if (!hljs.initHighlighting.called) {
+  hljs.initHighlighting.called = true
+  ;[].slice.call(document.querySelectorAll('pre.highlight > code[data-lang]')).forEach(function (el) { hljs.highlightBlock(el) })
+}
+</script>
 </body>
 </html>

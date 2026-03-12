@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.26">
-<title>توثيق WIS2 Downloader</title>
+<title>Руководство по быстрому началу работы с WIS2 Downloader</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /*! Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -434,42 +434,27 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 @media amzn-kf8{#header,#content,#footnotes,#footer{padding:0}}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-<!-- docs/ar/docinfo.html -->
-<style>
-body {
-    direction: rtl;
-    text-align: right;
-}
-#header, #content, #footnotes, #footer {
-    direction: rtl;
-    text-align: right;
-}
-#toc, #toctitle, .toc, .sectlevel1, .sectlevel2, .sectlevel3 {
-    direction: rtl;
-    text-align: right;
-}
-table {
-    direction: rtl;
-}
-th, td {
-    text-align: right;
-}
-pre, code, .listingblock, .literalblock {
-    direction: ltr;
-    text-align: left;
-}
-</style>
-
-
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/styles/github.min.css">
 </head>
-<body class="article toc2 toc-right">
+<body class="article toc2 toc-left">
 <div id="header">
-<h1>توثيق WIS2 Downloader</h1>
+<h1>Руководство по быстрому началу работы с WIS2 Downloader</h1>
 <div id="toc" class="toc2">
-<div id="toctitle">المحتويات</div>
+<div id="toctitle">Содержание</div>
 <ul class="sectlevel1">
-<li><a href="#_البدء">البدء</a></li>
-<li><a href="#_الأدلة">الأدلة</a></li>
+<li><a href="#_предварительные_требования">Предварительные требования</a></li>
+<li><a href="#_1_загрузка_и_распаковка">1. Загрузка и распаковка</a></li>
+<li><a href="#_2_настройка">2. Настройка</a></li>
+<li><a href="#_3_настройка_каталога_загрузок">3. Настройка каталога загрузок</a></li>
+<li><a href="#_4_запуск_сервисов">4. Запуск сервисов</a></li>
+<li><a href="#_5_создание_подписки">5. Создание подписки</a>
+<ul class="sectlevel2">
+<li><a href="#_через_веб_интерфейс_рекомендуется">Через веб-интерфейс (рекомендуется)</a></li>
+<li><a href="#_через_api">Через API</a></li>
+</ul>
+</li>
+<li><a href="#_6_просмотр_загруженных_файлов">6. Просмотр загруженных файлов</a></li>
+<li><a href="#_дальнейшие_шаги">Дальнейшие шаги</a></li>
 </ul>
 </div>
 </div>
@@ -484,49 +469,242 @@ pre, code, .listingblock, .literalblock {
 </td>
 <td class="content">
 <div class="paragraph">
-<p>تُرجمت هذه الوثيقة آليًا من الإنجليزية باستخدام Claude AI.
-ينبغي مراجعة المصطلحات المتعلقة بمجال WMO/الأرصاد الجوية من قِبل متحدث أصلي قبل
-الاستخدام الإنتاجي. راجع <a href="../en/">النسخة الإنجليزية الأصلية</a> للاطلاع على النسخة المرجعية.</p>
+<p>Этот документ был автоматически переведён с английского языка с помощью Claude AI.
+Термины из области WMO/метеорологии должны быть проверены носителем языка перед
+использованием в производственной среде. Смотрите <a href="../en/">оригинал на английском</a> для авторитетной версии.</p>
 </div>
 </td>
 </tr>
 </table>
 </div>
 <div class="paragraph">
-<p>مرحبًا بكم في توثيق WIS2 Downloader.</p>
+<p>Запустите WIS2 Downloader и начните загружать данные за несколько минут.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_البدء">البدء</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>هل أنت جديد على WIS2 Downloader؟ ابدأ من هنا:</p>
-</div>
-<div class="paragraph">
-<p><a href="quick-start.html"><strong>دليل البدء السريع</strong></a> — ثبّت البرنامج وهيّئه وابدأ تنزيل بياناتك الأولى في غضون دقائق.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_الأدلة">الأدلة</h2>
+<h2 id="_предварительные_требования">Предварительные требования</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p><a href="user-guide.html">دليل المستخدم</a> — واجهة الويب، إنشاء الاشتراكات وإدارتها، تصفية البيانات</p>
+<p><a href="https://docs.docker.com/get-docker/">Docker</a> 20.10+</p>
 </li>
 <li>
-<p><a href="admin-guide.html">دليل الإدارة</a> — النشر، تعزيز الأمان، التهيئة، المراقبة</p>
+<p><a href="https://docs.docker.com/compose/install/">Docker Compose</a> 2.0+</p>
 </li>
 <li>
-<p><a href="developer-guide.html">دليل المطور</a> — البنية المعمارية، المساهمة، التوسعة</p>
-</li>
-<li>
-<p><a href="api-reference.html">مرجع API</a> — نقاط نهاية REST API وصيغ البيانات</p>
+<p>Сетевой доступ к WIS2 Global Broker (порт 443)</p>
 </li>
 </ul>
 </div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_1_загрузка_и_распаковка">1. Загрузка и распаковка</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Загрузите архив <a href="https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest">последнего релиза</a> и распакуйте его:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">tar -xzf wis2downloader-*.tar.gz
+cd wis2downloader-*</code></pre>
+</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Для работы с последней версией разработки склонируйте репозиторий: <code>git clone <a href="https://github.com/World-Meteorological-Organization/wis2downloader.git" class="bare">https://github.com/World-Meteorological-Organization/wis2downloader.git</a></code>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_2_настройка">2. Настройка</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Запустите скрипт настройки для создания файла <code>.env</code> со случайно сгенерированными секретами:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bash setup.sh</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Скрипт копирует <code>default.env</code> в <code>.env</code> и генерирует случайные значения для <code>FLASK_SECRET_KEY</code> и <code>REDIS_PASSWORD</code>. Проверьте файл <code>.env</code> и при необходимости скорректируйте параметры — значения по умолчанию подходят для развёртывания на одной машине.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+Храните файл <code>.env</code> в безопасном месте. Он содержит конфиденциальные учётные данные и не должен добавляться в систему контроля версий.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_3_настройка_каталога_загрузок">3. Настройка каталога загрузок</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Контейнеры работают от имени непривилегированного пользователя (UID 10001, GID 988). В Linux необходимо настроить каталог загрузок перед запуском:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo groupadd -g 988 wis2
+sudo useradd -u 10001 -g wis2 -M -s /usr/sbin/nologin wis2
+mkdir -p downloads
+sudo chown wis2:wis2 downloads</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+На macOS и Windows (Docker Desktop) этот шаг не требуется — Docker Desktop автоматически управляет правами доступа к томам.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Если создать соответствующего пользователя невозможно, обратитесь к разделу <a href="admin-guide.html#_volume_permissions">Права доступа к томам</a> Руководства администратора, где описаны альтернативные подходы на основе ACL.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_4_запуск_сервисов">4. Запуск сервисов</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">docker compose up -d</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Эта команда запускает все сервисы: менеджер подписок, MQTT-подписчики (Global Broker Франции и Бразилии), рабочие процессы Celery для загрузки файлов, Redis, Prometheus, Grafana и Loki.</p>
+</div>
+<div class="paragraph">
+<p>Проверьте, что все сервисы работают:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">docker compose ps</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Дождитесь успешного прохождения проверки работоспособности <code>subscription-manager</code> (около 30 секунд), затем убедитесь, что сервис запущен:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl http://localhost:5002/health</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_5_создание_подписки">5. Создание подписки</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_через_веб_интерфейс_рекомендуется">Через веб-интерфейс (рекомендуется)</h3>
+<div class="paragraph">
+<p>Откройте <a href="http://localhost:8080" class="bare">http://localhost:8080</a> в браузере.</p>
+</div>
+<div class="paragraph">
+<p>Используйте <strong>Каталог</strong> или <strong>Дерево тем</strong> для просмотра доступных наборов данных WIS2, выберите тему, укажите каталог сохранения и нажмите <strong>Подписаться</strong>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_через_api">Через API</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -X POST http://localhost:5002/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "cache/a/wis2/+/data/core/weather/surface-based-observations/#",
+    "target": "surface-obs"
+  }'</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Эта команда создаёт подписку на все наземные наблюдения от любого центра данных и сохраняет файлы в <code>downloads/surface-obs/</code>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_6_просмотр_загруженных_файлов">6. Просмотр загруженных файлов</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Файлы сохраняются в каталоге <code>downloads/</code>, упорядоченные по дате:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">ls -la downloads/surface-obs/</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Следите за активностью загрузок в Grafana по адресу <a href="http://localhost:3000" class="bare">http://localhost:3000</a> (учётные данные по умолчанию: <code>admin</code> / <code>admin</code>).</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+Смените пароль Grafana по умолчанию после первого входа.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_дальнейшие_шаги">Дальнейшие шаги</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Руководство</th>
+<th class="tableblock halign-left valign-top">Содержание</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="user-guide.html">Руководство пользователя</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Работа с веб-интерфейсом, создание и управление подписками, фильтрация данных</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="admin-guide.html">Руководство администратора</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Повышение безопасности, масштабирование, переменные окружения, мониторинг, обслуживание</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="api-reference.html">Справочник API</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Полная документация REST API; интерактивный интерфейс Swagger по адресу <code><a href="http://localhost:5002/swagger" class="bare">http://localhost:5002/swagger</a></code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="developer-guide.html">Руководство разработчика</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Архитектура системы, внутреннее устройство модулей, расширение системы</p></td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
@@ -535,5 +713,12 @@ pre, code, .listingblock, .literalblock {
 Last updated 2026-03-12 21:13:37 UTC
 </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/highlight.min.js"></script>
+<script>
+if (!hljs.initHighlighting.called) {
+  hljs.initHighlighting.called = true
+  ;[].slice.call(document.querySelectorAll('pre.highlight > code[data-lang]')).forEach(function (el) { hljs.highlightBlock(el) })
+}
+</script>
 </body>
 </html>
