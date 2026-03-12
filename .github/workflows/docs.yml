@@ -36,8 +36,10 @@ jobs:
         run: |
           git config user.email "dberry@wmo.int" \
           && git config user.name "David I. Berry" \
-          && git rm -rf ./pages --quiet 2>/dev/null || true \
-          && mv /tmp/site/* pages/ \
+          && git rm -rf . --quiet 2>/dev/null || true \
+          && ls * \
+          && mv /tmp/site/* . \
+          && touch .nojekyll \
           && git add . \
           && git diff --cached --quiet || git commit -m "Publish docs ${GITHUB_REF_NAME:-manual}" \
           && git push
