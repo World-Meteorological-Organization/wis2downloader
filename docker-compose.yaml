@@ -21,7 +21,7 @@ x-logging-loki: &loki-logging
 services:
   loki:
     container_name: loki
-    image: grafana/loki:latest
+    image: grafana/loki:3.6.7
     ports:
       - "3100:3100"
     restart: always
@@ -37,7 +37,7 @@ services:
 
   prometheus:
     container_name: prometheus
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.10.0
     restart: always
     volumes:
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -52,7 +52,7 @@ services:
 
   grafana:
     container_name: grafana
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.4.1
     restart: always
     ports:
       - "3000:3000"
@@ -198,7 +198,6 @@ services:
 
   wis2downloader-ui:
       build:
-        no_cache: true
         context: .
         dockerfile: ./containers/ui/Dockerfile
       env_file: *default-env

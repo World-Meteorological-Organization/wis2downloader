@@ -24,13 +24,14 @@ RUN python3.12 -m venv /home/wis2/.venv && \
     echo "" >> .bashrc
 
 COPY --chown=wis2:wis2 ./modules/ ./app
+COPY containers/requirements-frozen.txt ./requirements-frozen.txt
 
-RUN cd ./app && \
-    source /home/wis2/.venv/bin/activate && \
-    pip install gunicorn gevent && \
-    pip install -e shared && \
-    pip install -e task_manager && \
-    pip install -e subscription_manager
+RUN source /home/wis2/.venv/bin/activate && \
+    pip install -r requirements-frozen.txt && \
+    cd ./app && \
+    pip install --no-deps -e shared && \
+    pip install --no-deps -e task_manager && \
+    pip install --no-deps -e subscription_manager
 
 # now the default command
 CMD ["/bin/bash", "-c", "source .venv/bin/activate && gunicorn --bind 0.0.0.0:5001 --workers 1 --threads 2 subscription_manager.app:app"]

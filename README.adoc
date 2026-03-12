@@ -59,20 +59,14 @@ WIS2 Downloader subscribes to MQTT topics on WIS2 Global Brokers, receives notif
 
 == Quick Start
 
-Download the https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[latest release] and extract it:
-
-[source,bash]
-----
-curl -L https://github.com/World-Meteorological-Organization/wis2downloader/archive/refs/tags/v1.0.0-beta1.tar.gz | tar -xz
-cd wis2downloader-1.0.0-beta1
-----
+Download the https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[latest release] tarball and extract it, then enter the extracted directory.
 
 Then configure and start:
 
 [source,bash]
 ----
-# Configure (optional - defaults work out of the box)
-cp default.env .env
+# Generate .env with randomised secrets
+bash setup.sh
 
 # Set up downloads directory permissions (containers run as UID 10001)
 # Note - this is only required when run on a Linux workstation/server.
@@ -97,7 +91,7 @@ ls -la downloads/surface-obs/
 
 NOTE: The containers run as a non-root user (UID 10001, GID 988). If you encounter permission errors writing to the downloads directory, see the https://world-meteorological-organization.github.io/wis2downloader/en/admin-guide.html#_volume_permissions[Admin Guide] for alternative approaches including ACLs.
 
-TIP: To follow the latest development version instead, use `git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`.
+TIP: To follow the latest development version instead, clone the repository with `git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`.
 
 == Documentation
 
