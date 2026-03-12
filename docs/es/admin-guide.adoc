@@ -716,7 +716,7 @@ docker network inspect wis2downloader_redis-net
 === Las métricas no se actualizan
 
 * El intervalo de scraping de Prometheus es de 15 segundos por defecto
-* Verifique los objetivos de Prometheus: `http://localhost:9090/targets`
+* Verifique los objetivos de Prometheus a través de Grafana: *Connections → Data sources → Prometheus → Save & test*
 * Verifique el punto de acceso de métricas: `curl http://localhost:5002/metrics`
 
 === Interfaz web: datos del catálogo no cargados

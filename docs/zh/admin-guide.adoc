@@ -723,7 +723,7 @@ docker network inspect wis2downloader_redis-net
 === 指标未更新
 
 * Prometheus 抓取间隔默认为 15 秒
-* 检查 Prometheus 目标：`http://localhost:9090/targets`
+* 通过 Grafana 检查 Prometheus 目标：*Connections → Data sources → Prometheus → Save & test*
 * 验证指标端点：`curl http://localhost:5002/metrics`
 
 === Web 界面：目录数据未加载

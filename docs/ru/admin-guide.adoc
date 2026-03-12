@@ -723,7 +723,7 @@ docker network inspect wis2downloader_redis-net
 === Метрики не обновляются
 
 * Интервал скрейпинга Prometheus по умолчанию составляет 15 секунд
-* Проверьте цели Prometheus: `http://localhost:9090/targets`
+* Проверьте цели Prometheus через Grafana: *Connections → Data sources → Prometheus → Save & test*
 * Проверьте конечную точку метрик: `curl http://localhost:5002/metrics`
 
 === Веб-интерфейс: данные каталога не загружены

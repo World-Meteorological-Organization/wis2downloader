@@ -182,7 +182,7 @@ services:
     env_file: *default-env
     environment:
       - FLASK_HOST=0.0.0.0
-      - FLASK_PORT=5002
+      - FLASK_PORT=5001
     tty: true
     depends_on:
       - redis
@@ -202,7 +202,7 @@ services:
         dockerfile: ./containers/ui/Dockerfile
       env_file: *default-env
       ports:
-        - 8081:8080
+        - 8080:8080
       networks:
       - redis-net
 

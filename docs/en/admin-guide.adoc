@@ -716,7 +716,7 @@ docker network inspect wis2downloader_redis-net
 === Metrics Not Updating
 
 * Prometheus scrape interval is 15 seconds by default
-* Check Prometheus targets: `http://localhost:9090/targets`
+* Check Prometheus targets via Grafana: *Connections → Data sources → Prometheus → Save & test*
 * Verify metrics endpoint: `curl http://localhost:5002/metrics`
 
 === Web UI: Catalogue Data Not Loaded

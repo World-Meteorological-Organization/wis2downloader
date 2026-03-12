@@ -725,7 +725,7 @@ docker network inspect wis2downloader_redis-net
 === المقاييس لا تتحدث
 
 * فترة استقراء Prometheus هي 15 ثانية افتراضيًا
-* تحقق من أهداف Prometheus: `http://localhost:9090/targets`
+* تحقق من أهداف Prometheus عبر Grafana: *Connections → Data sources → Prometheus → Save & test*
 * تحقق من نقطة نهاية المقاييس: `curl http://localhost:5002/metrics`
 
 === واجهة المستخدم: بيانات الكتالوج غير محمَّلة
