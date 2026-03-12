@@ -1,0 +1,2121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Asciidoctor 2.0.26">
+<title>WIS2 Downloader Developer Guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
+<style>
+/*! Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
+/* Uncomment the following line when using as a custom stylesheet */
+/* @import "https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700"; */
+html{font-family:sans-serif;-webkit-text-size-adjust:100%}
+a{background:none}
+a:focus{outline:thin dotted}
+a:active,a:hover{outline:0}
+h1{font-size:2em;margin:.67em 0}
+b,strong{font-weight:bold}
+abbr{font-size:.9em}
+abbr[title]{cursor:help;border-bottom:1px dotted #dddddf;text-decoration:none}
+dfn{font-style:italic}
+hr{height:0}
+mark{background:#ff0;color:#000}
+code,kbd,pre,samp{font-family:monospace;font-size:1em}
+pre{white-space:pre-wrap}
+q{quotes:"\201C" "\201D" "\2018" "\2019"}
+small{font-size:80%}
+sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}
+sup{top:-.5em}
+sub{bottom:-.25em}
+img{border:0}
+svg:not(:root){overflow:hidden}
+figure{margin:0}
+audio,video{display:inline-block}
+audio:not([controls]){display:none;height:0}
+fieldset{border:1px solid silver;margin:0 2px;padding:.35em .625em .75em}
+legend{border:0;padding:0}
+button,input,select,textarea{font-family:inherit;font-size:100%;margin:0}
+button,input{line-height:normal}
+button,select{text-transform:none}
+button,html input[type=button],input[type=reset],input[type=submit]{-webkit-appearance:button;cursor:pointer}
+button[disabled],html input[disabled]{cursor:default}
+input[type=checkbox],input[type=radio]{padding:0}
+button::-moz-focus-inner,input::-moz-focus-inner{border:0;padding:0}
+textarea{overflow:auto;vertical-align:top}
+table{border-collapse:collapse;border-spacing:0}
+*,::before,::after{box-sizing:border-box}
+html,body{font-size:100%}
+body{background:#fff;color:rgba(0,0,0,.8);padding:0;margin:0;font-family:"Noto Serif","DejaVu Serif",serif;line-height:1;position:relative;cursor:auto;-moz-tab-size:4;-o-tab-size:4;tab-size:4;word-wrap:anywhere;-moz-osx-font-smoothing:grayscale;-webkit-font-smoothing:antialiased}
+a:hover{cursor:pointer}
+img,object,embed{max-width:100%;height:auto}
+object,embed{height:100%}
+img{-ms-interpolation-mode:bicubic}
+.left{float:left!important}
+.right{float:right!important}
+.text-left{text-align:left!important}
+.text-right{text-align:right!important}
+.text-center{text-align:center!important}
+.text-justify{text-align:justify!important}
+.hide{display:none}
+img,object,svg{display:inline-block;vertical-align:middle}
+textarea{height:auto;min-height:50px}
+select{width:100%}
+.subheader,.admonitionblock td.content>.title,.audioblock>.title,.exampleblock>.title,.imageblock>.title,.listingblock>.title,.literalblock>.title,.stemblock>.title,.openblock>.title,.paragraph>.title,.quoteblock>.title,table.tableblock>.title,.verseblock>.title,.videoblock>.title,.dlist>.title,.olist>.title,.ulist>.title,.qlist>.title,.hdlist>.title{line-height:1.45;color:#7a2518;font-weight:400;margin-top:0;margin-bottom:.25em}
+div,dl,dt,dd,ul,ol,li,h1,h2,h3,#toctitle,.sidebarblock>.content>.title,h4,h5,h6,pre,form,p,blockquote,th,td{margin:0;padding:0}
+a{color:#2156a5;text-decoration:underline;line-height:inherit}
+a:hover,a:focus{color:#1d4b8f}
+a img{border:0}
+p{line-height:1.6;margin-bottom:1.25em;text-rendering:optimizeLegibility}
+p aside{font-size:.875em;line-height:1.35;font-style:italic}
+h1,h2,h3,#toctitle,.sidebarblock>.content>.title,h4,h5,h6{font-family:"Open Sans","DejaVu Sans",sans-serif;font-weight:300;font-style:normal;color:#ba3925;text-rendering:optimizeLegibility;margin-top:1em;margin-bottom:.5em;line-height:1.0125em}
+h1 small,h2 small,h3 small,#toctitle small,.sidebarblock>.content>.title small,h4 small,h5 small,h6 small{font-size:60%;color:#e99b8f;line-height:0}
+h1{font-size:2.125em}
+h2{font-size:1.6875em}
+h3,#toctitle,.sidebarblock>.content>.title{font-size:1.375em}
+h4,h5{font-size:1.125em}
+h6{font-size:1em}
+hr{border:solid #dddddf;border-width:1px 0 0;clear:both;margin:1.25em 0 1.1875em}
+em,i{font-style:italic;line-height:inherit}
+strong,b{font-weight:bold;line-height:inherit}
+small{font-size:60%;line-height:inherit}
+code{font-family:"Droid Sans Mono","DejaVu Sans Mono",monospace;font-weight:400;color:rgba(0,0,0,.9)}
+ul,ol,dl{line-height:1.6;margin-bottom:1.25em;list-style-position:outside;font-family:inherit}
+ul,ol{margin-left:1.5em}
+ul li ul,ul li ol{margin-left:1.25em;margin-bottom:0}
+ul.circle{list-style-type:circle}
+ul.disc{list-style-type:disc}
+ul.square{list-style-type:square}
+ul.circle ul:not([class]),ul.disc ul:not([class]),ul.square ul:not([class]){list-style:inherit}
+ol li ul,ol li ol{margin-left:1.25em;margin-bottom:0}
+dl dt{margin-bottom:.3125em;font-weight:bold}
+dl dd{margin-bottom:1.25em}
+blockquote{margin:0 0 1.25em;padding:.5625em 1.25em 0 1.1875em;border-left:1px solid #ddd}
+blockquote,blockquote p{line-height:1.6;color:rgba(0,0,0,.85)}
+@media screen and (min-width:768px){h1,h2,h3,#toctitle,.sidebarblock>.content>.title,h4,h5,h6{line-height:1.2}
+h1{font-size:2.75em}
+h2{font-size:2.3125em}
+h3,#toctitle,.sidebarblock>.content>.title{font-size:1.6875em}
+h4{font-size:1.4375em}}
+table{background:#fff;margin-bottom:1.25em;border:1px solid #dedede;word-wrap:normal}
+table thead,table tfoot{background:#f7f8f7}
+table thead tr th,table thead tr td,table tfoot tr th,table tfoot tr td{padding:.5em .625em .625em;font-size:inherit;color:rgba(0,0,0,.8);text-align:left}
+table tr th,table tr td{padding:.5625em .625em;font-size:inherit;color:rgba(0,0,0,.8)}
+table tr.even,table tr.alt{background:#f8f8f7}
+table thead tr th,table tfoot tr th,table tbody tr td,table tr td,table tfoot tr td{line-height:1.6}
+h1,h2,h3,#toctitle,.sidebarblock>.content>.title,h4,h5,h6{line-height:1.2;word-spacing:-.05em}
+h1 strong,h2 strong,h3 strong,#toctitle strong,.sidebarblock>.content>.title strong,h4 strong,h5 strong,h6 strong{font-weight:400}
+.center{margin-left:auto;margin-right:auto}
+.stretch{width:100%}
+.clearfix::before,.clearfix::after,.float-group::before,.float-group::after{content:" ";display:table}
+.clearfix::after,.float-group::after{clear:both}
+:not(pre).nobreak{word-wrap:normal}
+:not(pre).nowrap{white-space:nowrap}
+:not(pre).pre-wrap{white-space:pre-wrap}
+:not(pre):not([class^=L])>code{font-size:.9375em;font-style:normal!important;letter-spacing:0;padding:.1em .5ex;word-spacing:-.15em;background:#f7f7f8;border-radius:4px;line-height:1.45;text-rendering:optimizeSpeed}
+pre{color:rgba(0,0,0,.9);font-family:"Droid Sans Mono","DejaVu Sans Mono",monospace;line-height:1.45;text-rendering:optimizeSpeed}
+pre code,pre pre{color:inherit;font-size:inherit;line-height:inherit}
+pre.nowrap,pre.nowrap pre{white-space:pre;word-wrap:normal}
+em em{font-style:normal}
+strong strong{font-weight:400}
+.keyseq{color:rgba(51,51,51,.8)}
+kbd{font-family:"Droid Sans Mono","DejaVu Sans Mono",monospace;display:inline-block;color:rgba(0,0,0,.8);font-size:.65em;line-height:1.45;background:#f7f7f7;border:1px solid #ccc;border-radius:3px;box-shadow:0 1px 0 rgba(0,0,0,.2),inset 0 0 0 .1em #fff;margin:0 .15em;padding:.2em .5em;vertical-align:middle;position:relative;top:-.1em;white-space:nowrap}
+.keyseq kbd:first-child{margin-left:0}
+.keyseq kbd:last-child{margin-right:0}
+.menuseq,.menuref{color:#000}
+.menuseq b:not(.caret),.menuref{font-weight:inherit}
+.menuseq{word-spacing:-.02em}
+.menuseq b.caret{font-size:1.25em;line-height:.8}
+.menuseq i.caret{font-weight:bold;text-align:center;width:.45em}
+b.button::before,b.button::after{position:relative;top:-1px;font-weight:400}
+b.button::before{content:"[";padding:0 3px 0 2px}
+b.button::after{content:"]";padding:0 2px 0 3px}
+p a>code:hover{color:rgba(0,0,0,.9)}
+#header,#content,#footnotes,#footer{width:100%;margin:0 auto;max-width:62.5em;*zoom:1;position:relative;padding-left:.9375em;padding-right:.9375em}
+#header::before,#header::after,#content::before,#content::after,#footnotes::before,#footnotes::after,#footer::before,#footer::after{content:" ";display:table}
+#header::after,#content::after,#footnotes::after,#footer::after{clear:both}
+#content{margin-top:1.25em}
+#content::before{content:none}
+#header>h1:first-child{color:rgba(0,0,0,.85);margin-top:2.25rem;margin-bottom:0}
+#header>h1:first-child+#toc{margin-top:8px;border-top:1px solid #dddddf}
+#header>h1:only-child{border-bottom:1px solid #dddddf;padding-bottom:8px}
+#header .details{border-bottom:1px solid #dddddf;line-height:1.45;padding-top:.25em;padding-bottom:.25em;padding-left:.25em;color:rgba(0,0,0,.6);display:flex;flex-flow:row wrap}
+#header .details span:first-child{margin-left:-.125em}
+#header .details span.email a{color:rgba(0,0,0,.85)}
+#header .details br{display:none}
+#header .details br+span::before{content:"\00a0\2013\00a0"}
+#header .details br+span.author::before{content:"\00a0\22c5\00a0";color:rgba(0,0,0,.85)}
+#header .details br+span#revremark::before{content:"\00a0|\00a0"}
+#header #revnumber{text-transform:capitalize}
+#header #revnumber::after{content:"\00a0"}
+#content>h1:first-child:not([class]){color:rgba(0,0,0,.85);border-bottom:1px solid #dddddf;padding-bottom:8px;margin-top:0;padding-top:1rem;margin-bottom:1.25rem}
+#toc{border-bottom:1px solid #e7e7e9;padding-bottom:.5em}
+#toc>ul{margin-left:.125em}
+#toc ul.sectlevel0>li>a{font-style:italic}
+#toc ul.sectlevel0 ul.sectlevel1{margin:.5em 0}
+#toc ul{font-family:"Open Sans","DejaVu Sans",sans-serif;list-style-type:none}
+#toc li{line-height:1.3334;margin-top:.3334em}
+#toc a{text-decoration:none}
+#toc a:active{text-decoration:underline}
+#toctitle{color:#7a2518;font-size:1.2em}
+@media screen and (min-width:768px){#toctitle{font-size:1.375em}
+body.toc2{padding-left:15em;padding-right:0}
+body.toc2 #header>h1:nth-last-child(2){border-bottom:1px solid #dddddf;padding-bottom:8px}
+#toc.toc2{margin-top:0!important;background:#f8f8f7;position:fixed;width:15em;left:0;top:0;border-right:1px solid #e7e7e9;border-top-width:0!important;border-bottom-width:0!important;z-index:1000;padding:1.25em 1em;height:100%;overflow:auto}
+#toc.toc2 #toctitle{margin-top:0;margin-bottom:.8rem;font-size:1.2em}
+#toc.toc2>ul{font-size:.9em;margin-bottom:0}
+#toc.toc2 ul ul{margin-left:0;padding-left:1em}
+#toc.toc2 ul.sectlevel0 ul.sectlevel1{padding-left:0;margin-top:.5em;margin-bottom:.5em}
+body.toc2.toc-right{padding-left:0;padding-right:15em}
+body.toc2.toc-right #toc.toc2{border-right-width:0;border-left:1px solid #e7e7e9;left:auto;right:0}}
+@media screen and (min-width:1280px){body.toc2{padding-left:20em;padding-right:0}
+#toc.toc2{width:20em}
+#toc.toc2 #toctitle{font-size:1.375em}
+#toc.toc2>ul{font-size:.95em}
+#toc.toc2 ul ul{padding-left:1.25em}
+body.toc2.toc-right{padding-left:0;padding-right:20em}}
+#content #toc{border:1px solid #e0e0dc;margin-bottom:1.25em;padding:1.25em;background:#f8f8f7;border-radius:4px}
+#content #toc>:first-child{margin-top:0}
+#content #toc>:last-child{margin-bottom:0}
+#footer{max-width:none;background:rgba(0,0,0,.8);padding:1.25em}
+#footer-text{color:hsla(0,0%,100%,.8);line-height:1.44}
+#content{margin-bottom:.625em}
+.sect1{padding-bottom:.625em}
+@media screen and (min-width:768px){#content{margin-bottom:1.25em}
+.sect1{padding-bottom:1.25em}}
+.sect1:last-child{padding-bottom:0}
+.sect1+.sect1{border-top:1px solid #e7e7e9}
+#content h1>a.anchor,h2>a.anchor,h3>a.anchor,#toctitle>a.anchor,.sidebarblock>.content>.title>a.anchor,h4>a.anchor,h5>a.anchor,h6>a.anchor{position:absolute;z-index:1001;width:1.5ex;margin-left:-1.5ex;display:block;text-decoration:none!important;visibility:hidden;text-align:center;font-weight:400}
+#content h1>a.anchor::before,h2>a.anchor::before,h3>a.anchor::before,#toctitle>a.anchor::before,.sidebarblock>.content>.title>a.anchor::before,h4>a.anchor::before,h5>a.anchor::before,h6>a.anchor::before{content:"\00A7";font-size:.85em;display:block;padding-top:.1em}
+#content h1:hover>a.anchor,#content h1>a.anchor:hover,h2:hover>a.anchor,h2>a.anchor:hover,h3:hover>a.anchor,#toctitle:hover>a.anchor,.sidebarblock>.content>.title:hover>a.anchor,h3>a.anchor:hover,#toctitle>a.anchor:hover,.sidebarblock>.content>.title>a.anchor:hover,h4:hover>a.anchor,h4>a.anchor:hover,h5:hover>a.anchor,h5>a.anchor:hover,h6:hover>a.anchor,h6>a.anchor:hover{visibility:visible}
+#content h1>a.link,h2>a.link,h3>a.link,#toctitle>a.link,.sidebarblock>.content>.title>a.link,h4>a.link,h5>a.link,h6>a.link{color:#ba3925;text-decoration:none}
+#content h1>a.link:hover,h2>a.link:hover,h3>a.link:hover,#toctitle>a.link:hover,.sidebarblock>.content>.title>a.link:hover,h4>a.link:hover,h5>a.link:hover,h6>a.link:hover{color:#a53221}
+details,.audioblock,.imageblock,.literalblock,.listingblock,.stemblock,.videoblock{margin-bottom:1.25em}
+details{margin-left:1.25rem}
+details>summary{cursor:pointer;display:block;position:relative;line-height:1.6;margin-bottom:.625rem;outline:none;-webkit-tap-highlight-color:transparent}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"";border:solid transparent;border-left:solid;border-width:.3em 0 .3em .5em;position:absolute;top:.5em;left:-1.25rem;transform:translateX(15%)}
+details[open]>summary::before{border:solid transparent;border-top:solid;border-width:.5em .3em 0;transform:translateY(15%)}
+details>summary::after{content:"";width:1.25rem;height:1em;position:absolute;top:.3em;left:-1.25rem}
+.admonitionblock td.content>.title,.audioblock>.title,.exampleblock>.title,.imageblock>.title,.listingblock>.title,.literalblock>.title,.stemblock>.title,.openblock>.title,.paragraph>.title,.quoteblock>.title,table.tableblock>.title,.verseblock>.title,.videoblock>.title,.dlist>.title,.olist>.title,.ulist>.title,.qlist>.title,.hdlist>.title{text-rendering:optimizeLegibility;text-align:left;font-family:"Noto Serif","DejaVu Serif",serif;font-size:1rem;font-style:italic}
+table.tableblock.fit-content>caption.title{white-space:nowrap;width:0}
+.paragraph.lead>p,#preamble>.sectionbody>[class=paragraph]:first-of-type p{font-size:1.21875em;line-height:1.6;color:rgba(0,0,0,.85)}
+.admonitionblock>table{border-collapse:separate;border:0;background:none;width:100%}
+.admonitionblock>table td.icon{text-align:center;width:80px}
+.admonitionblock>table td.icon img{max-width:none}
+.admonitionblock>table td.icon .title{font-weight:bold;font-family:"Open Sans","DejaVu Sans",sans-serif;text-transform:uppercase}
+.admonitionblock>table td.content{padding-left:1.125em;padding-right:1.25em;border-left:1px solid #dddddf;color:rgba(0,0,0,.6);word-wrap:anywhere}
+.admonitionblock>table td.content>:last-child>:last-child{margin-bottom:0}
+.exampleblock>.content{border:1px solid #e6e6e6;margin-bottom:1.25em;padding:1.25em;background:#fff;border-radius:4px}
+.sidebarblock{border:1px solid #dbdbd6;margin-bottom:1.25em;padding:1.25em;background:#f3f3f2;border-radius:4px}
+.sidebarblock>.content>.title{color:#7a2518;margin-top:0;text-align:center}
+.exampleblock>.content>:first-child,.sidebarblock>.content>:first-child{margin-top:0}
+.exampleblock>.content>:last-child,.exampleblock>.content>:last-child>:last-child,.exampleblock>.content .olist>ol>li:last-child>:last-child,.exampleblock>.content .ulist>ul>li:last-child>:last-child,.exampleblock>.content .qlist>ol>li:last-child>:last-child,.sidebarblock>.content>:last-child,.sidebarblock>.content>:last-child>:last-child,.sidebarblock>.content .olist>ol>li:last-child>:last-child,.sidebarblock>.content .ulist>ul>li:last-child>:last-child,.sidebarblock>.content .qlist>ol>li:last-child>:last-child{margin-bottom:0}
+.literalblock pre,.listingblock>.content>pre{border-radius:4px;overflow-x:auto;padding:1em;font-size:.8125em}
+@media screen and (min-width:768px){.literalblock pre,.listingblock>.content>pre{font-size:.90625em}}
+@media screen and (min-width:1280px){.literalblock pre,.listingblock>.content>pre{font-size:1em}}
+.literalblock pre,.listingblock>.content>pre:not(.highlight),.listingblock>.content>pre[class=highlight],.listingblock>.content>pre[class^="highlight "]{background:#f7f7f8}
+.literalblock.output pre{color:#f7f7f8;background:rgba(0,0,0,.9)}
+.listingblock>.content{position:relative}
+.listingblock pre>code{display:block}
+.listingblock code[data-lang]::before{display:none;content:attr(data-lang);position:absolute;font-size:.75em;top:.425rem;right:.5rem;line-height:1;text-transform:uppercase;color:inherit;opacity:.5}
+.listingblock:hover code[data-lang]::before{display:block}
+.listingblock.terminal pre .command::before{content:attr(data-prompt);padding-right:.5em;color:inherit;opacity:.5}
+.listingblock.terminal pre .command:not([data-prompt])::before{content:"$"}
+.listingblock pre.highlightjs{padding:0}
+.listingblock pre.highlightjs>code{padding:1em;border-radius:4px}
+.listingblock pre.prettyprint{border-width:0}
+.prettyprint{background:#f7f7f8}
+pre.prettyprint .linenums{line-height:1.45;margin-left:2em}
+pre.prettyprint li{background:none;list-style-type:inherit;padding-left:0}
+pre.prettyprint li code[data-lang]::before{opacity:1}
+pre.prettyprint li:not(:first-child) code[data-lang]::before{display:none}
+table.linenotable{border-collapse:separate;border:0;margin-bottom:0;background:none}
+table.linenotable td[class]{color:inherit;vertical-align:top;padding:0;line-height:inherit;white-space:normal}
+table.linenotable td.code{padding-left:.75em}
+table.linenotable td.linenos,pre.pygments .linenos{border-right:1px solid;opacity:.35;padding-right:.5em;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}
+pre.pygments span.linenos{display:inline-block;margin-right:.75em}
+.quoteblock{margin:0 1em 1.25em 1.5em;display:table}
+.quoteblock:not(.excerpt)>.title{margin-left:-1.5em;margin-bottom:.75em}
+.quoteblock blockquote,.quoteblock p{color:rgba(0,0,0,.85);font-size:1.15rem;line-height:1.75;word-spacing:.1em;letter-spacing:0;font-style:italic;text-align:justify}
+.quoteblock blockquote{margin:0;padding:0;border:0}
+.quoteblock blockquote::before{content:"\201c";float:left;font-size:2.75em;font-weight:bold;line-height:.6em;margin-left:-.6em;color:#7a2518;text-shadow:0 1px 2px rgba(0,0,0,.1)}
+.quoteblock blockquote>.paragraph:last-child p{margin-bottom:0}
+.quoteblock .attribution{margin-top:.75em;margin-right:.5ex;text-align:right}
+.verseblock{margin:0 1em 1.25em}
+.verseblock pre{font-family:"Open Sans","DejaVu Sans",sans-serif;font-size:1.15rem;color:rgba(0,0,0,.85);font-weight:300;text-rendering:optimizeLegibility}
+.verseblock pre strong{font-weight:400}
+.verseblock .attribution{margin-top:1.25rem;margin-left:.5ex}
+.quoteblock .attribution,.verseblock .attribution{font-size:.9375em;line-height:1.45;font-style:italic}
+.quoteblock .attribution br,.verseblock .attribution br{display:none}
+.quoteblock .attribution cite,.verseblock .attribution cite{display:block;letter-spacing:-.025em;color:rgba(0,0,0,.6)}
+.quoteblock.abstract blockquote::before,.quoteblock.excerpt blockquote::before,.quoteblock .quoteblock blockquote::before{display:none}
+.quoteblock.abstract blockquote,.quoteblock.abstract p,.quoteblock.excerpt blockquote,.quoteblock.excerpt p,.quoteblock .quoteblock blockquote,.quoteblock .quoteblock p{line-height:1.6;word-spacing:0}
+.quoteblock.abstract{margin:0 1em 1.25em;display:block}
+.quoteblock.abstract>.title{margin:0 0 .375em;font-size:1.15em;text-align:center}
+.quoteblock.excerpt>blockquote,.quoteblock .quoteblock{padding:0 0 .25em 1em;border-left:.25em solid #dddddf}
+.quoteblock.excerpt,.quoteblock .quoteblock{margin-left:0}
+.quoteblock.excerpt blockquote,.quoteblock.excerpt p,.quoteblock .quoteblock blockquote,.quoteblock .quoteblock p{color:inherit;font-size:1.0625rem}
+.quoteblock.excerpt .attribution,.quoteblock .quoteblock .attribution{color:inherit;font-size:.85rem;text-align:left;margin-right:0}
+p.tableblock:last-child{margin-bottom:0}
+td.tableblock>.content{margin-bottom:1.25em;word-wrap:anywhere}
+td.tableblock>.content>:last-child{margin-bottom:-1.25em}
+table.tableblock,th.tableblock,td.tableblock{border:0 solid #dedede}
+table.grid-all>*>tr>*{border-width:1px}
+table.grid-cols>*>tr>*{border-width:0 1px}
+table.grid-rows>*>tr>*{border-width:1px 0}
+table.frame-all{border-width:1px}
+table.frame-ends{border-width:1px 0}
+table.frame-sides{border-width:0 1px}
+table.frame-none>colgroup+*>:first-child>*,table.frame-sides>colgroup+*>:first-child>*{border-top-width:0}
+table.frame-none>:last-child>:last-child>*,table.frame-sides>:last-child>:last-child>*{border-bottom-width:0}
+table.frame-none>*>tr>:first-child,table.frame-ends>*>tr>:first-child{border-left-width:0}
+table.frame-none>*>tr>:last-child,table.frame-ends>*>tr>:last-child{border-right-width:0}
+table.stripes-all>*>tr,table.stripes-odd>*>tr:nth-of-type(odd),table.stripes-even>*>tr:nth-of-type(even),table.stripes-hover>*>tr:hover{background:#f8f8f7}
+th.halign-left,td.halign-left{text-align:left}
+th.halign-right,td.halign-right{text-align:right}
+th.halign-center,td.halign-center{text-align:center}
+th.valign-top,td.valign-top{vertical-align:top}
+th.valign-bottom,td.valign-bottom{vertical-align:bottom}
+th.valign-middle,td.valign-middle{vertical-align:middle}
+table thead th,table tfoot th{font-weight:bold}
+tbody tr th{background:#f7f8f7}
+tbody tr th,tbody tr th p,tfoot tr th,tfoot tr th p{color:rgba(0,0,0,.8);font-weight:bold}
+p.tableblock>code:only-child{background:none;padding:0}
+p.tableblock{font-size:1em}
+ol{margin-left:1.75em}
+ul li ol{margin-left:1.5em}
+dl dd{margin-left:1.125em}
+dl dd:last-child,dl dd:last-child>:last-child{margin-bottom:0}
+li p,ul dd,ol dd,.olist .olist,.ulist .ulist,.ulist .olist,.olist .ulist{margin-bottom:.625em}
+ul.checklist,ul.none,ol.none,ul.no-bullet,ol.no-bullet,ol.unnumbered,ul.unstyled,ol.unstyled{list-style-type:none}
+ul.no-bullet,ol.no-bullet,ol.unnumbered{margin-left:.625em}
+ul.unstyled,ol.unstyled{margin-left:0}
+li>p:empty:only-child::before{content:"";display:inline-block}
+ul.checklist>li>p:first-child{margin-left:-1em}
+ul.checklist>li>p:first-child>.fa-square-o:first-child,ul.checklist>li>p:first-child>.fa-check-square-o:first-child{width:1.25em;font-size:.8em;position:relative;bottom:.125em}
+ul.checklist>li>p:first-child>input[type=checkbox]:first-child{margin-right:.25em}
+ul.inline{display:flex;flex-flow:row wrap;list-style:none;margin:0 0 .625em -1.25em}
+ul.inline>li{margin-left:1.25em}
+.unstyled dl dt{font-weight:400;font-style:normal}
+ol.arabic{list-style-type:decimal}
+ol.decimal{list-style-type:decimal-leading-zero}
+ol.loweralpha{list-style-type:lower-alpha}
+ol.upperalpha{list-style-type:upper-alpha}
+ol.lowerroman{list-style-type:lower-roman}
+ol.upperroman{list-style-type:upper-roman}
+ol.lowergreek{list-style-type:lower-greek}
+.hdlist>table,.colist>table{border:0;background:none}
+.hdlist>table>tbody>tr,.colist>table>tbody>tr{background:none}
+td.hdlist1,td.hdlist2{vertical-align:top;padding:0 .625em}
+td.hdlist1{font-weight:bold;padding-bottom:1.25em}
+td.hdlist2{word-wrap:anywhere}
+.literalblock+.colist,.listingblock+.colist{margin-top:-.5em}
+.colist td:not([class]):first-child{padding:.4em .75em 0;line-height:1;vertical-align:top}
+.colist td:not([class]):first-child img{max-width:none}
+.colist td:not([class]):last-child{padding:.25em 0}
+.thumb,.th{line-height:0;display:inline-block;border:4px solid #fff;box-shadow:0 0 0 1px #ddd}
+.imageblock.left{margin:.25em .625em 1.25em 0}
+.imageblock.right{margin:.25em 0 1.25em .625em}
+.imageblock>.title{margin-bottom:0}
+.imageblock.thumb,.imageblock.th{border-width:6px}
+.imageblock.thumb>.title,.imageblock.th>.title{padding:0 .125em}
+.image.left,.image.right{margin-top:.25em;margin-bottom:.25em;display:inline-block;line-height:0}
+.image.left{margin-right:.625em}
+.image.right{margin-left:.625em}
+a.image{text-decoration:none;display:inline-block}
+a.image object{pointer-events:none}
+sup.footnote,sup.footnoteref{font-size:.875em;position:static;vertical-align:super}
+sup.footnote a,sup.footnoteref a{text-decoration:none}
+sup.footnote a:active,sup.footnoteref a:active,#footnotes .footnote a:first-of-type:active{text-decoration:underline}
+#footnotes{padding-top:.75em;padding-bottom:.75em;margin-bottom:.625em}
+#footnotes hr{width:20%;min-width:6.25em;margin:-.25em 0 .75em;border-width:1px 0 0}
+#footnotes .footnote{padding:0 .375em 0 .225em;line-height:1.3334;font-size:.875em;margin-left:1.2em;margin-bottom:.2em}
+#footnotes .footnote a:first-of-type{font-weight:bold;text-decoration:none;margin-left:-1.05em}
+#footnotes .footnote:last-of-type{margin-bottom:0}
+#content #footnotes{margin-top:-.625em;margin-bottom:0;padding:.75em 0}
+div.unbreakable{page-break-inside:avoid}
+.big{font-size:larger}
+.small{font-size:smaller}
+.underline{text-decoration:underline}
+.overline{text-decoration:overline}
+.line-through{text-decoration:line-through}
+.aqua{color:#00bfbf}
+.aqua-background{background:#00fafa}
+.black{color:#000}
+.black-background{background:#000}
+.blue{color:#0000bf}
+.blue-background{background:#0000fa}
+.fuchsia{color:#bf00bf}
+.fuchsia-background{background:#fa00fa}
+.gray{color:#606060}
+.gray-background{background:#7d7d7d}
+.green{color:#006000}
+.green-background{background:#007d00}
+.lime{color:#00bf00}
+.lime-background{background:#00fa00}
+.maroon{color:#600000}
+.maroon-background{background:#7d0000}
+.navy{color:#000060}
+.navy-background{background:#00007d}
+.olive{color:#606000}
+.olive-background{background:#7d7d00}
+.purple{color:#600060}
+.purple-background{background:#7d007d}
+.red{color:#bf0000}
+.red-background{background:#fa0000}
+.silver{color:#909090}
+.silver-background{background:#bcbcbc}
+.teal{color:#006060}
+.teal-background{background:#007d7d}
+.white{color:#bfbfbf}
+.white-background{background:#fafafa}
+.yellow{color:#bfbf00}
+.yellow-background{background:#fafa00}
+span.icon>.fa{cursor:default}
+a span.icon>.fa{cursor:inherit}
+.admonitionblock td.icon [class^="fa icon-"]{font-size:2.5em;text-shadow:1px 1px 2px rgba(0,0,0,.5);cursor:default}
+.admonitionblock td.icon .icon-note::before{content:"\f05a";color:#19407c}
+.admonitionblock td.icon .icon-tip::before{content:"\f0eb";text-shadow:1px 1px 2px rgba(155,155,0,.8);color:#111}
+.admonitionblock td.icon .icon-warning::before{content:"\f071";color:#bf6900}
+.admonitionblock td.icon .icon-caution::before{content:"\f06d";color:#bf3400}
+.admonitionblock td.icon .icon-important::before{content:"\f06a";color:#bf0000}
+.conum[data-value]{display:inline-block;color:#fff!important;background:rgba(0,0,0,.8);border-radius:50%;text-align:center;font-size:.75em;width:1.67em;height:1.67em;line-height:1.67em;font-family:"Open Sans","DejaVu Sans",sans-serif;font-style:normal;font-weight:bold}
+.conum[data-value] *{color:#fff!important}
+.conum[data-value]+b{display:none}
+.conum[data-value]::after{content:attr(data-value)}
+pre .conum[data-value]{position:relative;top:-.125em}
+b.conum *{color:inherit!important}
+.conum:not([data-value]):empty{display:none}
+dt,th.tableblock,td.content,div.footnote{text-rendering:optimizeLegibility}
+h1,h2,p,td.content,span.alt,summary{letter-spacing:-.01em}
+p strong,td.content strong,div.footnote strong{letter-spacing:-.005em}
+p,blockquote,dt,td.content,td.hdlist1,span.alt,summary{font-size:1.0625rem}
+p{margin-bottom:1.25rem}
+.sidebarblock p,.sidebarblock dt,.sidebarblock td.content,p.tableblock{font-size:1em}
+.exampleblock>.content{background:#fffef7;border-color:#e0e0dc;box-shadow:0 1px 4px #e0e0dc}
+.print-only{display:none!important}
+@page{margin:1.25cm .75cm}
+@media print{*{box-shadow:none!important;text-shadow:none!important}
+html{font-size:80%}
+a{color:inherit!important;text-decoration:underline!important}
+a.bare,a[href^="#"],a[href^="mailto:"]{text-decoration:none!important}
+a[href^="http:"]:not(.bare)::after,a[href^="https:"]:not(.bare)::after{content:"(" attr(href) ")";display:inline-block;font-size:.875em;padding-left:.25em}
+abbr[title]{border-bottom:1px dotted}
+abbr[title]::after{content:" (" attr(title) ")"}
+pre,blockquote,tr,img,object,svg{page-break-inside:avoid}
+thead{display:table-header-group}
+svg{max-width:100%}
+p,blockquote,dt,td.content{font-size:1em;orphans:3;widows:3}
+h2,h3,#toctitle,.sidebarblock>.content>.title{page-break-after:avoid}
+#header,#content,#footnotes,#footer{max-width:none}
+#toc,.sidebarblock,.exampleblock>.content{background:none!important}
+#toc{border-bottom:1px solid #dddddf!important;padding-bottom:0!important}
+body.book #header{text-align:center}
+body.book #header>h1:first-child{border:0!important;margin:2.5em 0 1em}
+body.book #header .details{border:0!important;display:block;padding:0!important}
+body.book #header .details span:first-child{margin-left:0!important}
+body.book #header .details br{display:block}
+body.book #header .details br+span::before{content:none!important}
+body.book #toc{border:0!important;text-align:left!important;padding:0!important;margin:0!important}
+body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-break-before:always}
+.listingblock code[data-lang]::before{display:block}
+#footer{padding:0 .9375em}
+.hide-on-print{display:none!important}
+.print-only{display:block!important}
+.hide-for-print{display:none!important}
+.show-for-print{display:inherit!important}}
+@media amzn-kf8,print{#header>h1:first-child{margin-top:1.25rem}
+.sect1{padding:0!important}
+.sect1+.sect1{border:0}
+#footer{background:none}
+#footer-text{color:rgba(0,0,0,.6);font-size:.9em}}
+@media amzn-kf8{#header,#content,#footnotes,#footer{padding:0}}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/styles/github.min.css">
+</head>
+<body class="article toc2 toc-left">
+<div id="header">
+<h1>WIS2 Downloader Developer Guide</h1>
+<div id="toc" class="toc2">
+<div id="toctitle">Contents</div>
+<ul class="sectlevel1">
+<li><a href="#_architecture_overview">1. Architecture Overview</a>
+<ul class="sectlevel2">
+<li><a href="#_data_flow">1.1. Data Flow</a></li>
+</ul>
+</li>
+<li><a href="#_module_structure">2. Module Structure</a></li>
+<li><a href="#_module_details">3. Module Details</a>
+<ul class="sectlevel2">
+<li><a href="#_shared_module">3.1. Shared Module</a>
+<ul class="sectlevel3">
+<li><a href="#_redis_client">3.1.1. Redis Client</a></li>
+<li><a href="#_logging">3.1.2. Logging</a></li>
+</ul>
+</li>
+<li><a href="#_subscriber_module">3.2. Subscriber Module</a>
+<ul class="sectlevel3">
+<li><a href="#_entry_point">3.2.1. Entry Point</a></li>
+<li><a href="#_mqtt_subscriber">3.2.2. MQTT Subscriber</a></li>
+<li><a href="#_command_listener">3.2.3. Command Listener</a></li>
+</ul>
+</li>
+<li><a href="#_subscription_manager_module">3.3. Subscription Manager Module</a>
+<ul class="sectlevel3">
+<li><a href="#_flask_application">3.3.1. Flask Application</a></li>
+<li><a href="#_metrics_endpoint">3.3.2. Metrics Endpoint</a></li>
+</ul>
+</li>
+<li><a href="#_task_manager_module">3.4. Task Manager Module</a>
+<ul class="sectlevel3">
+<li><a href="#_celery_configuration">3.4.1. Celery Configuration</a></li>
+<li><a href="#_download_task">3.4.2. Download Task</a></li>
+<li><a href="#_workflow_chains">3.4.3. Workflow Chains</a></li>
+<li><a href="#_scheduler_periodic_tasks">3.4.4. Scheduler (Periodic Tasks)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#_ui_module">4. UI Module</a>
+<ul class="sectlevel2">
+<li><a href="#_module_structure_2">4.1. Module Structure</a></li>
+<li><a href="#_data_layer_data_py">4.2. Data Layer (data.py)</a>
+<ul class="sectlevel3">
+<li><a href="#_gdc_sources">4.2.1. GDC Sources</a></li>
+<li><a href="#_merged_records">4.2.2. Merged Records</a></li>
+<li><a href="#_topic_hierarchy">4.2.3. Topic Hierarchy</a></li>
+<li><a href="#_key_functions">4.2.4. Key Functions</a></li>
+</ul>
+</li>
+<li><a href="#_wcmp2_model_modelswcmp2_py">4.3. WCMP2 Model (models/wcmp2.py)</a></li>
+<li><a href="#_appstate">4.4. AppState</a></li>
+<li><a href="#_views">4.5. Views</a>
+<ul class="sectlevel3">
+<li><a href="#_catalogue_view">4.5.1. Catalogue View</a></li>
+<li><a href="#_tree_view">4.5.2. Tree View</a></li>
+<li><a href="#_shared_sidebar_viewsshared_py">4.5.3. Shared Sidebar (views/shared.py)</a></li>
+</ul>
+</li>
+<li><a href="#_adding_a_new_view">4.6. Adding a New View</a></li>
+<li><a href="#internationalisation">4.7. Internationalisation (i18n)</a>
+<ul class="sectlevel3">
+<li><a href="#_supported_languages">4.7.1. Supported Languages</a></li>
+<li><a href="#_how_t_works">4.7.2. How <code>t()</code> Works</a></li>
+<li><a href="#_key_naming_conventions">4.7.3. Key Naming Conventions</a></li>
+<li><a href="#_rtl_support">4.7.4. RTL Support</a></li>
+<li><a href="#_adding_a_new_language">4.7.5. Adding a New Language</a></li>
+<li><a href="#_adding_new_translatable_strings">4.7.6. Adding New Translatable Strings</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#_inter_service_communication">5. Inter-Service Communication</a>
+<ul class="sectlevel2">
+<li><a href="#_redis_pubsub_commands">5.1. Redis PubSub (Commands)</a></li>
+<li><a href="#_celery_tasks_downloads">5.2. Celery Tasks (Downloads)</a></li>
+<li><a href="#_redis_keys">5.3. Redis Keys</a></li>
+</ul>
+</li>
+<li><a href="#_extending_the_system">6. Extending the System</a>
+<ul class="sectlevel2">
+<li><a href="#_adding_a_new_match_condition_to_the_filter_engine">6.1. Adding a New Match Condition to the Filter Engine</a></li>
+<li><a href="#_adding_a_new_task">6.2. Adding a New Task</a></li>
+<li><a href="#_adding_a_new_metric">6.3. Adding a New Metric</a></li>
+</ul>
+</li>
+<li><a href="#_testing">7. Testing</a>
+<ul class="sectlevel2">
+<li><a href="#_running_tests">7.1. Running Tests</a></li>
+<li><a href="#_manual_testing">7.2. Manual Testing</a></li>
+</ul>
+</li>
+<li><a href="#_development_setup">8. Development Setup</a>
+<ul class="sectlevel2">
+<li><a href="#_local_development">8.1. Local Development</a></li>
+<li><a href="#_docker_build">8.2. Docker Build</a></li>
+</ul>
+</li>
+<li><a href="#_debugging">9. Debugging</a>
+<ul class="sectlevel2">
+<li><a href="#_view_celery_tasks">9.1. View Celery Tasks</a></li>
+<li><a href="#_redis_inspection">9.2. Redis Inspection</a></li>
+<li><a href="#_mqtt_debugging">9.3. MQTT Debugging</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div id="content">
+<div class="sect1">
+<h2 id="_architecture_overview">1. Architecture Overview</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>WIS2 Downloader is a distributed system with four main components:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">                         Docker Compose
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                           │
+  │  Web UI (NiceGUI :8080)                                   │
+  │    - reads GDC catalogue data from Redis cache            │
+  │    - posts subscriptions to Subscription Manager API      │
+  │                          │                                │
+  │                          ▼                                │
+  │  Subscription Manager (Flask API :5001)                   │
+  │    - persists subscriptions in Redis                      │
+  │    - publishes subscribe/unsubscribe commands via PubSub  │
+  │                          │                                │
+  │              Redis PubSub (commands)                      │
+  │                          │                                │
+  │                          ▼                                │
+  │  Subscriber (MQTT Client)                                 │
+  │    - connects to WIS2 Global Broker                       │
+  │    - on notification: queues Celery download task         │
+  │                          │                                │
+  │              Redis (Celery queue + dedup state)           │
+  │                          │                                │
+  │                          ▼                                │
+  │  Celery Workers                                           │
+  │    - download file, verify hash, apply filters, save      │
+  │                                                           │
+  └──────────────────────────────────────────────────────────┘</code></pre>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_data_flow">1.1. Data Flow</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>On startup, the Web UI fetches WCMP2 records from the three GDC endpoints (or Redis cache) and builds an in-memory topic hierarchy</p>
+</li>
+<li>
+<p>User browses the Catalogue or Tree view and selects a topic in the Web UI</p>
+</li>
+<li>
+<p>User clicks <strong>Subscribe</strong> → Web UI POSTs a subscription to the Subscription Manager REST API</p>
+</li>
+<li>
+<p>Subscription Manager persists the subscription in Redis and publishes a subscribe command to the Redis PubSub channel</p>
+</li>
+<li>
+<p>Subscriber receives the command and subscribes to the MQTT topic on the WIS2 Global Broker</p>
+</li>
+<li>
+<p>When a WIS2 notification arrives, Subscriber queues a Celery download task</p>
+</li>
+<li>
+<p>Celery worker downloads the file, verifies the hash, applies filters, and saves to disk</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_module_structure">2. Module Structure</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">modules/
+├── shared/                 # Shared utilities
+│   └── shared/
+│       ├── __init__.py
+│       ├── logging.py      # Centralized logging
+│       └── redis_client.py # Redis client singleton
+│
+├── subscriber/             # MQTT subscriber service
+│   └── subscriber/
+│       ├── __init__.py
+│       ├── manager.py      # Entry point, thread management
+│       ├── subscriber.py   # MQTT client wrapper
+│       └── command_listener.py  # Redis PubSub listener
+│
+├── subscription_manager/   # REST API service
+│   └── subscription_manager/
+│       ├── __init__.py
+│       ├── app.py          # Flask application
+│       └── static/
+│           └── openapi.yml # API specification
+│
+├── task_manager/           # Celery tasks
+│   └── task_manager/
+│       ├── __init__.py
+│       ├── worker.py       # Celery app for download workers
+│       ├── scheduler.py    # Separate Celery app for periodic/housekeeping tasks
+│       ├── tasks/
+│       │   ├── wis2.py              # Download task
+│       │   └── scheduled_tasks.py  # Periodic tasks (disk check, file cleanup)
+│       └── workflows/
+│           └── __init__.py # Task chains
+│
+└── ui/                     # NiceGUI web interface (port 8080)
+    ├── main.py             # Entry point, page route, AppState
+    ├── layout.py           # PageLayout builder
+    ├── config.py           # Environment variable config
+    ├── data.py             # GDC data layer — fetch, merge, cache, hierarchy
+    ├── assets/
+    │   └── base.css        # All custom CSS
+    ├── components/         # Reusable layout components
+    ├── i18n/               # Internationalisation
+    │   ├── __init__.py     # t(), current_lang(), is_rtl(), LANGUAGES
+    │   ├── en.py           # English strings (source of truth)
+    │   ├── fr.py           # French
+    │   ├── es.py           # Spanish
+    │   ├── ar.py           # Arabic (RTL)
+    │   ├── zh.py           # Chinese
+    │   └── ru.py           # Russian
+    ├── models/
+    │   └── wcmp2.py        # WCMP2Record dataclass
+    └── views/              # Page views (catalogue, tree, subscriptions, etc.)</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_module_details">3. Module Details</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_shared_module">3.1. Shared Module</h3>
+<div class="paragraph">
+<p>Provides common utilities used across all services.</p>
+</div>
+<div class="sect3">
+<h4 id="_redis_client">3.1.1. Redis Client</h4>
+<div class="listingblock">
+<div class="title">modules/shared/shared/redis_client.py</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">from shared import get_redis_client
+
+# Get Redis client (singleton)
+redis = get_redis_client()
+
+# Use like normal Redis client
+redis.set('key', 'value')
+redis.get('key')</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The client:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Connects directly to Redis server</p>
+</li>
+<li>
+<p>Caches connection (singleton pattern)</p>
+</li>
+<li>
+<p>Includes retry logic for transient failures</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_logging">3.1.2. Logging</h4>
+<div class="listingblock">
+<div class="title">modules/shared/shared/logging.py</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">from shared import setup_logging
+
+# Configure root logger (call once at startup)
+setup_logging()
+
+# Get module-specific logger
+LOGGER = setup_logging(__name__)
+
+LOGGER.info("Message with UTC timestamp")</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Features:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>UTC timestamps in ISO 8601 format</p>
+</li>
+<li>
+<p>Configurable via <code>LOG_LEVEL</code> environment variable</p>
+</li>
+<li>
+<p>Outputs to stdout for Docker log collection</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_subscriber_module">3.2. Subscriber Module</h3>
+<div class="paragraph">
+<p>Connects to WIS2 Global Broker via MQTT and processes incoming notifications.</p>
+</div>
+<div class="sect3">
+<h4 id="_entry_point">3.2.1. Entry Point</h4>
+<div class="listingblock">
+<div class="title">modules/subscriber/subscriber/manager.py</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">def run_manager():
+    # 1. Create MQTT subscriber
+    mqtt_subscriber = Subscriber(**broker_config)
+
+    # 2. Create Redis command listener
+    redis_listener = CommandListener(
+        subscriber=mqtt_subscriber,
+        channel=COMMAND_CHANNEL
+    )
+
+    # 3. Start MQTT in separate thread
+    mqtt_thread = threading.Thread(target=mqtt_subscriber.start, daemon=True)
+    mqtt_thread.start()
+
+    # 4. Start Redis listener (blocks)
+    redis_listener.start()</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_mqtt_subscriber">3.2.2. MQTT Subscriber</h4>
+<div class="listingblock">
+<div class="title">modules/subscriber/subscriber/subscriber.py</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">class Subscriber:
+    def __init__(self, host, port, uid, pwd, protocol, session):
+        # Configure MQTT client with callbacks
+        self.client = mqtt.Client(...)
+        self.client.on_message = self._on_message
+
+    def _on_message(self, client, userdata, msg):
+        # Parse notification, create Celery task
+        job = {
+            "topic": msg.topic,
+            "target": target,
+            "filters": filters,
+            "payload": json.loads(msg.payload)
+        }
+        workflow = wis2_download(job)
+        workflow.apply_async()
+
+    def subscribe(self, topic, subscriptions):
+        # subscriptions: {sub_id: {id, save_path, filter}}
+        self.client.subscribe(topic, qos=0)
+        self.active_subscriptions[topic] = {
+            "pattern": topic,
+            "subscriptions": subscriptions
+        }
+
+    def add_subscription(self, topic, sub_id, save_path, filter_config):
+        self.active_subscriptions[topic]["subscriptions"][sub_id] = {
+            "id": sub_id, "save_path": save_path, "filter": filter_config
+        }
+
+    def remove_subscription(self, topic, sub_id):
+        self.active_subscriptions[topic]["subscriptions"].pop(sub_id, None)
+
+    def unsubscribe(self, topic):
+        self.client.unsubscribe(topic)
+        del self.active_subscriptions[topic]</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_command_listener">3.2.3. Command Listener</h4>
+<div class="listingblock">
+<div class="title">modules/subscriber/subscriber/command_listener.py</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">class CommandListener(threading.Thread):
+    def __init__(self, subscriber, channel):
+        self.subscriber = subscriber
+        self.pubsub = get_redis_client().pubsub()
+
+    def run(self):
+        self.pubsub.subscribe(self.channel)
+        while not self.stop_event.is_set():
+            message = self.pubsub.get_message()
+            if message:
+                self._process_command(message)
+
+    def _process_command(self, message):
+        command = json.loads(message['data'])
+        action = command['action']
+        if action == 'subscribe':
+            self.subscriber.subscribe(command['topic'], command['subscriptions'])
+        elif action == 'add_subscription':
+            self.subscriber.add_subscription(
+                command['topic'], command['sub_id'],
+                command['save_path'], command['filter']
+            )
+        elif action == 'remove_subscription':
+            self.subscriber.remove_subscription(command['topic'], command['sub_id'])
+        elif action == 'unsubscribe':
+            self.subscriber.unsubscribe(command['topic'])
+        elif action == 'update_subscription':
+            self.subscriber.add_subscription(
+                command['topic'], command['sub_id'],
+                command['save_path'], command['filter']
+            )</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_subscription_manager_module">3.3. Subscription Manager Module</h3>
+<div class="paragraph">
+<p>Flask REST API for managing subscriptions.</p>
+</div>
+<div class="sect3">
+<h4 id="_flask_application">3.3.1. Flask Application</h4>
+<div class="listingblock">
+<div class="title">modules/subscription_manager/subscription_manager/app.py</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">@app.post('/subscriptions')
+def add_subscription():
+    data = get_json()
+    topic = normalise_topic(data.get('topic'))
+    save_path = normalise_path(data.get('target', ''))
+    filter_config = data.get('filter') or data.get('filters') or {}
+
+    sub_id = str(uuid4())
+    sub_data = {'id': sub_id, 'topic': topic, 'save_path': save_path, 'filter': filter_config}
+
+    existing = _subs_for_topic(topic, _get_all_subscriptions())
+    is_new_topic = len(existing) == 0
+
+    _persist_subscription(sub_id, sub_data)
+
+    if is_new_topic:
+        # First sub for this topic — open MQTT connection
+        command = {"action": "subscribe", "topic": topic,
+                   "subscriptions": {sub_id: sub_data}}
+    else:
+        # Topic already open — just register the new destination
+        command = {"action": "add_subscription", "topic": topic,
+                   "sub_id": sub_id, "save_path": save_path, "filter": filter_config}
+
+    publish_command(command)
+    return jsonify(sub_data), 201</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_metrics_endpoint">3.3.2. Metrics Endpoint</h4>
+<div class="paragraph">
+<p>Metrics are stored in Redis using atomic <code>HINCRBYFLOAT</code> operations, making them safe across multiple Celery worker containers. The endpoint reads from Redis and renders Prometheus text format:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">@app.route('/metrics')
+def expose_metrics():
+    # Update live gauge before exposing
+    queue_length = redis_client.llen(CELERY_DEFAULT_QUEUE)
+    set_gauge('celery_queue_length', {'queue_name': CELERY_DEFAULT_QUEUE}, queue_length)
+    return Response(generate_prometheus_text(), mimetype="text/plain")</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Increment a counter from any worker:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">from shared import incr_counter
+incr_counter('downloads_total', {'cache': hostname, 'media_type': mime_type})</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_task_manager_module">3.4. Task Manager Module</h3>
+<div class="paragraph">
+<p>Celery workers for downloading and processing files.</p>
+</div>
+<div class="sect3">
+<h4 id="_celery_configuration">3.4.1. Celery Configuration</h4>
+<div class="listingblock">
+<div class="title">modules/task_manager/task_manager/worker.py</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">app = Celery('tasks',
+             broker=CELERY_BROKER_URL,
+             result_backend=CELERY_RESULT_BACKEND)
+
+# Auto-discover tasks
+app.autodiscover_tasks(['task_manager.tasks', 'task_manager.tasks.wis2'])</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_download_task">3.4.2. Download Task</h4>
+<div class="listingblock">
+<div class="title">modules/task_manager/task_manager/tasks/wis2.py</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">@app.task(bind=True)
+@metrics_collector
+def download_from_wis2(self, job):
+    result = {...}  # Initialize result dict
+
+    # 1. Extract identifiers
+    message_id = job['payload']['id']
+    data_id = job['payload']['properties']['data_id']
+    filehash = job['payload']['properties']['integrity']['value']
+
+    # 2. Deduplication check
+    for key, type in [(message_id, 'by-msg-id'), ...]:
+        if get_status(key, type) == STATUS_SUCCESS:
+            result['status'] = STATUS_SKIPPED
+            return result
+
+    # 3. Acquire lock
+    lock_acquired = redis_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
+    if not lock_acquired:
+        raise self.retry(countdown=10, max_retries=10)
+
+    # 4. Download file
+    response = _pool.request('GET', download_url, ...)
+
+    # 5. Pre-download filter pass (no media_type/size yet)
+    pre_action, pre_reason = _apply_job_filter(job, ctx_pre)
+    if pre_action == 'reject':
+        result['status'] = STATUS_SKIPPED
+        return result
+
+    # 6. Download file
+    response = _pool.request('GET', download_url, ...)
+
+    # 7. Verify hash
+    if hash_expected and hash_base64 != hash_expected:
+        result['status'] = STATUS_FAILED
+        return result
+
+    # 8. Post-download filter pass (media_type and size now known)
+    post_action, post_reason = _apply_job_filter(job, ctx_post)
+    if post_action == 'reject':
+        result['status'] = STATUS_SKIPPED
+        return result
+
+    # 9. Save file
+    output_path.write_bytes(data)
+    result['status'] = STATUS_SUCCESS
+    return result</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_workflow_chains">3.4.3. Workflow Chains</h4>
+<div class="listingblock">
+<div class="title">modules/task_manager/task_manager/workflows/<em>init</em>.py</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">def wis2_download(args):
+    workflow = download_from_wis2.s(args)
+    return workflow</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_scheduler_periodic_tasks">3.4.4. Scheduler (Periodic Tasks)</h4>
+<div class="paragraph">
+<p>A separate Celery app (<code>scheduler.py</code>) handles housekeeping using Celery Beat. It uses Redis databases 2/3 to avoid interfering with the download worker queues (databases 0/1). Periodic tasks are defined in <code>tasks/scheduled_tasks.py</code>:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 16.6666%;">
+<col style="width: 50.0001%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Task</th>
+<th class="tableblock halign-left valign-top">Interval</th>
+<th class="tableblock halign-left valign-top">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>check_disk_space</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Every 5 min</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sets <code>disk_total_bytes</code>, <code>disk_used_bytes</code>, <code>disk_free_bytes</code> gauges</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>clean_directory</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Every 10 min</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Deletes files older than <code>DOWNLOAD_RETENTION_PERIOD</code> days; decrements <code>disk_downloads_bytes</code> per deleted file</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>recalibrate_downloads_size</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Daily</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Full <code>os.walk</code> to correct any drift in the <code>disk_downloads_bytes</code> gauge</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The scheduler is started as two Docker Compose services: <code>celery-scheduler-workers</code> (runs tasks) and <code>celery-beats</code> (triggers them on schedule).</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_ui_module">4. UI Module</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The UI is a NiceGUI web application served at port 8080. It is the primary user-facing interface for discovering datasets, browsing the WIS2 topic hierarchy, and creating subscriptions.</p>
+</div>
+<div class="sect2">
+<h3 id="_module_structure_2">4.1. Module Structure</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">modules/ui/
+├── main.py                  # Application entry point, page route, AppState
+├── layout.py                # PageLayout builder
+├── config.py                # Environment variable config (SUBSCRIPTION_MANAGER_URL etc.)
+├── data.py                  # GDC data layer — fetch, merge, cache, hierarchy
+├── assets/
+│   └── base.css             # All custom CSS (inside @layer components)
+├── components/
+│   ├── header.py            # WMO banner + toolbar + language selector
+│   ├── footer.py            # Footer bar
+│   ├── navigation_drawer.py # Left nav drawer with view links
+│   └── page_body.py         # Main content area + right sidebar
+├── i18n/                    # Internationalisation
+│   ├── __init__.py          # t(), current_lang(), is_rtl(), LANGUAGES
+│   ├── en.py                # English strings (source of truth)
+│   ├── fr.py                # French
+│   ├── es.py                # Spanish
+│   ├── ar.py                # Arabic (RTL)
+│   ├── zh.py                # Chinese
+│   └── ru.py                # Russian
+├── models/
+│   └── wcmp2.py             # WCMP2Record dataclass (GeoJSON Feature)
+└── views/
+    ├── dashboard.py         # Grafana iframe embed
+    ├── catalogue.py         # Catalogue search + result cards
+    ├── tree.py              # Topic hierarchy tree
+    ├── subscriptions.py     # Active subscriptions list
+    ├── settings.py          # GDC status + refresh trigger
+    └── shared.py            # Shared sidebar logic (on_topics_picked, confirm_subscribe, show_metadata)</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_data_layer_data_py">4.2. Data Layer (data.py)</h3>
+<div class="paragraph">
+<p>The data layer is responsible for fetching WCMP2 records from the three WIS2 Global Discovery Catalogues (GDC), merging them, and building two module-level caches that all views read from.</p>
+</div>
+<div class="sect3">
+<h4 id="_gdc_sources">4.2.1. GDC Sources</h4>
+<div class="paragraph">
+<p>Records are fetched from three public GDC endpoints at startup:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Short name</th>
+<th class="tableblock halign-left valign-top">URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>CMA</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code><a href="https://gdc.wis.cma.cn" class="bare">https://gdc.wis.cma.cn</a></code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>DWD</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code><a href="https://wis2.dwd.de/gdc" class="bare">https://wis2.dwd.de/gdc</a></code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ECCC</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code><a href="https://wis2-gdc.weather.gc.ca" class="bare">https://wis2-gdc.weather.gc.ca</a></code></p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Raw JSON responses are cached in Redis under keys <code>gdc:cache:CMA</code>, <code>gdc:cache:DWD</code>, and <code>gdc:cache:ECCC</code> with a TTL controlled by <code>GDC_CACHE_TTL_SECONDS</code> (default 6 hours). Redis is optional — if unavailable, data is fetched over HTTP on every startup.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_merged_records">4.2.2. Merged Records</h4>
+<div class="paragraph">
+<p>After all GDC sources are loaded, <code>_build_merged_records()</code> deduplicates records by ID across catalogues:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Records present in only one catalogue appear once with a single <code>source_gdcs</code> entry.</p>
+</li>
+<li>
+<p>Records present in multiple catalogues are merged: <code>source_gdcs</code> lists all contributing catalogues.</p>
+</li>
+<li>
+<p><code>has_discrepancy</code> is set to <code>True</code> if properties, geometry, or links differ between catalogues.</p>
+</li>
+<li>
+<p>Links are unioned across catalogues so that channel data present in any one GDC is preserved on the merged record.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The result is stored in the module-level <code>_merged_records</code> list and returned by <code>merged_records()</code>.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_topic_hierarchy">4.2.3. Topic Hierarchy</h4>
+<div class="paragraph">
+<p><code>_build_topic_hierarchy()</code> iterates <code>_merged_records</code> and inserts each record&#8217;s first <code>cache/</code> MQTT channel into a nested dict:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">{
+  "cache": {
+    "children": {
+      "a": {
+        "children": {
+          "wis2": {
+            "children": {
+              "de-dwd": {
+                "children": {
+                  ...
+                  "synop": {
+                    "datasets": [&lt;WCMP2Record&gt;, ...]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>A node may contain both <code>"children"</code> and <code>"datasets"</code> if one channel is a prefix of another.</p>
+</div>
+<div class="paragraph">
+<p>The hierarchy is stored in <code>_topic_hierarchy</code> and returned by <code>topic_hierarchy()</code>. It is consumed by <code>tree.py</code> to build the <code>ui.tree</code> widget, and by <code>get_datasets_for_channel()</code> to resolve datasets for a given topic.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_key_functions">4.2.4. Key Functions</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Function</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>merged_records() &#8594; list[MergedRecord]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Returns the cached merged record list</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>topic_hierarchy() &#8594; dict</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Returns the cached topic hierarchy</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>get_datasets_for_channel(channel) &#8594; list[WCMP2Record]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Strips trailing <code>/#</code>, navigates the hierarchy, and recursively collects all datasets from that node and its descendants</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>scrape_all(force=False)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fetches GDC data (Redis cache first, then HTTP), rebuilds <code>_merged_records</code> and <code>_topic_hierarchy</code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_wcmp2_model_modelswcmp2_py">4.3. WCMP2 Model (models/wcmp2.py)</h3>
+<div class="paragraph">
+<p><code>WCMP2Record</code> is a dataclass representation of a WIS2 Discovery Metadata GeoJSON Feature.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">from models.wcmp2 import WCMP2Record
+
+rec = WCMP2Record.from_dict(feature_dict)
+
+rec.id                   # str - unique dataset identifier
+rec.title                # str | None
+rec.description          # str | None
+rec.keywords             # list[str]
+rec.wmo_data_policy      # 'core' | 'recommended' | None
+rec.geometry             # Geometry | None  (.type, .coordinates)
+rec.links                # list[Link]  (.channel, .href, .rel, .extra)
+rec.mqtt_channels        # list[str]  - channels from all links</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>Link.extra</code> is a dict capturing non-schema keys from the GDC response (e.g. GDC-specific <code>filters</code> used for custom filter fields in the subscription sidebar).</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_appstate">4.4. AppState</h3>
+<div class="paragraph">
+<p>Each browser session has its own <code>AppState</code> instance (defined in <code>main.py</code>):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">class AppState:
+    def __init__(self):
+        self.selected_topics: list[str] = []
+        self.current_view: str = 'dashboard'</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>selected_topics</code> holds the MQTT topics currently selected in the UI and drives the right sidebar.  <code>current_view</code> tracks the active view name and is persisted to <code>app.storage.user['current_view']</code> before any page reload (e.g. on language change) so the user is returned to the same view.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_views">4.5. Views</h3>
+<div class="paragraph">
+<p>All views follow the same convention: a <code>render(container, &#8230;&#8203;)</code> function that builds the NiceGUI elements inside the provided container element. <code>render</code> is always a plain (non-async) function so it can be called synchronously from <code>show_view()</code> in <code>main.py</code>.</p>
+</div>
+<div class="sect3">
+<h4 id="_catalogue_view">4.5.1. Catalogue View</h4>
+<div class="paragraph">
+<p><code>views/catalogue.py</code> provides full-text search across <code>merged_records()</code> with pure filter functions:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Function</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>filter_feature(record, query)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Matches query against ID, title, description, keywords, and theme concepts</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>filter_by_data_policy(record, policy)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Matches <code>'core'</code>, <code>'recommended'</code>, or <code>'all'</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>filter_by_keywords(record, keywords)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Comma-separated keywords; all must appear in the record</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>filter_by_bbox(record, bbox)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shapely geometry intersection with the given bounding box</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Result cards are rendered by <code>update_search_results()</code>, which is also responsible for pagination.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_tree_view">4.5.2. Tree View</h4>
+<div class="paragraph">
+<p><code>views/tree.py</code> converts <code>topic_hierarchy()</code> into <code>ui.tree</code> nodes via <code>_to_tree_nodes()</code> (recursive, alphabetically sorted). Selection uses <code>on_select</code> to enforce single-node selection — <code>on_tick</code> is not used because it conflicts with NiceGUI&#8217;s internal state synchronisation.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_shared_sidebar_viewsshared_py">4.5.3. Shared Sidebar (views/shared.py)</h4>
+<div class="paragraph">
+<p><code>on_topics_picked(e, state, layout, is_page_selection, dataset_id)</code> is the central handler for both catalogue and tree selection. It:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Updates <code>state.selected_topics</code></p>
+</li>
+<li>
+<p>Builds the right sidebar with save-directory input, dataset/media-type/bbox/date filters, and optional custom filters</p>
+</li>
+<li>
+<p>Wires the <strong>Subscribe</strong> button to <code>confirm_subscribe()</code></p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p><code>confirm_subscribe()</code> shows a dialog with the full JSON payload before calling <code>subscribe_to_topics()</code>.</p>
+</div>
+<div class="paragraph">
+<p><code>show_metadata(dataset_id)</code> looks up the record from <code>merged_records()</code> and renders a details dialog with an interactive Leaflet map.</p>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_adding_a_new_view">4.6. Adding a New View</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Create <code>modules/ui/views/myview.py</code> with a <code>render(container)</code> function, using <code>t()</code> for all user-visible strings</p>
+</li>
+<li>
+<p>Add a navigation entry in <code>components/navigation_drawer.py</code> — the <code>NAV_ITEMS</code> list takes a <code>(view_id, label_key, icon)</code> tuple where <code>label_key</code> is a <code>nav.*</code> i18n key</p>
+</li>
+<li>
+<p>Add a branch in the <code>show_view()</code> dispatcher in <code>main.py</code></p>
+</li>
+<li>
+<p>Add any new CSS classes to <code>assets/base.css</code> inside the <code>@layer components { &#8230;&#8203; }</code> block</p>
+</li>
+<li>
+<p>Add all new string keys to <code>i18n/en.py</code> and to each other language file — see <a href="#internationalisation">Internationalisation (i18n)</a></p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="internationalisation">4.7. Internationalisation (i18n)</h3>
+<div class="paragraph">
+<p>The UI supports multiple interface languages via a lightweight dictionary-based i18n system in <code>modules/ui/i18n/</code>.</p>
+</div>
+<div class="sect3">
+<h4 id="_supported_languages">4.7.1. Supported Languages</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 50%;">
+<col style="width: 25%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Code</th>
+<th class="tableblock halign-left valign-top">Language</th>
+<th class="tableblock halign-left valign-top">Direction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>en</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">English</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">LTR</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>fr</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Français</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">LTR</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>es</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Español</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">LTR</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ar</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">العربية</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">RTL</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>zh</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">中文</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">LTR</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ru</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Русский</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">LTR</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The active language is stored per browser session in <code>app.storage.user['lang']</code> and defaults to English.  Users change language via the selector in the header toolbar; the page reloads to apply the change.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_how_t_works">4.7.2. How <code>t()</code> Works</h4>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">from i18n import t
+
+# Simple lookup
+label = t('nav.dashboard')                      # → 'Dashboard'
+
+# With interpolation (uses str.format)
+label = t('subscriptions.folder', path='./')    # → 'Folder: ./'</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The lookup chain is:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Chosen language file</p>
+</li>
+<li>
+<p>English (<code>en.py</code>) — fallback if key is missing in the chosen language</p>
+</li>
+<li>
+<p>The key string itself — fallback if missing from English too (visible in development)</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+<code>t()</code> reads <code>app.storage.user['lang']</code> from the current NiceGUI request session.  Always call it at render time (inside a <code>@ui.page</code> handler or a NiceGUI event callback), never at module import time.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Strings that contain literal <code>{</code> or <code>}</code> characters (for example, JSON examples in hint text) must use single braces as-is.  Do <strong>not</strong> use <code>{{</code> / <code>}}</code> escaping — <code>t()</code> only calls <code>.format(**kwargs)</code> when keyword arguments are passed, so <code>{{</code> would be displayed literally.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_key_naming_conventions">4.7.3. Key Naming Conventions</h4>
+<div class="paragraph">
+<p>Keys use dot-separated namespaces:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 40%;">
+<col style="width: 40%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Prefix</th>
+<th class="tableblock halign-left valign-top">Scope</th>
+<th class="tableblock halign-left valign-top">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>nav.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Navigation drawer labels</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>nav.dashboard</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>btn.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Button labels</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>btn.subscribe</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sidebar.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Subscription sidebar</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sidebar.save_directory</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>catalogue.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Catalogue view</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>catalogue.search_label</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>tree.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Tree view</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>tree.filter_label</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>subscriptions.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Manage Subscriptions view</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>subscriptions.folder</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>settings.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Settings view</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>settings.title</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>manual.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Manual Subscribe view</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>manual.topic_label</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>manual.val.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Manual Subscribe validation messages</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>manual.val.topic_required</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>dialog.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Dialog titles</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>dialog.confirm_title</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>metadata.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Metadata dialog</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>metadata.title</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>validation.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shared validation messages</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>validation.date_format</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>footer.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Footer</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>footer.copyright</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>aria.*</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ARIA accessibility labels</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>aria.toggle_nav</code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_rtl_support">4.7.4. RTL Support</h4>
+<div class="paragraph">
+<p>Arabic (<code>ar</code>) is right-to-left.  When Arabic is selected, <code>is_rtl()</code> returns <code>True</code> and <code>main.py&#8217;s `on_connect()</code> handler injects <code>dir="rtl"</code> on the <code>&lt;html&gt;</code> element via JavaScript, activating Quasar&#8217;s RTL layout mode.  Custom CSS overrides in <code>assets/base.css</code> (under the <code>RTL overrides</code> comment block) correct Quasar&#8217;s physical padding on <code>.q-page-container</code> and reposition the subscription sidebar.</p>
+</div>
+<div class="paragraph">
+<p>To add another RTL language, add its code to <code>RTL_LANGUAGES</code> in <code><em>init</em>.py</code> — no other changes are needed.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_adding_a_new_language">4.7.5. Adding a New Language</h4>
+<div class="paragraph">
+<div class="title">Step 1 — Create the language file</div>
+<p>Copy <code>modules/ui/i18n/en.py</code> to <code>modules/ui/i18n/{code}.py</code> and translate all values.  Keep every key; do not remove any.  Preserve <code>{placeholder}</code> names exactly as they appear in the English source:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python"># modules/ui/i18n/de.py
+"""German strings."""
+
+STRINGS: dict[str, str] = {
+    'nav.dashboard':        'Dashboard',
+    'nav.catalogue':        'Katalogsuche',
+    'nav.tree':             'Baumsuche',
+    'nav.manual':           'Manuell abonnieren',
+    'nav.manage':           'Abonnements verwalten',
+    'nav.settings':         'Einstellungen',
+    # ... all remaining keys ...
+    'subscriptions.folder': 'Ordner: {path}',   # {path} must be preserved
+    'settings.records':     '{name}: {count} Einträge',
+}</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Step 2 — Register the language in <code><em>init</em>.py</code></div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">from . import ar, de, en, es, fr, ru, zh        <i class="conum" data-value="1"></i><b>(1)</b>
+
+LANGUAGES: dict[str, str] = {
+    'en': 'English',
+    'fr': 'Français',
+    'es': 'Español',
+    'ar': 'العربية',
+    'zh': '中文',
+    'ru': 'Русский',
+    'de': 'Deutsch',                             <i class="conum" data-value="2"></i><b>(2)</b>
+}
+
+_STRINGS: dict[str, dict[str, str]] = {
+    'en': en.STRINGS,
+    'fr': fr.STRINGS,
+    'es': es.STRINGS,
+    'ar': ar.STRINGS,
+    'zh': zh.STRINGS,
+    'ru': ru.STRINGS,
+    'de': de.STRINGS,                            <i class="conum" data-value="3"></i><b>(3)</b>
+}</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Add the import</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Add the display name (in the native script)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Add the strings mapping</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<div class="title">Step 3 — Mark as RTL if required</div>
+<p>If the language is right-to-left (e.g. Hebrew <code>he</code>, Persian <code>fa</code>):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">RTL_LANGUAGES: frozenset[str] = frozenset({'ar', 'he'})</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Step 4 — Restart the UI</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">docker-compose restart wis2downloader-ui</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The new language will appear immediately in the header language selector.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+The existing non-English translations are machine-generated and provided as a starting point only.  All strings should be reviewed by a native speaker before production deployment, with particular attention to WMO/meteorological domain terms (WIS2, BUFR, GRIB, Global Cache, etc.) which have established translations in WMO official documents.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_adding_new_translatable_strings">4.7.6. Adding New Translatable Strings</h4>
+<div class="paragraph">
+<p>When adding UI text to any view or component:</p>
+</div>
+<div class="listingblock">
+<div class="title">Step 1 — Add to <code>en.py</code> (source of truth)</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python"># modules/ui/i18n/en.py
+'myview.title':       'My New View',
+'myview.description': 'Showing results for {topic}.',</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<div class="title">Step 2 — Add to all other language files</div>
+<p>Copy the English value as a placeholder if a translation is not yet available.  <code>t()</code> falls back to English automatically, but having the key present avoids gaps in tooling:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python"># fr.py / es.py / ar.py / zh.py / ru.py
+'myview.title':       'My New View',         # TODO: translate
+'myview.description': 'Showing results for {topic}.',</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Step 3 — Use <code>t()</code> in the view</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">from i18n import t
+
+def render(container):
+    with container:
+        ui.label(t('myview.title')).classes('page-title')
+        ui.label(t('myview.description', topic=selected_topic))</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_inter_service_communication">5. Inter-Service Communication</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_redis_pubsub_commands">5.1. Redis PubSub (Commands)</h3>
+<div class="paragraph">
+<p>Subscription Manager → Subscriber communication uses Redis PubSub on channel <code>subscription_commands</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">// First subscription for a topic — opens MQTT connection
+{"action": "subscribe", "topic": "cache/a/wis2/+/data/#",
+ "subscriptions": {"&lt;uuid&gt;": {"id": "&lt;uuid&gt;", "save_path": "all-data", "filter": {}}}}
+
+// Additional subscription for an already-open topic
+{"action": "add_subscription", "topic": "cache/a/wis2/+/data/#",
+ "sub_id": "&lt;uuid&gt;", "save_path": "grib-data", "filter": {"rules": [...]}}
+
+// Remove one subscription (MQTT stays open)
+{"action": "remove_subscription", "topic": "cache/a/wis2/+/data/#", "sub_id": "&lt;uuid&gt;"}
+
+// Last subscription removed — closes MQTT connection
+{"action": "unsubscribe", "topic": "cache/a/wis2/+/data/#"}
+
+// Update save_path or filter for an existing subscription
+{"action": "update_subscription", "topic": "cache/a/wis2/+/data/#",
+ "sub_id": "&lt;uuid&gt;", "save_path": "new-path", "filter": {}}</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_celery_tasks_downloads">5.2. Celery Tasks (Downloads)</h3>
+<div class="paragraph">
+<p>Subscriber → Celery Worker communication uses Celery task queue:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">job = {
+    "topic": "cache/a/wis2/de-dwd/data/...",
+    "target": "dwd-data",
+    "filter": {"name": "...", "rules": [...]},   # subscription-level filter
+    "_broker": "globalbroker.meteo.fr",
+    "_received": "2026-01-28 10:15:30",
+    "_queued": "2026-01-28 10:15:30",
+    "payload": {
+        "id": "...",
+        "properties": {
+            "data_id": "...",
+            "metadata_id": "...",
+            "integrity": {"method": "sha512", "value": "..."}
+        },
+        "links": [
+            {"rel": "canonical", "href": "https://..."}
+        ]
+    }
+}</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_redis_keys">5.3. Redis Keys</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Key Pattern</th>
+<th class="tableblock halign-left valign-top">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>global:subscriptions</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Hash of all subscriptions (sub_id → JSON <code>{id, topic, save_path, filter}</code>)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>wis2:notification:status:{type}:{id}</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Deduplication tracking (types: <code>by-msg-id</code>, <code>by-data-id</code>, <code>by-hash</code>)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>wis2:notification:data:lock:{id}</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Distributed lock preventing concurrent duplicate downloads</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>gdc:cache:{name}</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cached GDC catalogue JSON (CMA, DWD, ECCC); TTL set by <code>GDC_CACHE_TTL_SECONDS</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>wis2:metrics:{metric_name}</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Prometheus metrics hash (field = JSON label dict, value = float counter/gauge)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>subscriber:health:{id}</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Subscriber health heartbeat</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>celery</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Celery task queue (default)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_extending_the_system">6. Extending the System</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_adding_a_new_match_condition_to_the_filter_engine">6.1. Adding a New Match Condition to the Filter Engine</h3>
+<div class="paragraph">
+<p>The filter engine lives in <code>modules/shared/shared/filters.py</code>. Each match condition is a key in the match object dispatched by <code>_evaluate_match()</code>.</p>
+</div>
+<div class="paragraph">
+<p>To add a new built-in condition (e.g. matching on a new metadata field <code>station_id</code>):</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Add the field to <code>MatchContext</code> in <code>filters.py</code>:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">@dataclass
+class MatchContext:
+    ...
+    station_id: str | None = None</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Populate it in <code>_build_context()</code> in <code>wis2.py</code> (pre- and/or post-download).</p>
+</li>
+<li>
+<p>Add a branch in <code>_evaluate_match()</code>:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">if 'station_id' in match:
+    return _match_string_field(ctx.station_id, match['station_id'])</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Document the new field in <code>openapi.yml</code> and in the filter reference in the user guide.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>No changes are needed in <code>app.py</code>, <code>command_listener.py</code>, or <code>subscriber.py</code> — the filter object is passed through unchanged and evaluated at download time.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_adding_a_new_task">6.2. Adding a New Task</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Create task in <code>modules/task_manager/task_manager/tasks/</code></p>
+</li>
+<li>
+<p>Register in <code>worker.py</code> autodiscover</p>
+</li>
+<li>
+<p>Add to workflow if needed</p>
+</li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python"># modules/task_manager/task_manager/tasks/custom.py
+from task_manager.worker import app
+
+@app.task
+def my_custom_task(data):
+    # Process data
+    return result</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_adding_a_new_metric">6.3. Adding a New Metric</h3>
+<div class="paragraph">
+<p>Metrics are stored in Redis via <code>shared.redis_metrics</code>. To add a new metric:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Register it in the <code>METRICS</code> dict in <code>modules/shared/shared/redis_metrics.py</code>:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python"># short name → (prometheus type, help text)
+METRICS: dict[str, tuple[str, str]] = {
+    ...
+    'my_counter_total': ('counter', 'Description of the counter.'),
+    'my_gauge':         ('gauge',   'Description of the gauge.'),
+}</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Increment it from any service (counter) or set it (gauge):</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">from shared import incr_counter, set_gauge
+
+# Counter (e.g. in a Celery task)
+incr_counter('my_counter_total', {'label1': 'value', 'label2': 'value'})
+
+# Gauge (e.g. in a scheduled task)
+set_gauge('my_gauge', {'label1': 'value'}, 42.0)</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Only metrics registered in <code>METRICS</code> appear in the <code>/metrics</code> output.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_testing">7. Testing</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_running_tests">7.1. Running Tests</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Install test dependencies
+pip install pytest pytest-cov
+
+# Run tests
+pytest modules/
+
+# With coverage
+pytest --cov=modules modules/</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_manual_testing">7.2. Manual Testing</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Start services
+docker-compose up -d
+
+# Create test subscription
+curl -X POST http://localhost:5002/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "cache/a/wis2/de-dwd/data/#", "target": "test"}'
+
+# Watch logs
+docker-compose logs -f subscriber celery
+
+# Check downloads
+ls -la downloads/test/</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_development_setup">8. Development Setup</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_local_development">8.1. Local Development</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install modules in editable mode
+pip install -e modules/shared
+pip install -e modules/task_manager
+pip install -e modules/subscriber
+pip install -e modules/subscription_manager
+
+# Start Redis (single instance for dev)
+docker run -d -p 6379:6379 redis:7.2-alpine redis-server --requirepass devpassword
+
+# Set environment
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+export REDIS_PASSWORD=devpassword
+export FLASK_SECRET_KEY=dev-secret-key
+export LOG_LEVEL=DEBUG
+
+# Run subscription manager
+python -m subscription_manager.app
+
+# Run subscriber (in another terminal)
+export GLOBAL_BROKER_HOST=globalbroker.meteo.fr
+python -m subscriber.manager
+
+# Run celery worker (in another terminal)
+celery -A task_manager.worker worker --loglevel=DEBUG</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_docker_build">8.2. Docker Build</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Build all images
+docker-compose build
+
+# Build specific service
+docker-compose build celery
+
+# Rebuild without cache
+docker-compose build --no-cache</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_debugging">9. Debugging</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_view_celery_tasks">9.1. View Celery Tasks</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Inspect active tasks
+docker exec -it wis2downloader-celery-1 \
+  celery -A task_manager.worker inspect active
+
+# Inspect reserved tasks
+docker exec -it wis2downloader-celery-1 \
+  celery -A task_manager.worker inspect reserved</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_redis_inspection">9.2. Redis Inspection</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Connect to Redis (use password from environment)
+docker exec -it redis redis-cli -a $REDIS_PASSWORD
+
+# List subscriptions
+HGETALL global:subscriptions
+
+# Check queue length
+LLEN celery
+
+# View deduplication keys
+KEYS wis2:notifications:*
+
+# View GDC catalogue cache (populated by the UI on startup)
+KEYS gdc:cache:*
+TTL gdc:cache:CMA</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+All Redis commands require authentication. The <code>-a $REDIS_PASSWORD</code> flag passes the password from your environment.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_mqtt_debugging">9.3. MQTT Debugging</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Subscribe to topic manually (mosquitto-clients)
+mosquitto_sub -h globalbroker.meteo.fr -p 443 \
+  -t 'cache/a/wis2/de-dwd/data/#' \
+  -u everyone -P everyone \
+  --capath /etc/ssl/certs</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="footer">
+<div id="footer-text">
+Last updated 2026-03-12 20:24:36 UTC
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/highlight.min.js"></script>
+<script>
+if (!hljs.initHighlighting.called) {
+  hljs.initHighlighting.called = true
+  ;[].slice.call(document.querySelectorAll('pre.highlight > code[data-lang]')).forEach(function (el) { hljs.highlightBlock(el) })
+}
+</script>
+</body>
+</html>
