@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 OUTPUT="${1:-site}"
-BASE_OPTS="-a toclevels=3 -a icons=font"
+BASE_OPTS="-a toclevels=3 -a icons=font -a stylesheet=../assets/wmo-asciidoc.css"
 
 for lang in en fr es ar zh ru; do
     src="docs/$lang"
