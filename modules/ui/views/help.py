@@ -5,14 +5,8 @@ from i18n import current_lang
 
 def render(container):
     lang = current_lang()
-    if lang not in ['ar']:
-        with container:
-            ui.element('iframe') \
-                .props(f'src="/docs/{lang}/index.html"') \
-                .classes('docs-frame')
-    else:
-        with container:
-            ui.element('iframe') \
-                .props(f'src="/docs/{lang}/index.html"') \
-                .classes('docs-frame') \
-                .style('width: 100%;')
+    with container:
+        ui.element('iframe') \
+            .props(f'src="/docs/{lang}/index.html"') \
+            .classes('docs-frame') \
+            .style('width: 100%;')

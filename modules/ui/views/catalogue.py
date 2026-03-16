@@ -138,7 +138,7 @@ async def update_search_results(page_selector, query, records: list[MergedRecord
                 with ui.row(wrap=False).classes("result-row"):
                     with ui.column().classes("result-details"):
                         ui.label(rec.description or 'N/A').classes("result-description")
-                        with ui.row().classes("result-actions"):
+                        with ui.column().classes("result-actions"):
                             ui.button(t('btn.show_metadata'), icon='info').on(
                                 'click',
                                 lambda ev, did=rec.id: show_metadata(did),
