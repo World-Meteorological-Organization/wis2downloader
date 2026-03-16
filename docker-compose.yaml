@@ -102,7 +102,7 @@ services:
       context: .
       dockerfile: ./containers/celery/Dockerfile
     volumes:
-      - "./downloads/:/data"
+      - "${DOWNLOAD_BASEPATH}:/data"
       - "./:/local"
     env_file: *default-env
     tty: true
@@ -126,7 +126,7 @@ services:
       context: .
       dockerfile: ./containers/celery/Dockerfile
     volumes:
-      - "./downloads/:/data"
+      - "${DOWNLOAD_BASEPATH}:/data"
       - "./:/local"
     env_file: *default-env
     tty: true
@@ -149,7 +149,7 @@ services:
       context: .
       dockerfile: ./containers/celery/Dockerfile
     volumes:
-      - "./downloads/:/data"
+      - "${DOWNLOAD_BASEPATH}:/data"
       - "./:/local"
     env_file: *default-env
     tty: true
@@ -176,7 +176,7 @@ services:
     ports:
       - "5002:5001"
     volumes:
-      - "./downloads/:/data"
+      - "${DOWNLOAD_BASEPATH}:/data"
       - "./:/local/app"
       - "./config/subscription_manager/:/app/config/"
     env_file: *default-env
