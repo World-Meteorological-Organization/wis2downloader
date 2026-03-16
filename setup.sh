@@ -12,4 +12,17 @@ sed -i "s/FLASK_SECRET_KEY=.*/FLASK_SECRET_KEY=\"$(openssl rand -hex 32)\"/" .en
 sed -i "s/REDIS_PASSWORD=.*/REDIS_PASSWORD=\"$(openssl rand -hex 16)\"/" .env
 
 echo ".env created with generated secrets."
+
+read -p "Enter download path (or press Enter to use default from .env): " DOWNLOAD_PATH
+if [ ! -z "$DOWNLOAD_PATH" ]; then
+    if grep -q '^DOWNLOAD_PATH=' .env; then
+        sed -i "s|^DOWNLOAD_PATH=.*$|DOWNLOAD_PATH=\"$DOWNLOAD_PATH\"|" .env
+    else
+        echo "DOWNLOAD_PATH=\"$DOWNLOAD_PATH\"" >> .env
+    fi
+    echo "DOWNLOAD_PATH set to $DOWNLOAD_PATH in .env."
+else
+    echo "Using default DOWNLOAD_PATH from .env."
+fi
+
 echo "Review .env and adjust any settings before running: docker compose up -d"
