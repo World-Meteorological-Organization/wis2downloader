@@ -90,11 +90,11 @@ def main_page(client: Client):
 
     async def on_connect():
         lang = current_lang()
-        direction = 'rtl' if is_rtl() else 'ltr'
-        await ui.run_javascript(
-            f"document.documentElement.lang = '{lang}';"
-            f"document.documentElement.dir = '{direction}';"
-        )
+        await ui.run_javascript(f"document.documentElement.lang = '{lang}';")
+        if is_rtl():
+            await ui.run_javascript("document.documentElement.setAttribute('dir', 'rtl');")
+        else:
+            await ui.run_javascript("document.documentElement.removeAttribute('dir');")
 
     client.on_connect(on_connect)
 
