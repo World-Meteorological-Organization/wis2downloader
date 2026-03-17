@@ -93,10 +93,8 @@ def main_page(client: Client):
         lang = current_lang()
         await ui.run_javascript(f"document.documentElement.lang = '{lang}';")
         if is_rtl():
-            await ui.run_javascript("document.documentElement.removeAttribute('dir');")
             await ui.run_javascript("document.documentElement.setAttribute('dir', 'rtl');")
         else:
-            await ui.run_javascript("document.documentElement.removeAttribute('dir');")
             await ui.run_javascript("document.documentElement.setAttribute('dir', 'ltr');")
 
     client.on_connect(on_connect)
