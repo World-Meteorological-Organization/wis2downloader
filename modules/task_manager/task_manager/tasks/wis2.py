@@ -21,7 +21,7 @@ from shared import get_redis_client, apply_filters, MatchContext, incr_counter
 
 LOGGER = get_task_logger(__name__)
 
-DATA_BASEPATH = os.getenv("DATA_BASEPATH","/data") # this needs checking
+CONTAINER_DATA_PATH = os.getenv("CONTAINER_DATA_PATH","/data") # this needs checking
 
 STATUS_SUCCESS = "SUCCESS"
 STATUS_FAILED = "FAILED"
@@ -378,7 +378,7 @@ def download_from_wis2(self, job):
 
         # prepare filepath
         today = dt.date.today()
-        target_directory = Path(DATA_BASEPATH) / job.get("target", "") / f"{today:%Y/%m/%d}"
+        target_directory = Path(CONTAINER_DATA_PATH) / job.get("target", "") / f"{today:%Y/%m/%d}"
         target_directory.mkdir(exist_ok=True, parents=True)
         filename = os.path.basename(urlsplit(download_url).path)
         output_path = target_directory / filename

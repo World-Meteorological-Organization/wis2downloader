@@ -62,7 +62,7 @@
 - Missing graceful shutdown signal handlers - Added SIGTERM/SIGINT handlers in `manager.py`
 - GLOBAL_BROKER_HOST not validated - Application exits with code 1 if not set
 - Unsafe nested dictionary access - Using `.get()` chains throughout `wis2.py`
-- DATA_BASEPATH/DATA inconsistency - Standardized on `DATA_BASEPATH`
+- CONTAINER_DATA_PATH/DATA inconsistency - Standardized on `CONTAINER_DATA_PATH`
 - CACHE_EXCLUDE_LIST parsing bug - Fixed with list comprehension
 - No Celery result expiration - Added `result_expires = 86400`
 - TOCTOU race condition in file write - Atomic temp file + rename pattern

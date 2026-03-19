@@ -8,4 +8,5 @@ def render(container):
     with container:
         ui.element('iframe') \
             .props(f'src="/docs/{lang}/index.html"') \
-            .classes('docs-frame')
+            .classes('docs-frame') \
+            .style('width: 100%;')

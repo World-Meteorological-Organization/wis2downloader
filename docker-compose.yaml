@@ -1,5 +1,5 @@
 x-env-file: &default-env
-   default.env
+   .env
 
 x-logging: &default-logging
   options:
@@ -85,7 +85,7 @@ services:
     env_file: *default-env
     command: ["redis-server", "--appendonly", "yes", "--protected-mode", "no", "--requirepass", "${REDIS_PASSWORD}"]
     volumes:
-      - redis-data:/data
+      - redis-data:${CONTAINER_DATA_PATH}
     networks:
       - redis-net
     logging: *loki-logging
@@ -102,8 +102,7 @@ services:
       context: .
       dockerfile: ./containers/celery/Dockerfile
     volumes:
-      - "./downloads/:/data"
-      - "./:/local"
+      - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
     env_file: *default-env
     tty: true
     depends_on:
@@ -126,8 +125,7 @@ services:
       context: .
       dockerfile: ./containers/celery/Dockerfile
     volumes:
-      - "./downloads/:/data"
-      - "./:/local"
+      - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
     env_file: *default-env
     tty: true
     depends_on:
@@ -149,8 +147,7 @@ services:
       context: .
       dockerfile: ./containers/celery/Dockerfile
     volumes:
-      - "./downloads/:/data"
-      - "./:/local"
+      - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
     env_file: *default-env
     tty: true
     depends_on:
@@ -175,10 +172,6 @@ services:
       dockerfile: ./containers/subscription_manager/Dockerfile
     ports:
       - "5002:5001"
-    volumes:
-      - "./downloads/:/data"
-      - "./:/local/app"
-      - "./config/subscription_manager/:/app/config/"
     env_file: *default-env
     environment:
       - FLASK_HOST=0.0.0.0

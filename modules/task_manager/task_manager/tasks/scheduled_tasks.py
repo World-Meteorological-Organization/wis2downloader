@@ -11,14 +11,14 @@ from shared import set_gauge, incr_counter
 
 LOGGER = get_task_logger(__name__)
 
-DATA_BASEPATH = os.getenv("DATA_BASEPATH","/data") # this needs checking
+CONTAINER_DATA_PATH = os.getenv("CONTAINER_DATA_PATH","/data") # this needs checking
 RETENTION_PERIOD_HOURS = int(os.environ.get('DOWNLOAD_RETENTION_PERIOD', 30)) * 24  # noqa
 
 
 @app.on_after_finalize.connect
 def setup_periodic_tasks(sender: Celery, **kwargs):
-    # Calls clean_directory(DATA_BASEPATH) every 10 minute.
-    sender.add_periodic_task(600.0, clean_directory.s(DATA_BASEPATH), name='clean downloads every 10 minutes')
+    # Calls clean_directory(CONTAINER_DATA_PATH) every 10 minute.
+    sender.add_periodic_task(600.0, clean_directory.s(CONTAINER_DATA_PATH), name='clean downloads every 10 minutes')
     # Check for disk space every 5 minutes creating a metric and log a warning if available space is below threshold
     sender.add_periodic_task(300.0, check_disk_space.s(), name='check disk space every 5 minutes')
     # Recalibrate downloads size gauge once per day
@@ -28,15 +28,15 @@ def setup_periodic_tasks(sender: Celery, **kwargs):
 def check_disk_space():
     """Check disk space and log a warning if available space is below threshold."""
     try:
-        total, used, free = shutil.disk_usage(DATA_BASEPATH)
+        total, used, free = shutil.disk_usage(CONTAINER_DATA_PATH)
         percent_free = free / total * 100
         set_gauge('disk_total_bytes', {}, total)
         set_gauge('disk_used_bytes', {}, used)
         set_gauge('disk_free_bytes', {}, free)
-        LOGGER.debug(f"Disk usage for {DATA_BASEPATH}: {percent_free:.2f}% free")
+        LOGGER.debug(f"Disk usage for {CONTAINER_DATA_PATH}: {percent_free:.2f}% free")
         # You can set a threshold for warning, e.g., 20%
         if percent_free < 20:
-            LOGGER.warning(f"Disk usage for {DATA_BASEPATH} is below 20%: {percent_free:.2f}% free")
+            LOGGER.warning(f"Disk usage for {CONTAINER_DATA_PATH} is below 20%: {percent_free:.2f}% free")
     except Exception as e:
         LOGGER.error(f"Error checking disk space: {e}", exc_info=True)
 
@@ -77,7 +77,7 @@ def recalibrate_downloads_size():
     try:
         actual_size = sum(
             os.path.getsize(os.path.join(dirpath, filename))
-            for dirpath, _, filenames in os.walk(DATA_BASEPATH)
+            for dirpath, _, filenames in os.walk(CONTAINER_DATA_PATH)
             for filename in filenames
         )
         set_gauge('disk_downloads_bytes', {}, actual_size)

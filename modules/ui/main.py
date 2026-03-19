@@ -83,18 +83,19 @@ def main_page(client: Client):
             elif name == 'help':
                 help.render(layout.content)
 
-    def on_language_change(lang: str):
+    async def on_language_change(lang: str):
         app.storage.user['lang'] = lang
         app.storage.user['current_view'] = state.current_view
+        await on_connect()  # update lang and dir attributes
         ui.navigate.reload()
 
     async def on_connect():
         lang = current_lang()
-        direction = 'rtl' if is_rtl() else 'ltr'
-        await ui.run_javascript(
-            f"document.documentElement.lang = '{lang}';"
-            f"document.documentElement.dir = '{direction}';"
-        )
+        await ui.run_javascript(f"document.documentElement.lang = '{lang}';")
+        if is_rtl():
+            await ui.run_javascript("document.documentElement.setAttribute('dir', 'rtl');")
+        else:
+            await ui.run_javascript("document.documentElement.setAttribute('dir', 'ltr');")
 
     client.on_connect(on_connect)
 

@@ -14,7 +14,7 @@ setup_logging()  # Configure root logger
 LOGGER = setup_logging(__name__)
 
 DATA_DIRECTORY = Path(
-    os.getenv("DATA_BASEPATH", "/data")).resolve()
+    os.getenv("CONTAINER_DATA_PATH", "/data")).resolve()
 
 try:
     FLASK_HOST = os.getenv("FLASK_HOST", "0.0.0.0")

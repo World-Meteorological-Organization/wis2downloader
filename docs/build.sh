@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 OUTPUT="${1:-site}"
-BASE_OPTS="-a toclevels=3 -a icons=font"
+BASE_OPTS="-a toclevels=3 -a icons=font -a stylesheet=../assets/wmo-asciidoc.css"
+
+# Copy assets folder to site output for container usage
+if [ -d "docs/assets" ]; then
+    cp -r docs/assets "$OUTPUT"
+    echo "Assets copied to $OUTPUT"
+else
+    echo "No assets folder found to copy."
+fi
 
 for lang in en fr es ar zh ru; do
     src="docs/$lang"
