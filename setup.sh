@@ -10,6 +10,8 @@ cp default.env .env
 
 sed -i "s/FLASK_SECRET_KEY=.*/FLASK_SECRET_KEY=\"$(openssl rand -hex 32)\"/" .env
 sed -i "s/REDIS_PASSWORD=.*/REDIS_PASSWORD=\"$(openssl rand -hex 16)\"/" .env
+sed -i "s/GF_SECURITY_ADMIN_PASSWORD=.*/GF_SECURITY_ADMIN_PASSWORD=\"$(openssl rand -hex 32)\"/" .env
+
 
 echo ".env created with generated secrets."
 
