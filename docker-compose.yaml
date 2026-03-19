@@ -1,5 +1,5 @@
 x-env-file: &default-env
-   default.env
+   .env
 
 x-logging: &default-logging
   options:
@@ -103,7 +103,6 @@ services:
       dockerfile: ./containers/celery/Dockerfile
     volumes:
       - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
-      - "./:/local"
     env_file: *default-env
     tty: true
     depends_on:
@@ -127,7 +126,6 @@ services:
       dockerfile: ./containers/celery/Dockerfile
     volumes:
       - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
-      - "./:/local"
     env_file: *default-env
     tty: true
     depends_on:
@@ -150,7 +148,6 @@ services:
       dockerfile: ./containers/celery/Dockerfile
     volumes:
       - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
-      - "./:/local"
     env_file: *default-env
     tty: true
     depends_on:
@@ -175,9 +172,6 @@ services:
       dockerfile: ./containers/subscription_manager/Dockerfile
     ports:
       - "5002:5001"
-    volumes:
-      - "./:/local/app"
-      - "./config/subscription_manager/:/app/config/"
     env_file: *default-env
     environment:
       - FLASK_HOST=0.0.0.0
