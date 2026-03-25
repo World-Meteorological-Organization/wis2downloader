@@ -113,7 +113,7 @@ services:
     logging: *loki-logging
     command: ["/bin/bash", "-c", "source .venv/bin/activate && task_manager_start worker --pool=threads --concurrency=32 --loglevel=${LOG_LEVEL:-info}"]
     healthcheck:
-      test: [ "CMD", "celery", "inspect", "ping" ]
+      test: [ "CMD", "/bin/bash", "-c", "source .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${CELERY_BACKEND_DB} celery inspect ping" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -136,7 +136,7 @@ services:
     logging: *loki-logging
     command: [ "/bin/bash", "-c", "source .venv/bin/activate && scheduler_start worker --concurrency=4 --loglevel=${LOG_LEVEL:-info}" ]
     healthcheck:
-      test: [ "CMD", "celery", "inspect", "ping" ]
+      test: [ "CMD", "/bin/bash", "-c", "source .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${CELERY_BACKEND_DB} celery inspect ping" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -158,7 +158,7 @@ services:
     logging: *loki-logging
     command: [ "/bin/bash", "-c", "source .venv/bin/activate && scheduler_start beat --loglevel=${LOG_LEVEL:-info}" ]
     healthcheck:
-      test: [ "CMD", "celery", "inspect", "ping" ]
+      test: [ "CMD", "/bin/bash", "-c", "source .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${CELERY_BACKEND_DB} celery inspect ping" ]
       interval: 30s
       timeout: 5s
       retries: 3
