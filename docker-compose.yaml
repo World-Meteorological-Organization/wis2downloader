@@ -218,7 +218,7 @@ services:
       - redis-net
     logging: *loki-logging
     healthcheck:
-      test: [ "CMD", "sh", "-c", "redis-cli -a $REDIS_PASSWORD EXISTS subscriber:health:globalbroker-meteo-fr | grep 1" ]
+      test: [ "CMD", "sh", "-c", "redis-cli -h redis -a $REDIS_PASSWORD EXISTS subscriber:health:globalbroker-meteo-fr | grep 1" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -242,7 +242,7 @@ services:
       - redis-net
     logging: *loki-logging
     healthcheck:
-      test: [ "CMD", "sh", "-c", "redis-cli -a $REDIS_PASSWORD EXISTS subscriber:health:globalbroker-inmet-gov-br | grep 1" ]
+      test: [ "CMD", "sh", "-c", "redis-cli -h redis -a $REDIS_PASSWORD EXISTS subscriber:health:globalbroker-inmet-gov-br | grep 1" ]
       interval: 30s
       timeout: 5s
       retries: 3
