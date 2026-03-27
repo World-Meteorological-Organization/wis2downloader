@@ -28,16 +28,20 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=redis-net"
       - "--entrypoints.web.address=:80"
-      - "--log.level=DEBUG"
-      - "--accesslog=true"
+      - "--log.level=${LOG_LEVEL:-INFO}"
+      - "--ping=true"
     ports:
       - "80:80"
-      - "8090:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - redis-net
     logging: *default-logging
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   loki:
     container_name: loki
@@ -83,6 +87,11 @@ services:
       - "traefik.http.middlewares.prometheus-strip.stripprefix.prefixes=/prometheus"
       - "traefik.http.routers.prometheus.middlewares=prometheus-strip"
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   grafana:
     container_name: grafana
@@ -113,6 +122,11 @@ services:
       - "traefik.http.routers.grafana.entrypoints=web"
       - "traefik.http.routers.grafana.priority=10"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # Databases / message queues
 
@@ -153,9 +167,9 @@ services:
     logging: *loki-logging
     command: ["/bin/bash", "-c", "source .venv/bin/activate && task_manager_start worker --pool=threads --concurrency=32 --loglevel=${LOG_LEVEL:-info}"]
     healthcheck:
-      test: [ "CMD", "celery", "inspect", "ping" ]
+      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${CELERY_BACKEND_DB} celery inspect ping"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
 
 
@@ -176,9 +190,9 @@ services:
     logging: *loki-logging
     command: [ "/bin/bash", "-c", "source .venv/bin/activate && scheduler_start worker --concurrency=4 --loglevel=${LOG_LEVEL:-info}" ]
     healthcheck:
-      test: [ "CMD", "celery", "inspect", "ping" ]
+      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${SCHEDULER_BACKEND_DB} celery inspect ping"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
 
   celery-beats:
@@ -198,7 +212,7 @@ services:
     logging: *loki-logging
     command: [ "/bin/bash", "-c", "source .venv/bin/activate && scheduler_start beat --loglevel=${LOG_LEVEL:-info}" ]
     healthcheck:
-      test: [ "CMD", "celery", "inspect", "ping" ]
+      test: ["CMD-SHELL", "pgrep -f scheduler_start || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -229,6 +243,12 @@ services:
       - "traefik.http.middlewares.api-strip.stripprefix.prefixes=/api"
       - "traefik.http.routers.wis2api.middlewares=api-strip"
       - "traefik.http.services.wis2api.loadbalancer.server.port=5001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
 
   wis2downloader-ui:
       build:
@@ -269,7 +289,7 @@ services:
       - redis-net
     logging: *loki-logging
     healthcheck:
-      test: [ "CMD", "sh", "-c", "redis-cli -a $REDIS_PASSWORD EXISTS subscriber:health:globalbroker-meteo-fr | grep 1" ]
+      test: ["CMD-SHELL", "pgrep -f subscriber_start || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -293,7 +313,7 @@ services:
       - redis-net
     logging: *loki-logging
     healthcheck:
-      test: [ "CMD", "sh", "-c", "redis-cli -a $REDIS_PASSWORD EXISTS subscriber:health:globalbroker-inmet-gov-br | grep 1" ]
+      test: ["CMD-SHELL", "pgrep -f subscriber_start || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
