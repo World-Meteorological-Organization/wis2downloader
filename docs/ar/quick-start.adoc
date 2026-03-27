@@ -47,7 +47,28 @@ bash setup.sh
 
 IMPORTANT: احتفظ بملف `.env` في مكان آمن. يحتوي على بيانات اعتماد حساسة ويجب عدم إدراجه في نظام إدارة الإصدارات.
 
-== 3. إعداد مجلد التنزيلات
+== 3. تثبيت مكوّن Loki الإضافي لـ Docker
+
+يستخدم WIS2 Downloader https://grafana.com/docs/loki/latest/send-data/docker-driver/[مشغّل Docker الخاص بـ Loki] لإرسال السجلات. ثبّته قبل تشغيل المكدّس:
+
+[source,bash]
+----
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --grant-all-permissions
+----
+
+تحقق من تفعيل المكوّن الإضافي:
+
+[source,bash]
+----
+docker plugin ls
+----
+
+يجب أن ترى `loki:latest` مع `ENABLED` بقيمة `true`.
+
+NOTE: إذا ظهرت رسالة خطأ أثناء التثبيت، تحقق من معمارية جهازك باستخدام `uname -m`. أكثر القيم شيوعًا هي `x86_64` (amd64) و`aarch64` (arm64).
+
+== 4. إعداد مجلد التنزيلات
 
 تعمل الحاويات بصلاحيات مستخدم غير جذري (UID 10001، GID 988). على نظام Linux، يجب إعداد مجلد التنزيلات قبل البدء:
 
@@ -63,7 +84,7 @@ NOTE: على نظامَي macOS وWindows (Docker Desktop)، هذه الخطوة
 
 إن تعذّر عليك إنشاء مستخدم مطابق، راجع قسم link:admin-guide.html#_volume_permissions[صلاحيات الأحجام] في دليل الإدارة للاطلاع على البدائل المستندة إلى ACL.
 
-== 4. تشغيل الخدمات
+== 5. تشغيل الخدمات
 
 [source,bash]
 ----
@@ -86,7 +107,7 @@ docker compose ps
 curl http://localhost:5002/health
 ----
 
-== 5. إنشاء اشتراك
+== 6. إنشاء اشتراك
 
 === عبر واجهة الويب (موصى به)
 
@@ -108,7 +129,7 @@ curl -X POST http://localhost:5002/subscriptions \
 
 يُنشئ هذا اشتراكًا بجميع رصد السطح من أي مركز بيانات ويحفظ الملفات في `downloads/surface-obs/`.
 
-== 6. عرض التنزيلات
+== 7. عرض التنزيلات
 
 تظهر الملفات في مجلد `downloads/` مرتّبةً حسب التاريخ:
 

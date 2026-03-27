@@ -212,7 +212,7 @@ services:
     logging: *loki-logging
     command: [ "/bin/bash", "-c", "source .venv/bin/activate && scheduler_start beat --loglevel=${LOG_LEVEL:-info}" ]
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f scheduler_start || exit 1"]
+      test: ["CMD", "pgrep", "-f", "scheduler_start"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -289,7 +289,7 @@ services:
       - redis-net
     logging: *loki-logging
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f subscriber_start || exit 1"]
+      test: ["CMD", "pgrep", "-f", "subscriber_start"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -313,7 +313,7 @@ services:
       - redis-net
     logging: *loki-logging
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f subscriber_start || exit 1"]
+      test: ["CMD", "pgrep", "-f", "subscriber_start"]
       interval: 30s
       timeout: 5s
       retries: 3
