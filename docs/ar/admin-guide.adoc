@@ -30,14 +30,24 @@
 ----
 git clone https://github.com/World-Meteorological-Organization/wis2downloader
 cd wis2downloader
-cp default.env .env
+bash setup.sh
 ----
 
-عدِّل `.env` لتهيئة نشرك، ثم ابدأ التشغيل:
+يُنشئ هذا السكريبت ملف `.env` بأسرار مُولَّدة عشوائيًا. راجع الإعدادات وعدّلها حسب الحاجة قبل البدء.
+
+ثبّت مكوّن Docker الإضافي لـ Loki (مطلوب لإرسال السجلات):
 
 [source,bash]
 ----
-docker-compose up -d
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --grant-all-permissions
+----
+
+ثم شغّل المكدّس:
+
+[source,bash]
+----
+docker compose up -d
 ----
 
 === تهيئة الأمان

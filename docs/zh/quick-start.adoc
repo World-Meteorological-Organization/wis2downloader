@@ -45,7 +45,28 @@ bash setup.sh
 
 IMPORTANT: 请妥善保管 `.env` 文件。该文件包含敏感凭据，不得提交到版本控制系统。
 
-== 3. 设置下载目录
+== 3. 安装 Loki Docker 插件
+
+WIS2 Downloader 使用 https://grafana.com/docs/loki/latest/send-data/docker-driver/[Loki Docker 驱动程序] 进行日志传输。请在启动服务前安装该插件：
+
+[source,bash]
+----
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --grant-all-permissions
+----
+
+验证插件已启用：
+
+[source,bash]
+----
+docker plugin ls
+----
+
+应看到 `loki:latest` 的 `ENABLED` 列显示为 `true`。
+
+NOTE: 如果安装时出现错误，请通过 `uname -m` 确认您的系统架构。最常见的值为 `x86_64`（amd64）和 `aarch64`（arm64）。
+
+== 4. 设置下载目录
 
 容器以非 root 用户身份运行（UID 10001，GID 988）。在 Linux 上，启动前必须配置下载目录权限：
 
@@ -61,7 +82,7 @@ NOTE: 在 macOS 和 Windows（Docker Desktop）上无需此步骤——Docker De
 
 如果无法创建匹配的用户，请参阅管理指南中的 link:admin-guide.html#_volume_permissions[卷权限] 章节，了解基于 ACL 的替代方案。
 
-== 4. 启动服务
+== 5. 启动服务
 
 [source,bash]
 ----
@@ -84,7 +105,7 @@ docker compose ps
 curl http://localhost:5002/health
 ----
 
-== 5. 创建订阅
+== 6. 创建订阅
 
 === 通过 Web 界面（推荐）
 
@@ -106,7 +127,7 @@ curl -X POST http://localhost:5002/subscriptions \
 
 此操作将订阅来自任意数据中心的所有地面观测数据，并将文件保存到 `downloads/surface-obs/`。
 
-== 6. 查看下载内容
+== 7. 查看下载内容
 
 文件按日期组织，存放在 `downloads/` 目录下：
 

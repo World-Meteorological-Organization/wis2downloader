@@ -68,6 +68,10 @@ Then configure and start:
 # Generate .env with randomised secrets
 bash setup.sh
 
+# Install Loki Docker logging plugin (required for log shipping)
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --grant-all-permissions
+
 # Set up downloads directory permissions (containers run as UID 10001)
 # Note - this is only required when run on a Linux workstation/server.
 sudo groupadd -g 988 wis2

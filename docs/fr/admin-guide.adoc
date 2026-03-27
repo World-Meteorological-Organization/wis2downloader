@@ -28,14 +28,24 @@ toute utilisation en production. Consultez le lien:../en/[document original en a
 ----
 git clone https://github.com/World-Meteorological-Organization/wis2downloader
 cd wis2downloader
-cp default.env .env
+bash setup.sh
 ----
 
-Modifiez `.env` pour configurer votre déploiement, puis démarrez :
+Ce script génère un fichier `.env` avec des secrets aléatoires. Vérifiez et ajustez les paramètres si nécessaire avant de démarrer.
+
+Installez le plugin Docker Loki (requis pour l'envoi des journaux) :
 
 [source,bash]
 ----
-docker-compose up -d
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --grant-all-permissions
+----
+
+Puis démarrez la pile :
+
+[source,bash]
+----
+docker compose up -d
 ----
 
 === Configuration de sécurité

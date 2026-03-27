@@ -28,14 +28,24 @@
 ----
 git clone https://github.com/World-Meteorological-Organization/wis2downloader
 cd wis2downloader
-cp default.env .env
+bash setup.sh
 ----
 
-Отредактируйте `.env` для настройки развёртывания, затем запустите:
+Скрипт создаёт файл `.env` со случайно сгенерированными секретами. Проверьте и при необходимости скорректируйте настройки перед запуском.
+
+Установите плагин Docker для Loki (требуется для отправки журналов):
 
 [source,bash]
 ----
-docker-compose up -d
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --grant-all-permissions
+----
+
+Затем запустите стек:
+
+[source,bash]
+----
+docker compose up -d
 ----
 
 === Настройка безопасности

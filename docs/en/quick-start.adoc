@@ -38,7 +38,28 @@ This copies `default.env` to `.env` and generates random values for `FLASK_SECRE
 
 IMPORTANT: Keep `.env` secure. It contains credentials and should not be committed to version control.
 
-== 3. Set Up Download Directory
+== 3. Install Loki Docker Plugin
+
+WIS2 Downloader uses the https://grafana.com/docs/loki/latest/send-data/docker-driver/[Loki Docker driver] for log shipping. Install it before starting the stack:
+
+[source,bash]
+----
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --grant-all-permissions
+----
+
+Verify the plugin is enabled:
+
+[source,bash]
+----
+docker plugin ls
+----
+
+You should see `loki:latest` with `ENABLED` set to `true`.
+
+NOTE: If you see an error on install, check your architecture with `uname -m`. The most common values are `x86_64` (amd64) and `aarch64` (arm64).
+
+== 4. Set Up Download Directory
 
 The containers run as a non-root user (UID 10001, GID 988). On Linux you must set up the downloads directory before starting:
 
@@ -54,7 +75,7 @@ NOTE: On macOS and Windows (Docker Desktop) this step is not required — Docker
 
 If you cannot create a matching user, see the link:admin-guide.html#_volume_permissions[Volume Permissions] section of the Admin Guide for ACL-based alternatives.
 
-== 4. Start Services
+== 5. Start Services
 
 [source,bash]
 ----
@@ -77,7 +98,7 @@ Wait for the `subscription-manager` health check to pass (about 30 seconds), the
 curl http://localhost:5002/health
 ----
 
-== 5. Create a Subscription
+== 6. Create a Subscription
 
 === Via the Web Interface (recommended)
 
@@ -99,7 +120,7 @@ curl -X POST http://localhost:5002/subscriptions \
 
 This subscribes to all surface-based observations from any data centre and saves them under `downloads/surface-obs/`.
 
-== 6. View Downloads
+== 7. View Downloads
 
 Files appear under the `downloads/` directory, organised by date:
 
