@@ -354,12 +354,12 @@ docker-compose logs -f subscriber
 |===
 |Переменная |Тип |По умолчанию |Описание
 
-|`WIS2_SUBSCRIPTION_MANAGER_URL`
+|`WIS2DOWNLOADER_SUBSCRIPTION_MANAGER_URL`
 |string
 |`http://subscription-manager:5001`
 |Внутренний URL, используемый интерфейсом для обращения к API менеджера подписок
 
-|`WIS2_GRAFANA_URL`
+|`WIS2DOWNLOADER_GRAFANA_URL`
 |string
 |`http://localhost:3000`
 |URL для встраивания панелей Grafana в вид Панели управления

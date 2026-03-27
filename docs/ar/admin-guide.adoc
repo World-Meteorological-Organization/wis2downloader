@@ -356,12 +356,12 @@ docker-compose logs -f subscriber
 |===
 |المتغير |النوع |القيمة الافتراضية |الوصف
 
-|`WIS2_SUBSCRIPTION_MANAGER_URL`
+|`WIS2DOWNLOADER_SUBSCRIPTION_MANAGER_URL`
 |string
 |`http://subscription-manager:5001`
 |عنوان URL الداخلي الذي تستخدمه الواجهة للوصول إلى API مدير الاشتراكات
 
-|`WIS2_GRAFANA_URL`
+|`WIS2DOWNLOADER_GRAFANA_URL`
 |string
 |`http://localhost:3000`
 |عنوان URL المستخدم لتضمين لوحات Grafana في عرض لوحة التحكم

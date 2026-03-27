@@ -236,8 +236,8 @@ services:
         dockerfile: ./containers/ui/Dockerfile
       env_file: *default-env
       environment:
-        - WIS2_SUBSCRIPTION_MANAGER_URL=http://subscription-manager:5001
-        - WIS2_GRAFANA_URL=${WIS2_BASE_URL}/grafana
+        - WIS2DOWNLOADER_SUBSCRIPTION_MANAGER_URL=http://subscription-manager:5001
+        - WIS2DOWNLOADER_GRAFANA_URL=${WIS2DOWNLOADER_BASE_URL}/grafana
       depends_on:
         - traefik
         - subscription-manager

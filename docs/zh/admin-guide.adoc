@@ -354,12 +354,12 @@ docker-compose logs -f subscriber
 |===
 |变量 |类型 |默认值 |说明
 
-|`WIS2_SUBSCRIPTION_MANAGER_URL`
+|`WIS2DOWNLOADER_SUBSCRIPTION_MANAGER_URL`
 |string
 |`http://subscription-manager:5001`
 |UI 用于访问订阅管理器 API 的内部 URL
 
-|`WIS2_GRAFANA_URL`
+|`WIS2DOWNLOADER_GRAFANA_URL`
 |string
 |`http://localhost:3000`
 |用于在仪表板视图中嵌入 Grafana 面板的 URL

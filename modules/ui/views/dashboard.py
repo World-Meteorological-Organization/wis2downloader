@@ -1,8 +1,8 @@
 import os
 from nicegui import ui
 
-_base = os.getenv("WIS2_BASE_URL", "http://localhost")
-GRAFANA_URL = os.getenv("WIS2_GRAFANA_URL", f"{_base}/grafana")
+_base = os.getenv("WIS2DOWNLOADER_BASE_URL", "http://localhost")
+GRAFANA_URL = os.getenv("WIS2DOWNLOADER_GRAFANA_URL", f"{_base}/grafana")
 
 
 def render(container):
