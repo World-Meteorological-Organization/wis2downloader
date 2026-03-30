@@ -45,7 +45,28 @@ Ce script copie `default.env` vers `.env` et génère des valeurs aléatoires po
 
 IMPORTANT: Protégez le fichier `.env`. Il contient des identifiants sensibles et ne doit pas être versionnalisé.
 
-== 3. Configuration du répertoire de téléchargement
+== 3. Installer le plugin Docker Loki
+
+WIS2 Downloader utilise le https://grafana.com/docs/loki/latest/send-data/docker-driver/[pilote Docker Loki] pour l'envoi des journaux. Installez-le avant de démarrer la pile :
+
+[source,bash]
+----
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --grant-all-permissions
+----
+
+Vérifiez que le plugin est activé :
+
+[source,bash]
+----
+docker plugin ls
+----
+
+Vous devriez voir `loki:latest` avec `ENABLED` à `true`.
+
+NOTE: En cas d'erreur lors de l'installation, vérifiez votre architecture avec `uname -m`. Les valeurs les plus courantes sont `x86_64` (amd64) et `aarch64` (arm64).
+
+== 4. Configuration du répertoire de téléchargement
 
 Les conteneurs s'exécutent en tant qu'utilisateur non-root (UID 10001, GID 988). Sur Linux, vous devez configurer le répertoire de téléchargement avant de démarrer :
 
@@ -61,7 +82,7 @@ NOTE: Sur macOS et Windows (Docker Desktop), cette étape n'est pas nécessaire 
 
 Si vous ne pouvez pas créer un utilisateur correspondant, consultez la section link:admin-guide.html#_volume_permissions[Permissions des volumes] du Guide d'administration pour les alternatives basées sur les ACL.
 
-== 4. Démarrage des services
+== 5. Démarrage des services
 
 [source,bash]
 ----
@@ -84,7 +105,7 @@ Attendez que le contrôle de santé de `subscription-manager` soit validé (envi
 curl http://localhost:5002/health
 ----
 
-== 5. Créer un abonnement
+== 6. Créer un abonnement
 
 === Via l'interface web (recommandé)
 
@@ -106,7 +127,7 @@ curl -X POST http://localhost:5002/subscriptions \
 
 Cet abonnement couvre toutes les observations de surface de n'importe quel centre de données et enregistre les fichiers dans `downloads/surface-obs/`.
 
-== 6. Consulter les téléchargements
+== 7. Consulter les téléchargements
 
 Les fichiers apparaissent dans le répertoire `downloads/`, organisés par date :
 

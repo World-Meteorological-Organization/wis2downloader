@@ -502,7 +502,7 @@ When no filter is specified, these types are accepted:
 
 * `origin` - Original data from the data provider
 * `cache` - Cached copy from a Global Cache (recommended for reliability)
-* `{centre-id}` - Country/organization code, prepended with ISO2C country code (e.g., `de-dwd`)
+* `{centre-id}` - Centre identifier — first field is the ISO2C country code, second field is a descriptive name for the centre (e.g., `de-dwd`)
 * `{data-policy}` - WMO Unified Data Policy: `core` or `recommended`
 * `{earth-system-domain}` - Earth system domain from the WMO Unified Data Policy
 

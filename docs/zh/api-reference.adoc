@@ -509,7 +509,7 @@ GET /swagger
 
 * `origin` - 来自数据提供者的原始数据
 * `cache` - 来自全球缓存的缓存副本（推荐用于可靠性）
-* `{centre-id}` - 国家/组织代码，前缀为 ISO2C 国家代码（如 `de-dwd`）
+* `{centre-id}` - 中心标识符，第一字段为 ISO2C 国家代码，第二字段为该中心的描述性名称（如 `de-dwd`）
 * `{data-policy}` - WMO 统一数据政策：`core` 或 `recommended`
 * `{earth-system-domain}` - WMO 统一数据政策中的地球系统领域
 

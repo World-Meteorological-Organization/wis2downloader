@@ -8,7 +8,7 @@ SHELL ["/bin/bash", "-c"]
 
 # Install only runtime dependencies
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends python3.12 python3.12-venv python3-pip ca-certificates && \
+    apt-get install -y --no-install-recommends python3.12 python3.12-venv python3-pip ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Create a non root user

@@ -38,7 +38,28 @@ Este script copia `default.env` a `.env` y genera valores aleatorios para `FLASK
 
 IMPORTANT: Mantenga el archivo `.env` seguro. Contiene credenciales sensibles y no debe incluirse en el control de versiones.
 
-== 3. Configurar el directorio de descargas
+== 3. Instalar el plugin Docker de Loki
+
+WIS2 Downloader utiliza el https://grafana.com/docs/loki/latest/send-data/docker-driver/[controlador Docker de Loki] para el envío de registros. Instálelo antes de iniciar la pila:
+
+[source,bash]
+----
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --grant-all-permissions
+----
+
+Verifique que el plugin está habilitado:
+
+[source,bash]
+----
+docker plugin ls
+----
+
+Debería ver `loki:latest` con `ENABLED` en `true`.
+
+NOTE: Si obtiene un error durante la instalación, compruebe su arquitectura con `uname -m`. Los valores más comunes son `x86_64` (amd64) y `aarch64` (arm64).
+
+== 4. Configurar el directorio de descargas
 
 Los contenedores se ejecutan como un usuario no-root (UID 10001, GID 988). En Linux debe configurar el directorio de descargas antes de iniciar:
 
@@ -54,7 +75,7 @@ NOTE: En macOS y Windows (Docker Desktop) este paso no es necesario — Docker D
 
 Si no puede crear un usuario equivalente, consulte la sección link:admin-guide.html#_volume_permissions[Permisos de volumen] de la Guía de administración para alternativas basadas en ACL.
 
-== 4. Iniciar los servicios
+== 5. Iniciar los servicios
 
 [source,bash]
 ----
@@ -77,7 +98,7 @@ Espere a que pase la comprobación de estado de `subscription-manager` (aproxima
 curl http://localhost:5002/health
 ----
 
-== 5. Crear una suscripción
+== 6. Crear una suscripción
 
 === A través de la interfaz web (recomendado)
 
@@ -99,7 +120,7 @@ curl -X POST http://localhost:5002/subscriptions \
 
 Esto suscribe a todas las observaciones de superficie de cualquier centro de datos y guarda los archivos en `downloads/surface-obs/`.
 
-== 6. Ver las descargas
+== 7. Ver las descargas
 
 Los archivos aparecen en el directorio `downloads/`, organizados por fecha:
 
