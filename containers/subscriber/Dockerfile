@@ -12,8 +12,10 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 
 # Create a non root user
-RUN groupadd -g 988 wis2 && \
-    useradd -u 10001 -g wis2 -m -s /bin/bash wis2
+ARG GID=988
+ARG UID=10001
+RUN groupadd -g ${GID} wis2 && \
+    useradd -u ${UID} -g wis2 -m -s /bin/bash wis2
 
 USER wis2
 WORKDIR /home/wis2
