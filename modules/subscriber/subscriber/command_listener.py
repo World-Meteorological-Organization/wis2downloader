@@ -1,9 +1,13 @@
 import threading
 import json
 import time
+from typing import TYPE_CHECKING
 
 import redis
 from shared import get_redis_client, setup_logging
+
+if TYPE_CHECKING:
+    from .subscriber import Subscriber
 
 LOGGER = setup_logging(__name__)
 

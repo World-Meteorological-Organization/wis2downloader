@@ -38,8 +38,8 @@ jobs:
 
       - name: Unit test
         run: |
-          pytest modules/ --tb=short -q
-          exit_code=$?
+          exit_code=0
+          pytest modules/ --tb=short -q || exit_code=$?
           [ $exit_code -eq 5 ] && echo "No unit tests collected yet" && exit 0 || exit $exit_code
 
   integration-test:
@@ -49,6 +49,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fix Docker socket permissions
+        run: sudo chmod 666 /var/run/docker.sock
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -74,13 +77,13 @@ jobs:
 
       - name: Build images
         run: |
-          docker compose build redis subscription-manager subscriber-france celery-download-workers
+          docker compose --env-file .env build redis subscription-manager subscriber-france celery-download-workers
         env:
           DOCKER_BUILDKIT: 1
 
       - name: Start services
         run: |
-          docker compose -f docker-compose.yaml -f docker-compose.test.yml \
+          docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml \
             up -d redis mosquitto subscription-manager subscriber-france celery-download-workers
 
       - name: Wait for subscription-manager to be healthy
@@ -91,14 +94,14 @@ jobs:
       - name: Wait for Mosquitto to be healthy
         run: |
           timeout 60 bash -c \
-            'until docker compose -f docker-compose.yaml -f docker-compose.test.yml ps mosquitto | grep -q "healthy"; do echo "Waiting for Mosquitto..."; sleep 3; done'
+            'until docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml ps mosquitto | grep -q "healthy"; do echo "Waiting for Mosquitto..."; sleep 3; done'
 
       - name: Wait for subscriber and celery worker to be healthy
         run: |
           timeout 120 bash -c \
-            'until docker compose -f docker-compose.yaml -f docker-compose.test.yml ps subscriber-france | grep -q "healthy"; do echo "Waiting for subscriber..."; sleep 3; done'
+            'until docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml ps subscriber-france | grep -q "healthy"; do echo "Waiting for subscriber..."; sleep 3; done'
           timeout 120 bash -c \
-            'until docker compose -f docker-compose.yaml -f docker-compose.test.yml ps celery-download-workers | grep -q "healthy"; do echo "Waiting for celery..."; sleep 3; done'
+            'until docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml ps celery-download-workers | grep -q "healthy"; do echo "Waiting for celery..."; sleep 3; done'
 
       - uses: actions/setup-python@v5
         with:
@@ -112,19 +115,19 @@ jobs:
 
       - name: Run download flow tests
         env:
-          TEST_FILE_URL: ${{ vars.TEST_FILE_URL }}
+          TEST_FILE_URL: https://wmostorage.blob.core.windows.net/wmo-public/wmo-information-system/pywis-pubsub-test/WIGOS_0-454-2-AWSCHIKANGAWA_20221109T135500.bufr4
           REDIS_PASSWORD: ci_test_password
         run: pytest tests/integration/test_download.py -v --tb=short
 
       - name: Show service logs on failure
         if: failure()
         run: |
-          docker compose -f docker-compose.yaml -f docker-compose.test.yml logs
+          docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml logs
 
       - name: Teardown
         if: always()
         run: |
-          docker compose -f docker-compose.yaml -f docker-compose.test.yml down -v
+          docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml down -v
 
   docker-build:
     name: Build Docker images

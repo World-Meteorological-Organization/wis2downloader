@@ -4,13 +4,11 @@ from celery.utils.log import get_task_logger
 import datetime as dt
 from functools import wraps
 import importlib
-import json
 import magic
 import mimetypes
 import os
 from pathlib import Path
 import tempfile
-import time
 import urllib3
 from urllib.parse import urlsplit
 
@@ -21,7 +19,7 @@ from shared import get_redis_client, apply_filters, MatchContext, incr_counter
 
 LOGGER = get_task_logger(__name__)
 
-CONTAINER_DATA_PATH = os.getenv("CONTAINER_DATA_PATH","/data") # this needs checking
+CONTAINER_DATA_PATH = os.getenv("CONTAINER_DATA_PATH", "/data")  # this needs checking
 
 STATUS_SUCCESS = "SUCCESS"
 STATUS_FAILED = "FAILED"
@@ -78,6 +76,7 @@ DEFAULT_FILTER = {
     ]
 }
 
+
 def set_status(key, type, status):
     if key in (None, ''):
         LOGGER.warning("No key provided")
@@ -120,6 +119,7 @@ def get_status(key, type):
 
     return status
 
+
 def guess_file_type(data):
     mime = magic.from_buffer(data, mime=True)
     if mime == 'application/octet-stream':  # we need to manually guess for BUFR, GRIB, etc
@@ -131,6 +131,7 @@ def guess_file_type(data):
                 mime = 'application/grib'
     ext = mimetypes.guess_extension(mime)
     return mime, ext
+
 
 def _stream_response_to_file(
     response,
@@ -293,7 +294,7 @@ def download_from_wis2(self, job):
     }
 
     # get output directory
-    target_directory = job.get("target","")
+    target_directory = job.get("target", "")
 
     # now get topic
     topic = job.get("topic")
@@ -314,16 +315,16 @@ def download_from_wis2(self, job):
     result['media_type'] = media_type
 
     # get identifiers (incl. file hash if present)
-    message_id = job.get('payload',{}).get('id')
+    message_id = job.get('payload', {}).get('id')
     result['id'] = message_id
 
-    data_id = job.get('payload',{}).get('properties',{}).get('data_id')
+    data_id = job.get('payload', {}).get('properties', {}).get('data_id')
     result['data_id'] = data_id
 
-    filehash = job.get('payload',{}).get('properties',{}).get('integrity',{}).get('value')  # noqa
+    filehash = job.get('payload', {}).get('properties', {}).get('integrity', {}).get('value')  # noqa
     result['filehash'] = filehash
 
-    metadata_id = job.get('payload',{}).get('properties',{}).get("metadata_id")
+    metadata_id = job.get('payload', {}).get('properties', {}).get("metadata_id")
     result['metadata_id'] = metadata_id
 
     geometry = job.get('payload', {}).get('geometry')  # GeoJSON geometry dict or None
@@ -343,7 +344,6 @@ def download_from_wis2(self, job):
                 result['error_class'] = "PreviouslyProcessed"
                 return result
 
-
     # !! ToDo - the logic here needs checking !!
     # acquire lock on ID to make sure we only process once.
     lock_key_identifier = filehash or data_id or message_id
@@ -361,12 +361,11 @@ def download_from_wis2(self, job):
             result['error_class'] = "LockAcquisitionError"
             return result
 
-
     # At this point, we have not seen the ID before, and we have lock on ID.
     # Now attempt download
     try:
         # Now parse download URL from payload link
-        download_url, expected_length, overwrite = _select_download_link(job.get('payload',{}).get('links',{}))
+        download_url, expected_length, overwrite = _select_download_link(job.get('payload', {}).get('links', {}))
         result['download_url'] = download_url
 
         # check we have a download URL
@@ -391,7 +390,7 @@ def download_from_wis2(self, job):
 
         # store output path in result
         result['filepath'] = str(output_path)
-        
+
         # extract cache
         result['global_cache'] = urlsplit(download_url).hostname
 

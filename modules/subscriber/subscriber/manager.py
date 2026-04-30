@@ -164,6 +164,7 @@ def run_manager():
     mqtt_thread = threading.Thread(target=mqtt_subscriber.start, daemon=True)
 
     shutdown_event = threading.Event()
+
     def handle_shutdown(signum, frame):
         LOGGER.info("Received shutdown signal, shutting down")
         shutdown_event.set()

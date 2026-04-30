@@ -15,6 +15,7 @@ _GDC_CHIP_COLOURS = {'CMA': 'blue', 'DWD': 'teal', 'ECCC': 'orange'}
 setup_logging()
 LOGGER = setup_logging(__name__)
 
+
 class _Event:
     """Minimal event stub so on_topics_picked can be called from search results."""
     def __init__(self, value):
@@ -58,7 +59,7 @@ def filter_by_keywords(record: WCMP2Record, keywords: str) -> bool:
     return all(kw in record_keywords for kw in keyword_list)
 
 
-def filter_by_bbox(record: WCMP2Record, bbox, spatial_rel = 'intersects') -> bool :
+def filter_by_bbox(record: WCMP2Record, bbox, spatial_rel='intersects') -> bool:
     if not all(v is not None for v in bbox):
         return True
 
@@ -90,6 +91,7 @@ def filter_by_bbox(record: WCMP2Record, bbox, spatial_rel = 'intersects') -> boo
 # ---------------------------------------------------------------------------
 # Search result functions
 # ---------------------------------------------------------------------------
+
 
 async def select_in_search_results(e, page_selector, query, records,
                                    state, layout, sender=None, dataset_id=None):
@@ -149,7 +151,7 @@ async def update_search_results(page_selector, query, records: list[MergedRecord
                                     i += 1
                                     ev_ref = event_list[i - 1]
                                     btn_text = t('btn.unselect') if lnk.channel in state.selected_topics else t('btn.select')
-                                    selector = ui.button(btn_text, icon='add').on(
+                                    ui.button(btn_text, icon='add').on(
                                         'click',
                                         lambda ev, er=ev_ref, did=rec.id: select_in_search_results(
                                             er, page_selector, query, records,
@@ -237,8 +239,8 @@ def render(container, state, layout):
                         # Bounding box filter
                         ui.label(t('catalogue.bbox_label')).classes("bbox-label")
                         search_bbox_north = ui.number(label=t('sidebar.north'), max=90,  min=-90).classes("bbox-input")
-                        search_bbox_west  = ui.number(label=t('sidebar.west'),  max=180, min=-180).classes("bbox-input")
-                        search_bbox_east  = ui.number(label=t('sidebar.east'),  max=180, min=-180).classes("bbox-input")
+                        search_bbox_west = ui.number(label=t('sidebar.west'), max=180, min=-180).classes("bbox-input")
+                        search_bbox_east = ui.number(label=t('sidebar.east'), max=180, min=-180).classes("bbox-input")
                         search_bbox_south = ui.number(label=t('sidebar.south'), max=90,  min=-90).classes("bbox-input")
                     with ui.row().classes("filter-row"):
                         ui.label(t('catalogue.bbox_spatial_rel')).classes("bbox-label")

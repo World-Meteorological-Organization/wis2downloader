@@ -4,14 +4,13 @@ import re
 import httpx
 from nicegui import ui
 
-_DATE_RE = re.compile(r'^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$')
-_TIME_RE = re.compile(r'^([01]\d|2[0-3]):[0-5]\d$')
-
 from config import SUBSCRIPTION_MANAGER
 from data import get_datasets_for_channel, merged_records
 from i18n import t
-
 from shared import setup_logging
+
+_DATE_RE = re.compile(r'^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$')
+_TIME_RE = re.compile(r'^([01]\d|2[0-3]):[0-5]\d$')
 
 setup_logging()
 LOGGER = setup_logging(__name__)
@@ -68,7 +67,7 @@ def _collect_filters(dataset_select, media_type_select,
             ui.notify(t('validation.date_time_errors'), type='warning')
             return None
         start_t = start_time.value or '00:00'
-        end_t   = end_time.value   or '23:59'
+        end_t = end_time.value or '23:59'
         conditions.append({
             "property": "pubtime",
             "type": "datetime",
@@ -199,9 +198,9 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
         with ui.expansion(t('sidebar.bbox'), icon="crop_square").classes("filter-expansion"):
             with ui.grid(columns=2).classes("bbox-grid"):
                 north = ui.number(label=t('sidebar.north'), min=-90,  max=90).classes("bbox-input")
-                east  = ui.number(label=t('sidebar.east'),  min=-180, max=180).classes("bbox-input")
-                south = ui.number(label=t('sidebar.south'), min=-90,  max=90).classes("bbox-input")
-                west  = ui.number(label=t('sidebar.west'),  min=-180, max=180).classes("bbox-input")
+                east = ui.number(label=t('sidebar.east'), min=-180, max=180).classes("bbox-input")
+                south = ui.number(label=t('sidebar.south'), min=-90, max=90).classes("bbox-input")
+                west = ui.number(label=t('sidebar.west'), min=-180, max=180).classes("bbox-input")
 
         # --- Date & time range ---
         with ui.expansion(t('sidebar.date_range'), icon="date_range").classes("filter-expansion"):

@@ -11,7 +11,7 @@ from shared import set_gauge, incr_counter
 
 LOGGER = get_task_logger(__name__)
 
-CONTAINER_DATA_PATH = os.getenv("CONTAINER_DATA_PATH","/data") # this needs checking
+CONTAINER_DATA_PATH = os.getenv("CONTAINER_DATA_PATH", "/data")  # this needs checking
 RETENTION_PERIOD_HOURS = int(os.environ.get('DOWNLOAD_RETENTION_PERIOD', 30)) * 24  # noqa
 
 
@@ -23,6 +23,7 @@ def setup_periodic_tasks(sender: Celery, **kwargs):
     sender.add_periodic_task(300.0, check_disk_space.s(), name='check disk space every 5 minutes')
     # Recalibrate downloads size gauge once per day
     sender.add_periodic_task(86400.0, recalibrate_downloads_size.s(), name='recalibrate downloads size daily')
+
 
 @app.task
 def check_disk_space():

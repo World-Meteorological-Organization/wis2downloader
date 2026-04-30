@@ -112,7 +112,7 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     'subscriptions.folder':        '文件夹：{path}',
     'subscriptions.id':            'ID：{id}',
-    'subscriptions.filter_default':'过滤器：默认',
+    'subscriptions.filter_default': '过滤器：默认',
     'subscriptions.filter_named':  '过滤器：{name}',
     'subscriptions.filter_custom': '过滤器：自定义',
 

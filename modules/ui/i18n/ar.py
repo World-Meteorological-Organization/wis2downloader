@@ -112,7 +112,7 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     'subscriptions.folder':        'المجلد: {path}',
     'subscriptions.id':            'المعرف: {id}',
-    'subscriptions.filter_default':'الفلتر: افتراضي',
+    'subscriptions.filter_default': 'الفلتر: افتراضي',
     'subscriptions.filter_named':  'الفلتر: {name}',
     'subscriptions.filter_custom': 'الفلتر: مخصص',
 
