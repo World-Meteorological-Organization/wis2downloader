@@ -173,6 +173,20 @@ def run_manager():
     signal.signal(signal.SIGINT, handle_shutdown)
 
     mqtt_thread.start()
+
+    # Wait for the MQTT connection to be established before accepting commands.
+    # client.connect() is non-blocking; the actual handshake happens inside
+    # loop_forever(). Starting the CommandListener before on_connect fires means
+    # the first client.subscribe() call may be sent on an unconnected socket.
+    _mqtt_connect_timeout = 60
+    _mqtt_connect_waited = 0.0
+    while not mqtt_subscriber.client.is_connected() and _mqtt_connect_waited < _mqtt_connect_timeout:
+        time.sleep(0.5)
+        _mqtt_connect_waited += 0.5
+    if not mqtt_subscriber.client.is_connected():
+        LOGGER.error("MQTT connection not established within %ss, exiting", _mqtt_connect_timeout)
+        sys.exit(1)
+
     redis_listener.start()
 
     # get existing subscriptions from Redis and subscribe

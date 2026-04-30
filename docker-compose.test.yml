@@ -73,8 +73,9 @@ services:
         max-size: "10M"
         max-file: "2"
     healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r = redis.Redis(host='redis', password='ci_test_password', port=6379); exit(0 if r.pubsub_channels(b'subscription_commands') else 1)\""]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 12
       start_period: 10s
 
@@ -85,8 +86,8 @@ services:
         max-size: "10M"
         max-file: "2"
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f task_manager_start"]
+      test: ["CMD-SHELL", ". .venv/bin/activate && celery -A task_manager.worker inspect ping -t 5 | grep -q pong"]
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 12
-      start_period: 15s
+      start_period: 30s

@@ -36,7 +36,7 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "ci_test_password")
 TEST_TOPIC = "origin/a/wis2/test-centre/data/core/test"
 TRACKER_PREFIX = "wis2:notifications:data:tracker:by-msg-id"
 POLL_INTERVAL_S = 2
-POLL_TIMEOUT_S = 60
+POLL_TIMEOUT_S = 120
 
 
 @pytest.fixture(scope="module")
@@ -84,18 +84,36 @@ def _make_notification(msg_id: str, data_id: str) -> dict:
 class TestDownloadFlow:
 
     @pytest.fixture(autouse=True)
-    def subscription(self):
+    def subscription(self, redis_client):
         """Create a subscription for the test topic, remove it after the test."""
+        # Clear tracker and lock keys so tests don't share dedup state.
+        # Tests use the same file URL (same hash), so without this the second
+        # test's first delivery would be deduplicated against the first test's result.
+        for pattern in (b"wis2:notifications:data:tracker:*", b"wis2:notification:data:lock:*"):
+            keys = redis_client.keys(pattern)
+            if keys:
+                redis_client.delete(*keys)
+
+        # The subscriber's CommandListener polls at 1-second intervals, so any
+        # commands queued by earlier steps (e.g. API integration tests) must be
+        # fully processed before we subscribe. Allow 15 s for up to ~15 pending
+        # commands to drain, so the MQTT SUBSCRIBE is confirmed before we publish
+        # and QoS-0 messages aren't silently dropped.
+        time.sleep(15)
+
+        unique_target = f"test_run_{uuid.uuid4().hex[:8]}"
         r = requests.post(
             f"{API_BASE_URL}/subscriptions",
-            json={"topic": TEST_TOPIC, "target": ""},
+            json={"topic": TEST_TOPIC, "target": unique_target},
         )
         assert r.status_code == 201, f"Failed to create subscription: {r.text}"
         sub = r.json()
 
         # Give the subscriber's CommandListener time to process the Redis
         # pub/sub event and issue the MQTT SUBSCRIBE to Mosquitto.
-        time.sleep(4)
+        # QoS 0 drops messages published before the subscription is confirmed,
+        # so we need to wait long enough even in a slow CI environment.
+        time.sleep(10)
 
         yield sub
 
@@ -115,7 +133,7 @@ class TestDownloadFlow:
             port=MQTT_PORT,
             qos=0,
         )
-
+        time.sleep(POLL_INTERVAL_S * 3)
         status = _poll_tracker(redis_client, msg_id)
         assert status == "SUCCESS", (
             f"Expected download status SUCCESS, got '{status}'. "
@@ -138,6 +156,11 @@ class TestDownloadFlow:
         first_status = _poll_tracker(redis_client, msg_id)
         assert first_status == "SUCCESS", f"First download got '{first_status}'"
 
+        msg_id = str(uuid.uuid4())
+        data_id = str(uuid.uuid4())
+        notification = _make_notification(msg_id, data_id)
+
+        payload = json.dumps(notification)
         # Second publish with the same msg_id — must be deduplicated.
         mqtt_publish.single(
             topic=TEST_TOPIC, payload=payload,
@@ -146,6 +169,6 @@ class TestDownloadFlow:
         # Allow time for the second task to be processed.
         time.sleep(POLL_INTERVAL_S * 3)
         second_status = _poll_tracker(redis_client, msg_id)
-        assert second_status in ("SUCCESS", "SKIPPED"), (
+        assert second_status in ("SKIPPED"), (
             f"Second delivery got unexpected status '{second_status}'"
         )

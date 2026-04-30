@@ -342,6 +342,11 @@ def download_from_wis2(self, job):
                 result['status'] = STATUS_SKIPPED
                 result['reason'] = f"ID '{key}' ({type}) previously processed with status '{status}'"
                 result['error_class'] = "PreviouslyProcessed"
+                # Record the skip only for message_id (unique per notification)
+                # so callers polling by-msg-id can observe the result.
+                # data_id and filehash must keep their existing SUCCESS status
+                # so that future duplicate messages are still caught by dedup.
+                set_status(message_id, 'by-msg-id', STATUS_SKIPPED)
                 return result
 
     # !! ToDo - the logic here needs checking !!

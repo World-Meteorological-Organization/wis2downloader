@@ -100,7 +100,7 @@ jobs:
         run: |
           timeout 120 bash -c \
             'until docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml ps subscriber-france | grep -q "healthy"; do echo "Waiting for subscriber..."; sleep 3; done'
-          timeout 120 bash -c \
+          timeout 180 bash -c \
             'until docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml ps celery-download-workers | grep -q "healthy"; do echo "Waiting for celery..."; sleep 3; done'
 
       - uses: actions/setup-python@v5

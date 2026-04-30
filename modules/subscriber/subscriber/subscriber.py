@@ -82,7 +82,7 @@ class Subscriber():
                     f"Subscription to topic failed with error code {sub_result}")
 
     def _on_message(self, client, userdata, msg):
-        LOGGER.debug(f"Message received on topic {msg.topic}")
+        LOGGER.info(f"Message received on topic {msg.topic}")
 
         # Find the matching subscription entry (exact match first, then glob)
         sub = self.active_subscriptions.get(msg.topic)
@@ -99,7 +99,7 @@ class Subscriber():
 
         subscriptions = sub.get('subscriptions', {})
         if not subscriptions:
-            LOGGER.debug(
+            LOGGER.warning(
                 f"Message received on {msg.topic} but no subscriptions configured, skipping")
             return
 
@@ -123,6 +123,7 @@ class Subscriber():
             }
             try:
                 wis2_download(job).apply_async()
+                LOGGER.info(f"Job queued for topic {msg.topic}")
             except Exception as e:
                 LOGGER.error(
                     f"Failed to queue job for topic {msg.topic}: {e}",
