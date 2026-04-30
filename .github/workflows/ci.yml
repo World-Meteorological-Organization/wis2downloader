@@ -74,6 +74,7 @@ jobs:
           SCHEDULER_RESULT_DB=3
           EOF
           mkdir -p /tmp/wis2-downloads
+          chmod 777 /tmp/wis2-downloads
 
       - name: Build images
         run: |
