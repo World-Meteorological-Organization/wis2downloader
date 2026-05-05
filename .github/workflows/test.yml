@@ -1,0 +1,124 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install pytest
+          pip install -r modules/subscription_manager/requirements.txt
+          pip install -r modules/task_manager/requirements.txt
+          pip install -e modules/shared
+          pip install --no-deps -e modules/subscriber
+          pip install --no-deps -e modules/subscription_manager
+          pip install --no-deps -e modules/task_manager
+
+      - name: Run unit tests
+        run: |
+          exit_code=0
+          pytest modules/ --tb=short -q || exit_code=$?
+          [ $exit_code -eq 5 ] && echo "No unit tests collected yet" && exit 0 || exit $exit_code
+
+  integration-test:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    needs: unit-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fix Docker socket permissions
+        run: sudo chmod 666 /var/run/docker.sock
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Write test .env
+        run: |
+          cat > .env << 'EOF'
+          REDIS_PASSWORD=ci_test_password
+          FLASK_SECRET_KEY=ci_test_secret_key
+          CONTAINER_DATA_PATH=/data
+          HOST_DATA_PATH=/tmp/wis2-downloads
+          LOG_LEVEL=INFO
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_TTL_SECONDS=3600
+          REDIS_MESSAGE_LOCK=300
+          CELERY_BACKEND_DB=0
+          CELERY_RESULT_DB=1
+          SCHEDULER_BACKEND_DB=2
+          SCHEDULER_RESULT_DB=3
+          EOF
+          mkdir -p /tmp/wis2-downloads
+          chmod 777 /tmp/wis2-downloads
+
+      - name: Build images
+        run: |
+          docker compose --env-file .env build redis subscription-manager subscriber-france celery-download-workers
+        env:
+          DOCKER_BUILDKIT: 1
+
+      - name: Start services
+        run: |
+          docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml \
+            up -d redis mosquitto subscription-manager subscriber-france celery-download-workers
+
+      - name: Wait for subscription-manager to be healthy
+        run: |
+          timeout 120 bash -c \
+            'until curl -sf http://localhost:5001/health; do echo "Waiting for API..."; sleep 3; done'
+
+      - name: Wait for Mosquitto to be healthy
+        run: |
+          timeout 60 bash -c \
+            'until docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml ps mosquitto | grep -q "healthy"; do echo "Waiting for Mosquitto..."; sleep 3; done'
+
+      - name: Wait for subscriber and celery worker to be healthy
+        run: |
+          timeout 120 bash -c \
+            'until docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml ps subscriber-france | grep -q "healthy"; do echo "Waiting for subscriber..."; sleep 3; done'
+          timeout 180 bash -c \
+            'until docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml ps celery-download-workers | grep -q "healthy"; do echo "Waiting for celery..."; sleep 3; done'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install pytest requests paho-mqtt redis pywis-pubsub
+
+      - name: Run API integration tests
+        run: pytest tests/integration/test_api.py -v --tb=short
+
+      - name: Run download flow tests
+        env:
+          TEST_FILE_URL: https://wmostorage.blob.core.windows.net/wmo-public/wmo-information-system/pywis-pubsub-test/WIGOS_0-454-2-AWSCHIKANGAWA_20221109T135500.bufr4
+          REDIS_PASSWORD: ci_test_password
+        run: pytest tests/integration/test_download.py -v --tb=short
+
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml logs
+
+      - name: Teardown
+        if: always()
+        run: |
+          docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml down -v

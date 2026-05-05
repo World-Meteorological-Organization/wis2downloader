@@ -108,7 +108,7 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     'subscriptions.folder':        'Folder: {path}',
     'subscriptions.id':            'ID: {id}',
-    'subscriptions.filter_default':'Filter: default',
+    'subscriptions.filter_default': 'Filter: default',
     'subscriptions.filter_named':  'Filter: {name}',
     'subscriptions.filter_custom': 'Filter: custom',
 
@@ -156,7 +156,7 @@ STRINGS: dict[str, str] = {
     'manual.val.missing_rules':     'Filter must have a "rules" key',
     'manual.val.rules_not_array':   '"rules" must be an array [ \u2026 ]',
     'manual.val.rule_not_object':   'Rule {i}: must be an object',
-    'manual.val.rule_missing_field':'Rule {i}: missing required field "{field}"',
+    'manual.val.rule_missing_field': 'Rule {i}: missing required field "{field}"',
     'manual.val.rule_wrong_type':   'Rule {i}: "{field}" must be a {type_name}',
     'manual.val.rule_bad_action':   'Rule {i}: "action" must be one of: accept, reject, continue',
 

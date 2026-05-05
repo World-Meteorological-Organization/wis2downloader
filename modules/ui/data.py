@@ -220,5 +220,3 @@ async def scrape_all(force: bool = False):
     _topic_hierarchy = _build_topic_hierarchy()
     LOGGER.info(f"Topic hierarchy built: {len(_topic_hierarchy)} top-level nodes")
     _ready = True
-
-

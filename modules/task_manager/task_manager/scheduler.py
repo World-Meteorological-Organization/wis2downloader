@@ -3,7 +3,7 @@ import os
 import sys
 
 from shared.logging import setup_logging
-from shared.redis_client import (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_DB)
+from shared.redis_client import (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD)
 
 # Set up logging
 setup_logging()  # Configure root logger
@@ -34,8 +34,10 @@ app.conf.update(
 # Import your tasks
 app.autodiscover_tasks(['task_manager.tasks', 'task_manager.tasks.scheduled_tasks'])
 
+
 def main():
     app.start(argv=sys.argv[1:])
+
 
 if __name__ == '__main__':
     main()

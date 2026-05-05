@@ -20,6 +20,7 @@ ui.add_head_html('<link rel="stylesheet" type="text/css" href="/assets/base.css"
 
 _startup_done = False
 
+
 async def _startup():
     global _startup_done
     if _startup_done:

@@ -23,6 +23,7 @@ def render(container):
                             else t('settings.not_loaded', name=name)
                         )
                         ui.chip(label, color=colour)
+
                 async def on_refresh():
                     await scrape_all(force=True)
 

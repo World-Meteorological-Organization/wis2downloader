@@ -1,10 +1,8 @@
 from nicegui import ui
 
-from i18n import is_rtl
-
 
 def build_right_sidebar(layout):
-    drawer = ui.right_drawer # ui.left_drawer if is_rtl() else ui.right_drawer
+    drawer = ui.right_drawer  # ui.left_drawer if is_rtl() else ui.right_drawer
     with drawer(value=True).props('overlay bordered width=350').style(
         'padding: 1rem; background-color: #f5f6fa'
     ) as right_drawer:

@@ -1,0 +1,93 @@
+# Overrides for CI integration testing.
+# Removes the Loki logging driver (not installed in CI), exposes ports,
+# speeds up health check intervals, and redirects the subscriber to a
+# local Mosquitto broker instead of the real WIS2 Global Brokers.
+services:
+  redis:
+    command: redis-server --requirepass ci_test_password --appendonly yes --protected-mode no
+    ports:
+      - "6379:6379"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10M"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "ci_test_password", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+
+  subscription-manager:
+    ports:
+      - "5001:5001"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10M"
+        max-file: "2"
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    entrypoint: ["/bin/sh", "-c", "printf 'listener 1883\\nallow_anonymous true\\n' > /mosquitto/config/mosquitto.conf && exec mosquitto -c /mosquitto/config/mosquitto.conf"]
+    ports:
+      - "1883:1883"
+    networks:
+      - redis-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10M"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-p", "1883", "-t", "healthcheck", "-m", "ping", "-q", "0"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  # Redirect subscriber-france to the local Mosquitto broker instead of the
+  # real WIS2 Global Broker. Plain TCP on port 1883, no TLS (subscriber.py
+  # only enables TLS for ports 443 and 8883).
+  subscriber-france:
+    environment:
+      GLOBAL_BROKER_HOST: mosquitto
+      GLOBAL_BROKER_PORT: 1883
+      GLOBAL_BROKER_USERNAME: ci
+      GLOBAL_BROKER_PASSWORD: ci
+      MQTT_PROTOCOL: tcp
+    depends_on:
+      redis:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10M"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r = redis.Redis(host='redis', password='ci_test_password', port=6379); exit(0 if r.pubsub_channels(b'subscription_commands') else 1)\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  celery-download-workers:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10M"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD-SHELL", ". .venv/bin/activate && celery -A task_manager.worker inspect ping -t 5 | grep -q pong"]
+      interval: 10s
+      timeout: 15s
+      retries: 12
+      start_period: 30s

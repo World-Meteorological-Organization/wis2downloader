@@ -1,4 +1,4 @@
-"""French translations.
+﻿"""French translations.
 
 NOTE: Machine-generated — must be reviewed by a native French speaker,
 especially WMO/meteorological terms (WIS2, BUFR, GRIB, etc.).
@@ -113,7 +113,7 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     'subscriptions.folder':        'Dossier\u00a0: {path}',
     'subscriptions.id':            'ID\u00a0: {id}',
-    'subscriptions.filter_default':'Filtre\u00a0: par défaut',
+    'subscriptions.filter_default': 'Filtre\u00a0: par défaut',
     'subscriptions.filter_named':  'Filtre\u00a0: {name}',
     'subscriptions.filter_custom': 'Filtre\u00a0: personnalisé',
 
