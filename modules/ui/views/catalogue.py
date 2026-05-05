@@ -93,6 +93,22 @@ def filter_by_bbox(record: WCMP2Record, bbox, spatial_rel='intersects') -> bool:
 # ---------------------------------------------------------------------------
 
 
+async def confirm_license_dialog(links) -> bool:
+    license_url = next((lnk.href for lnk in links if lnk.rel == 'license'), None)
+    if license_url is None:
+        return True
+
+    with ui.dialog() as dialog, ui.card():
+        ui.label(t('dialog.license_title')).classes('text-h6')
+        ui.label(t('dialog.license_msg'))
+        ui.link(t('btn.view_license'), license_url, new_tab=True)
+        with ui.row().classes('justify-end'):
+            ui.button(t('btn.cancel'), on_click=lambda: dialog.submit(False))
+            ui.button(t('btn.accept'), on_click=lambda: dialog.submit(True))
+
+    return await dialog
+
+
 async def select_in_search_results(e, page_selector, query, records,
                                    state, layout, sender=None, dataset_id=None):
     on_topics_picked(e, state, layout, is_page_selection=True, sender=sender,
@@ -146,17 +162,28 @@ async def update_search_results(page_selector, query, records: list[MergedRecord
                                 lambda ev, did=rec.id: show_metadata(did),
                             )
                             for lnk in rec.links:
-                                if lnk.channel and lnk.channel.startswith('cache/'):
+                                if lnk.channel and (lnk.channel.startswith('cache/') or lnk.channel.startswith('origin/')):
                                     event_list.append(_Event([lnk.channel]))
                                     i += 1
                                     ev_ref = event_list[i - 1]
                                     btn_text = t('btn.unselect') if lnk.channel in state.selected_topics else t('btn.select')
-                                    ui.button(btn_text, icon='add').on(
-                                        'click',
-                                        lambda ev, er=ev_ref, did=rec.id: select_in_search_results(
+
+                                    async def on_select_click(ev, er=ev_ref, did=rec.id, lnks=rec.links):
+                                        is_selecting = er.value[0] not in state.selected_topics
+                                        if is_selecting and not await confirm_license_dialog(lnks):
+                                            return
+                                        await select_in_search_results(
                                             er, page_selector, query, records,
                                             state, layout, sender=ev.sender, dataset_id=did,
-                                        ),
+                                        )
+
+                                    ui.button(btn_text, icon='add').on('click', on_select_click)
+                                    break
+                            for lnk in rec.links:
+                                if lnk.rel == 'license':
+                                    ui.button(t('btn.view_license'), icon='gavel').on(
+                                        'click',
+                                        lambda ev, url=lnk.href: ui.navigate.to(url, new_tab=True),
                                     )
                                     break
                     if rec.geometry is not None:

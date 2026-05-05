@@ -28,6 +28,8 @@ STRINGS: dict[str, str] = {
     'btn.unsubscribe':      'Se désabonner',
     'btn.refresh_gdc':      'Actualiser les données GDC',
     'btn.show_metadata':    'Afficher les métadonnées',
+    'btn.view_license':     'Voir la licence',
+    'btn.accept':           'Accepter',
     'btn.select':           'Sélectionner',
     'btn.unselect':         'Désélectionner',
     'btn.select_all':       'Tout sélectionner / désélectionner',
@@ -68,7 +70,9 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     # Confirm subscription dialog                                          #
     # ------------------------------------------------------------------ #
-    'dialog.confirm_title': "Confirmer l'abonnement",
+    'dialog.confirm_title':  "Confirmer l'abonnement",
+    'dialog.license_title':  'Consulter la licence',
+    'dialog.license_msg':    "Ce jeu de données possède une licence. Veuillez la consulter avant de vous abonner.",
 
     # ------------------------------------------------------------------ #
     # Metadata dialog                                                      #
