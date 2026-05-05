@@ -28,6 +28,7 @@ STRINGS: dict[str, str] = {
     'btn.unsubscribe':      'Se désabonner',
     'btn.refresh_gdc':      'Actualiser les données GDC',
     'btn.show_metadata':    'Afficher les métadonnées',
+    'btn.view_license':     'Voir la licence',
     'btn.select':           'Sélectionner',
     'btn.unselect':         'Désélectionner',
     'btn.select_all':       'Tout sélectionner / désélectionner',

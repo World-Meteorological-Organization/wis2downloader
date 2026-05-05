@@ -24,6 +24,7 @@ STRINGS: dict[str, str] = {
     'btn.unsubscribe':      'Unsubscribe',
     'btn.refresh_gdc':      'Refresh GDC data',
     'btn.show_metadata':    'Show Metadata',
+    'btn.view_license':     'View License',
     'btn.select':           'Select',
     'btn.unselect':         'Unselect',
     'btn.select_all':       'Select / deselect all',

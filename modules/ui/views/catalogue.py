@@ -146,7 +146,7 @@ async def update_search_results(page_selector, query, records: list[MergedRecord
                                 lambda ev, did=rec.id: show_metadata(did),
                             )
                             for lnk in rec.links:
-                                if lnk.channel and lnk.channel.startswith('cache/'):
+                                if lnk.channel and (lnk.channel.startswith('cache/') or lnk.channel.startswith('origin/')):
                                     event_list.append(_Event([lnk.channel]))
                                     i += 1
                                     ev_ref = event_list[i - 1]
@@ -157,6 +157,13 @@ async def update_search_results(page_selector, query, records: list[MergedRecord
                                             er, page_selector, query, records,
                                             state, layout, sender=ev.sender, dataset_id=did,
                                         ),
+                                    )
+                                    break
+                            for lnk in rec.links:
+                                if lnk.rel == 'license':
+                                    ui.button(t('btn.view_license'), icon='gavel').on(
+                                        'click',
+                                        lambda ev, url=lnk.href: ui.navigate.to(url, new_tab=True),
                                     )
                                     break
                     if rec.geometry is not None:
