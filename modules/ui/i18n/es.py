@@ -67,7 +67,9 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     # Confirm subscription dialog                                          #
     # ------------------------------------------------------------------ #
-    'dialog.confirm_title': 'Confirmar suscripción',
+    'dialog.confirm_title':  'Confirmar suscripción',
+    'dialog.license_title':  'Licencia requerida',
+    'dialog.license_msg':    'Este conjunto de datos tiene una licencia. Por favor, revísela antes de suscribirse.',
 
     # ------------------------------------------------------------------ #
     # Metadata dialog                                                      #
