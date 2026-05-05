@@ -27,6 +27,7 @@ STRINGS: dict[str, str] = {
     'btn.refresh_gdc':      'Actualizar datos GDC',
     'btn.show_metadata':    'Mostrar metadatos',
     'btn.view_license':     'Ver licencia',
+    'btn.accept':           'Aceptar',
     'btn.select':           'Seleccionar',
     'btn.unselect':         'Deseleccionar',
     'btn.select_all':       'Seleccionar / deseleccionar todo',
@@ -68,7 +69,7 @@ STRINGS: dict[str, str] = {
     # Confirm subscription dialog                                          #
     # ------------------------------------------------------------------ #
     'dialog.confirm_title':  'Confirmar suscripción',
-    'dialog.license_title':  'Licencia requerida',
+    'dialog.license_title':  'Revisar licencia',
     'dialog.license_msg':    'Este conjunto de datos tiene una licencia. Por favor, revísela antes de suscribirse.',
 
     # ------------------------------------------------------------------ #

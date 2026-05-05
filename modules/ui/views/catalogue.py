@@ -104,7 +104,7 @@ async def confirm_license_dialog(links) -> bool:
         ui.link(t('btn.view_license'), license_url, new_tab=True)
         with ui.row().classes('justify-end'):
             ui.button(t('btn.cancel'), on_click=lambda: dialog.submit(False))
-            ui.button(t('btn.confirm'), on_click=lambda: dialog.submit(True))
+            ui.button(t('btn.accept'), on_click=lambda: dialog.submit(True))
 
     return await dialog
 

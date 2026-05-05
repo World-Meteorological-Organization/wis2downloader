@@ -29,6 +29,7 @@ STRINGS: dict[str, str] = {
     'btn.refresh_gdc':      '刷新 GDC 数据',
     'btn.show_metadata':    '显示元数据',
     'btn.view_license':     '查看许可证',
+    'btn.accept':           '接受',
     'btn.select':           '选择',
     'btn.unselect':         '取消选择',
     'btn.select_all':       '全选 / 全不选',
@@ -70,7 +71,7 @@ STRINGS: dict[str, str] = {
     # Confirm subscription dialog                                          #
     # ------------------------------------------------------------------ #
     'dialog.confirm_title':  '确认订阅',
-    'dialog.license_title':  '需要接受许可证',
+    'dialog.license_title':  '查看许可证',
     'dialog.license_msg':    '此数据集包含许可证，请在订阅前先查阅。',
 
     # ------------------------------------------------------------------ #

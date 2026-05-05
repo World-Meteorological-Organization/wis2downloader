@@ -29,6 +29,7 @@ STRINGS: dict[str, str] = {
     'btn.refresh_gdc':      'تحديث بيانات GDC',
     'btn.show_metadata':    'عرض البيانات الوصفية',
     'btn.view_license':     'عرض الترخيص',
+    'btn.accept':           'قبول',
     'btn.select':           'تحديد',
     'btn.unselect':         'إلغاء التحديد',
     'btn.select_all':       'تحديد / إلغاء تحديد الكل',
@@ -70,7 +71,7 @@ STRINGS: dict[str, str] = {
     # Confirm subscription dialog                                          #
     # ------------------------------------------------------------------ #
     'dialog.confirm_title':  'تأكيد الاشتراك',
-    'dialog.license_title':  'يلزم قبول الترخيص',
+    'dialog.license_title':  'مراجعة الترخيص',
     'dialog.license_msg':    'يحتوي هذا المجموعة على ترخيص. يرجى مراجعته قبل الاشتراك.',
 
     # ------------------------------------------------------------------ #
