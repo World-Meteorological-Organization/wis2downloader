@@ -58,6 +58,13 @@ STRINGS: dict[str, str] = {
     'sidebar.end_time':              'Время окончания (UTC)',
     'sidebar.time_hint':             'ЧЧ:ММ',
     'sidebar.custom_filters':        'Пользовательские фильтры',
+    'sidebar.auth':                  'Аутентификация',
+    'sidebar.auth_none':             'Нет',
+    'sidebar.auth_basic':            'HTTP Basic',
+    'sidebar.auth_bearer':           'Bearer-токен',
+    'sidebar.auth_username':         'Имя пользователя',
+    'sidebar.auth_password':         'Пароль',
+    'sidebar.auth_token':            'Токен',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #
@@ -66,6 +73,7 @@ STRINGS: dict[str, str] = {
     'validation.time_format':        'Используйте формат ЧЧ:ММ (24 часа)',
     'validation.date_time_errors':   'Исправьте ошибки формата даты/времени перед подпиской.',
     'validation.fix_errors':         'Исправьте ошибки валидации перед подпиской.',
+    'validation.auth_credentials_required': 'Заполните все обязательные поля учётных данных.',
 
     # ------------------------------------------------------------------ #
     # Confirm subscription dialog                                          #

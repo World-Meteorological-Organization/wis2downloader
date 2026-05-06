@@ -51,6 +51,7 @@ def main_page(client: Client):
     class AppState:
         def __init__(self):
             self.selected_topics = []
+            self.selected_dataset_ids = []
             self.current_view = 'help'
 
     state = AppState()

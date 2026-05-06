@@ -58,6 +58,13 @@ STRINGS: dict[str, str] = {
     'sidebar.end_time':              'Heure de fin (UTC)',
     'sidebar.time_hint':             'HH:MM',
     'sidebar.custom_filters':        'Filtres personnalisés',
+    'sidebar.auth':                  'Authentification',
+    'sidebar.auth_none':             'Aucune',
+    'sidebar.auth_basic':            'HTTP basique',
+    'sidebar.auth_bearer':           'Jeton Bearer',
+    'sidebar.auth_username':         "Nom d'utilisateur",
+    'sidebar.auth_password':         'Mot de passe',
+    'sidebar.auth_token':            'Jeton',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #
@@ -66,6 +73,7 @@ STRINGS: dict[str, str] = {
     'validation.time_format':        'Utiliser HH:MM (24 heures)',
     'validation.date_time_errors':   'Corrigez les erreurs de format date/heure avant de vous abonner.',
     'validation.fix_errors':         'Corrigez les erreurs de validation avant de vous abonner.',
+    'validation.auth_credentials_required': 'Veuillez remplir tous les champs de connexion requis.',
 
     # ------------------------------------------------------------------ #
     # Confirm subscription dialog                                          #

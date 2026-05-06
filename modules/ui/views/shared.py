@@ -32,6 +32,7 @@ def clean_page(state, layout):
     layout.right_sidebar.value = False
     layout.right_sidebar.clear()
     state.selected_topics = []
+    state.selected_dataset_ids = []
 
 
 def _centre_id(dataset_id: str) -> str:
@@ -39,10 +40,42 @@ def _centre_id(dataset_id: str) -> str:
     return parts[3] if len(parts) > 3 else ''
 
 
-def _collect_filters(dataset_select, media_type_select,
-                     north, south, east, west,
-                     start_date, end_date, start_time, end_time,
-                     custom_inputs: dict, custom_filter_defs: dict) -> dict:
+def _collect_credentials(auth_container, auth_type, username_input, password_input, token_input):
+    """Return credentials dict, None (no auth), or False (validation error shown).
+    Pass auth_container=None to skip the visibility check (e.g. manual subscription view)."""
+    if auth_container is not None and not auth_container.visible:
+        return None
+    if auth_type is None or auth_type.value == 'none':
+        return None
+    if auth_type.value == 'basic':
+        u = (username_input.value or '').strip()
+        p = (password_input.value or '').strip()
+        if not u or not p:
+            ui.notify(t('validation.auth_credentials_required'), type='warning')
+            return False
+        return {'type': 'basic', 'username': u, 'password': p}
+    if auth_type.value == 'bearer':
+        tkn = (token_input.value or '').strip()
+        if not tkn:
+            ui.notify(t('validation.auth_credentials_required'), type='warning')
+            return False
+        return {'type': 'bearer', 'token': tkn}
+    return None
+
+
+def _preview_credentials(credentials: dict) -> dict:
+    """Return a display-safe copy of credentials with secrets redacted."""
+    if credentials.get('type') == 'basic':
+        return {'type': 'basic', 'username': credentials['username'], 'password': '***'}
+    if credentials.get('type') == 'bearer':
+        return {'type': 'bearer', 'token': '***'}
+    return credentials
+
+
+def _build_filter(dataset_ids: list, media_type_select,
+                  north, south, east, west,
+                  start_date, end_date, start_time, end_time,
+                  custom_inputs: dict, custom_filter_defs: dict) -> dict | None:
     conditions = []
 
     if media_type_select.value:
@@ -53,8 +86,8 @@ def _collect_filters(dataset_select, media_type_select,
             {"media_type": {"in": list(media_type_select.value)}},
         ]})
 
-    if dataset_select.value:
-        conditions.append({"metadata_id": {"in": list(dataset_select.value)}})
+    if dataset_ids:
+        conditions.append({"metadata_id": {"in": list(dataset_ids)}})
 
     if all(v is not None for v in [north.value, south.value, east.value, west.value]):
         conditions.append({"bbox": {
@@ -110,13 +143,43 @@ def _collect_filters(dataset_select, media_type_select,
     }
 
 
+def _collect_per_topic_filters(topics, dataset_select, media_type_select,
+                                north, south, east, west,
+                                start_date, end_date, start_time, end_time,
+                                custom_inputs: dict,
+                                custom_filter_defs: dict) -> dict[str, dict] | None:
+    """Build a filter per topic, scoping metadata_id to only the datasets that
+    belong to that topic and are present in dataset_select.value."""
+    selected_ids = set(dataset_select.value or [])
+    result = {}
+    for topic in topics:
+        topic_dataset_ids = [
+            d.id for d in get_datasets_for_channel(topic)
+            if not selected_ids or d.id in selected_ids
+        ]
+        f = _build_filter(
+            topic_dataset_ids, media_type_select,
+            north, south, east, west,
+            start_date, end_date, start_time, end_time,
+            custom_inputs, custom_filter_defs,
+        )
+        if f is None:
+            return None  # validation error already notified
+        result[topic] = f
+    return result
+
+
 def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dataset_id=None):
     if is_page_selection:
         # Called from catalogue: e.value is [single_topic], toggle in/out
         if e.value[0] not in state.selected_topics:
             state.selected_topics.append(e.value[0])
+            if dataset_id and dataset_id not in state.selected_dataset_ids:
+                state.selected_dataset_ids.append(dataset_id)
         else:
             state.selected_topics.remove(e.value[0])
+            if dataset_id and dataset_id in state.selected_dataset_ids:
+                state.selected_dataset_ids.remove(dataset_id)
     else:
         # Called from tree on_select: e.value is the selected node ID or None.
         state.selected_topics = [e.value] if e.value else []
@@ -162,13 +225,16 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
                     label = f"{title} ({centre})" if centre else title
                     dataset_options[dataset.id] = label
 
-        if dataset_id and dataset_id in dataset_options:
-            # Catalogue path: single dataset locked to the one selected
+        # In the catalogue path, lock the select to the explicitly selected
+        # datasets regardless of which card was just toggled. This keeps the
+        # select stable when unselecting one of several chosen datasets.
+        locked_ids = [did for did in state.selected_dataset_ids if did in dataset_options]
+        if is_page_selection and locked_ids:
             dataset_select = ui.select(
-                options={dataset_id: dataset_options[dataset_id]},
-                label=t('sidebar.dataset'),
+                options={did: dataset_options[did] for did in locked_ids},
+                label=t('sidebar.dataset') if len(locked_ids) == 1 else t('sidebar.datasets'),
                 multiple=True,
-                value=[dataset_id],
+                value=locked_ids,
             ).classes("filter-input").props('disable')
         else:
             with ui.row().classes("items-center gap-2"):
@@ -251,30 +317,105 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
                             inp.tooltip(description)
                         custom_inputs[fname] = inp
 
+        # --- Authentication (visible only when exactly one dataset is selected) ---
+        auth_type = None
+        username_input = None
+        password_input = None
+        token_input = None
+
+        auth_container = ui.column().classes("w-full")
+        if is_page_selection:
+            # Catalogue path: select is disabled. Drive visibility from the
+            # explicitly tracked selected_dataset_ids so that selecting,
+            # unselecting, or switching between datasets all update correctly.
+            auth_container.visible = (len(state.selected_dataset_ids) == 1)
+        else:
+            # Tree path: select is interactive, bind reactively.
+            auth_container.bind_visibility_from(
+                dataset_select, 'value', backward=lambda v: bool(v) and len(v) == 1
+            )
+        with auth_container:
+            ui.separator()
+            ui.label(t('sidebar.auth')).classes("sidebar-section-title")
+            auth_type = ui.radio(
+                {
+                    'none': t('sidebar.auth_none'),
+                    'basic': t('sidebar.auth_basic'),
+                    'bearer': t('sidebar.auth_bearer'),
+                },
+                value='none',
+            ).props('inline')
+
+            _req = lambda v: t('validation.auth_credentials_required') if not (v or '').strip() else None
+
+            with ui.column().bind_visibility_from(
+                auth_type, 'value', backward=lambda v: v == 'basic'
+            ):
+                username_input = ui.input(
+                    label=t('sidebar.auth_username'),
+                    validation=_req,
+                ).classes("filter-input")
+                password_input = ui.input(
+                    label=t('sidebar.auth_password'),
+                    password=True,
+                    password_toggle_button=True,
+                    validation=_req,
+                ).classes("filter-input")
+
+            with ui.column().bind_visibility_from(
+                auth_type, 'value', backward=lambda v: v == 'bearer'
+            ):
+                token_input = ui.input(
+                    label=t('sidebar.auth_token'),
+                    password=True,
+                    password_toggle_button=True,
+                    validation=_req,
+                ).classes("filter-input")
+
         ui.separator()
 
-        ui.button(t('btn.subscribe'), icon="check_circle").classes("subscribe-btn").on(
-            'click',
-            lambda: confirm_subscribe(
-                topics,
-                directory.value,
-                _collect_filters(
-                    dataset_select, media_type,
+        def on_subscribe_click():
+            if auth_type is not None:
+                if auth_type.value == 'basic':
+                    username_input.validate()
+                    password_input.validate()
+                elif auth_type.value == 'bearer':
+                    token_input.validate()
+
+            confirm_subscribe(
+                _collect_per_topic_filters(
+                    topics, dataset_select, media_type,
                     north, south, east, west,
                     start_date, end_date, start_time, end_time,
                     custom_inputs, custom_filter_defs,
                 ),
-            ),
+                directory.value,
+                _collect_credentials(
+                    auth_container, auth_type,
+                    username_input, password_input, token_input,
+                ),
+            )
+
+        ui.button(t('btn.subscribe'), icon="check_circle").classes("subscribe-btn").on(
+            'click', on_subscribe_click,
         )
 
 
-def confirm_subscribe(topics, directory, filters):
-    if filters is None:
+def confirm_subscribe(topic_filters: dict | None, directory, credentials=None):
+    if topic_filters is None:
         return  # validation errors already shown inline
+    if credentials is False:
+        return  # credential validation errors already shown inline
     target = directory.strip() or './'
+
     payloads = [
-        {"topic": topic, "target": target, "filter": filters}
-        for topic in topics
+        {
+            "topic": topic,
+            "target": target,
+            "filter": f,
+            **({"credentials": _preview_credentials(credentials)} if credentials else {}),
+        }
+        for topic, f in topic_filters.items()
     ]
     pretty = json.dumps(payloads if len(payloads) > 1 else payloads[0], indent=2)
 
@@ -287,20 +428,22 @@ def confirm_subscribe(topics, directory, filters):
 
             async def on_confirm():
                 dialog.close()
-                await subscribe_to_topics(topics, target, filters)
+                await subscribe_to_topics(topic_filters, target, credentials)
 
             ui.button(t('btn.confirm'), icon="check_circle").props("color=primary").on('click', on_confirm)
     dialog.open()
 
 
-async def subscribe_to_topics(topics, directory, filters):
+async def subscribe_to_topics(topic_filters: dict, directory, credentials=None):
     async with httpx.AsyncClient() as client:
-        for topic in topics:
+        for topic, filters in topic_filters.items():
             payload = {
                 "topic": topic,
                 "target": directory,
                 "filter": filters,
             }
+            if credentials:
+                payload["credentials"] = credentials
             await client.post(f'{SUBSCRIPTION_MANAGER}/subscriptions', json=payload)
 
 

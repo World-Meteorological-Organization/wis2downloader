@@ -58,6 +58,13 @@ STRINGS: dict[str, str] = {
     'sidebar.end_time':              '结束时间（UTC）',
     'sidebar.time_hint':             'HH:MM',
     'sidebar.custom_filters':        '自定义过滤器',
+    'sidebar.auth':                  '身份验证',
+    'sidebar.auth_none':             '无',
+    'sidebar.auth_basic':            'HTTP 基本认证',
+    'sidebar.auth_bearer':           'Bearer 令牌',
+    'sidebar.auth_username':         '用户名',
+    'sidebar.auth_password':         '密码',
+    'sidebar.auth_token':            '令牌',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #
@@ -66,6 +73,7 @@ STRINGS: dict[str, str] = {
     'validation.time_format':        '请使用 HH:MM（24小时制）格式',
     'validation.date_time_errors':   '请在订阅前修正日期/时间格式错误。',
     'validation.fix_errors':         '请在订阅前修正验证错误。',
+    'validation.auth_credentials_required': '请填写所有必填凭据字段。',
 
     # ------------------------------------------------------------------ #
     # Confirm subscription dialog                                          #
