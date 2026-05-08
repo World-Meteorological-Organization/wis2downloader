@@ -119,7 +119,8 @@ def render(container):
                     value='none',
                 ).props('inline')
 
-                _req = lambda v: t('validation.auth_credentials_required') if not (v or '').strip() else None
+                def _req(v):
+                    return t('validation.auth_credentials_required') if not (v or '').strip() else None
 
                 with ui.column().bind_visibility_from(
                     auth_type, 'value', backward=lambda v: v == 'basic'

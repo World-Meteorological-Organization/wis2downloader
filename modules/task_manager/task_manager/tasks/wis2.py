@@ -54,6 +54,7 @@ def _build_auth_headers(credentials: dict | None) -> dict:
         return {"Authorization": f"Bearer {credentials['token']}"}
     return {}
 
+
 DOWNLOAD_CHUNK_SIZE = int(os.getenv("DOWNLOAD_CHUNK_SIZE", str(64 * 1024)))  # 64 KB per chunk
 _PROGRESS_LOG_INTERVAL = 1 * 1024 * 1024  # log a progress line every 50 MB
 

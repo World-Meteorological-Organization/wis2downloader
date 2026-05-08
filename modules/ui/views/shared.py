@@ -144,10 +144,10 @@ def _build_filter(dataset_ids: list, media_type_select,
 
 
 def _collect_per_topic_filters(topics, dataset_select, media_type_select,
-                                north, south, east, west,
-                                start_date, end_date, start_time, end_time,
-                                custom_inputs: dict,
-                                custom_filter_defs: dict) -> dict[str, dict] | None:
+                               north, south, east, west,
+                               start_date, end_date, start_time, end_time,
+                               custom_inputs: dict,
+                               custom_filter_defs: dict) -> dict[str, dict] | None:
     """Build a filter per topic, scoping metadata_id to only the datasets that
     belong to that topic and are present in dataset_select.value."""
     selected_ids = set(dataset_select.value or [])
@@ -346,7 +346,8 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
                 value='none',
             ).props('inline')
 
-            _req = lambda v: t('validation.auth_credentials_required') if not (v or '').strip() else None
+            def _req(v):
+                return t('validation.auth_credentials_required') if not (v or '').strip() else None
 
             with ui.column().bind_visibility_from(
                 auth_type, 'value', backward=lambda v: v == 'basic'
