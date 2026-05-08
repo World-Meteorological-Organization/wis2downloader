@@ -110,6 +110,13 @@ def render(container):
                         validation=_validate_filter,
                     ).classes("directory-input filter-textarea")
                 else:
+                    if parsed['dataset_ids']:
+                        with ui.expansion(
+                            t('sidebar.datasets'), icon='dataset'
+                        ).classes("filter-expansion"):
+                            for did in parsed['dataset_ids']:
+                                ui.label(did).classes('text-caption text-grey-6')
+
                     media_type_select = ui.select(
                         options=DEFAULT_ACCEPTED_MEDIA_TYPES,
                         label=t('sidebar.media_types'),

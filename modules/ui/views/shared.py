@@ -123,16 +123,14 @@ def _try_parse_filter(filter_cfg: dict) -> dict | None:
     """Try to extract UI-control values from a filter built by _build_filter.
 
     Returns a dict with keys:
-        media_types, north, south, east, west,
+        dataset_ids, media_types, north, south, east, west,
         start_date, end_date, start_time, end_time
     or None when the filter structure cannot be represented by the standard
     controls (e.g. custom property conditions).
-
-    metadata_id conditions are silently skipped — the topic already scopes the
-    subscription, so omitting the dataset ID filter on re-save is acceptable.
     """
     if not filter_cfg:
         return {
+            'dataset_ids': [],
             'media_types': [], 'north': None, 'south': None,
             'east': None, 'west': None,
             'start_date': None, 'end_date': None,
@@ -154,6 +152,7 @@ def _try_parse_filter(filter_cfg: dict) -> dict | None:
     conditions = match.get('all') if isinstance(match.get('all'), list) else [match]
 
     result: dict = {
+        'dataset_ids': [],
         'media_types': [], 'north': None, 'south': None,
         'east': None, 'west': None,
         'start_date': None, 'end_date': None,
@@ -176,7 +175,7 @@ def _try_parse_filter(filter_cfg: dict) -> dict | None:
             bbox = cond['bbox']
             result.update({
                 'north': bbox.get('north'), 'south': bbox.get('south'),
-                'east':  bbox.get('east'),  'west':  bbox.get('west'),
+                'east': bbox.get('east'), 'west': bbox.get('west'),
             })
         elif cond.get('property') == 'pubtime' and cond.get('type') == 'datetime':
             between = cond.get('between', [])
@@ -190,7 +189,9 @@ def _try_parse_filter(filter_cfg: dict) -> dict | None:
                         result[dk] = d
                         result[tk] = rest[:5]
         elif 'metadata_id' in cond:
-            pass  # skip — no dataset control in edit dialog
+            ids = cond['metadata_id'].get('in')
+            if isinstance(ids, list):
+                result['dataset_ids'] = ids
         else:
             return None  # unrecognised condition → fall back to textarea
 
