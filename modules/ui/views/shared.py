@@ -63,6 +63,140 @@ def _collect_credentials(auth_container, auth_type, username_input, password_inp
     return None
 
 
+_REQUIRED_RULE_FIELDS: dict[str, type | tuple] = {
+    'id':     str,
+    'order':  (int, float),
+    'match':  dict,
+    'action': str,
+}
+_VALID_ACTIONS = frozenset({'accept', 'reject', 'continue'})
+
+
+def _validate_target(v: str) -> str | None:
+    if not v:
+        return None  # optional — defaults to ./
+    if v.startswith('/') or (len(v) >= 2 and v[1] == ':'):
+        return t('manual.val.path_absolute')
+    if any(part == '..' for part in v.replace('\\', '/').split('/')):
+        return t('manual.val.path_traversal')
+    return None
+
+
+def _validate_filter(v: str) -> str | None:
+    v = (v or '').strip()
+    if not v or v == '{}':
+        return None
+
+    try:
+        parsed = json.loads(v)
+    except json.JSONDecodeError as e:
+        return t('manual.val.json_invalid', msg=e.msg, lineno=e.lineno, colno=e.colno)
+
+    if not isinstance(parsed, dict):
+        return t('manual.val.not_object')
+    if 'rules' not in parsed:
+        return t('manual.val.missing_rules')
+    rules = parsed['rules']
+    if not isinstance(rules, list):
+        return t('manual.val.rules_not_array')
+
+    for i, rule in enumerate(rules):
+        if not isinstance(rule, dict):
+            return t('manual.val.rule_not_object', i=i)
+        for field, expected_type in _REQUIRED_RULE_FIELDS.items():
+            if field not in rule:
+                return t('manual.val.rule_missing_field', i=i, field=field)
+            if not isinstance(rule[field], expected_type):
+                type_name = (
+                    expected_type.__name__
+                    if isinstance(expected_type, type)
+                    else 'number'
+                )
+                return t('manual.val.rule_wrong_type', i=i, field=field, type_name=type_name)
+        if rule['action'] not in _VALID_ACTIONS:
+            return t('manual.val.rule_bad_action', i=i)
+
+    return None
+
+
+def _try_parse_filter(filter_cfg: dict) -> dict | None:
+    """Try to extract UI-control values from a filter built by _build_filter.
+
+    Returns a dict with keys:
+        media_types, north, south, east, west,
+        start_date, end_date, start_time, end_time
+    or None when the filter structure cannot be represented by the standard
+    controls (e.g. custom property conditions).
+
+    metadata_id conditions are silently skipped — the topic already scopes the
+    subscription, so omitting the dataset ID filter on re-save is acceptable.
+    """
+    if not filter_cfg:
+        return {
+            'media_types': [], 'north': None, 'south': None,
+            'east': None, 'west': None,
+            'start_date': None, 'end_date': None,
+            'start_time': None, 'end_time': None,
+        }
+
+    rules = filter_cfg.get('rules')
+    if not isinstance(rules, list) or len(rules) != 2:
+        return None
+
+    accept_rule = next((r for r in rules if r.get('action') == 'accept'), None)
+    reject_rule = next((r for r in rules if r.get('action') == 'reject'), None)
+    if not accept_rule or not reject_rule:
+        return None
+    if reject_rule.get('match') != {'always': True}:
+        return None
+
+    match = accept_rule.get('match', {})
+    conditions = match.get('all') if isinstance(match.get('all'), list) else [match]
+
+    result: dict = {
+        'media_types': [], 'north': None, 'south': None,
+        'east': None, 'west': None,
+        'start_date': None, 'end_date': None,
+        'start_time': None, 'end_time': None,
+    }
+
+    for cond in conditions:
+        if not isinstance(cond, dict):
+            return None
+
+        if 'any' in cond:
+            # media-type condition: {"any": [..., {"media_type": {"in": [...]}}]}
+            for item in cond['any']:
+                if isinstance(item, dict) and isinstance(item.get('media_type'), dict):
+                    mt = item['media_type'].get('in')
+                    if isinstance(mt, list):
+                        result['media_types'] = mt
+                        break
+        elif 'bbox' in cond:
+            bbox = cond['bbox']
+            result.update({
+                'north': bbox.get('north'), 'south': bbox.get('south'),
+                'east':  bbox.get('east'),  'west':  bbox.get('west'),
+            })
+        elif cond.get('property') == 'pubtime' and cond.get('type') == 'datetime':
+            between = cond.get('between', [])
+            if len(between) == 2:
+                for val, dk, tk in [
+                    (between[0], 'start_date', 'start_time'),
+                    (between[1], 'end_date',   'end_time'),
+                ]:
+                    if 'T' in val:
+                        d, rest = val.split('T', 1)
+                        result[dk] = d
+                        result[tk] = rest[:5]
+        elif 'metadata_id' in cond:
+            pass  # skip — no dataset control in edit dialog
+        else:
+            return None  # unrecognised condition → fall back to textarea
+
+    return result
+
+
 def _preview_credentials(credentials: dict) -> dict:
     """Return a display-safe copy of credentials with secrets redacted."""
     if credentials.get('type') == 'basic':

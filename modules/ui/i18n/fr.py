@@ -1,4 +1,4 @@
-﻿"""French translations.
+"""French translations.
 
 NOTE: Machine-generated — must be reviewed by a native French speaker,
 especially WMO/meteorological terms (WIS2, BUFR, GRIB, etc.).
@@ -34,6 +34,7 @@ STRINGS: dict[str, str] = {
     'btn.unselect':         'Désélectionner',
     'btn.select_all':       'Tout sélectionner / désélectionner',
     'btn.toggle_nav':       'Basculer la navigation',
+    'btn.edit':             'Modifier',
 
     # ------------------------------------------------------------------ #
     # Subscription sidebar (shared)                                        #
@@ -128,6 +129,10 @@ STRINGS: dict[str, str] = {
     'subscriptions.filter_default': 'Filtre\u00a0: par défaut',
     'subscriptions.filter_named':  'Filtre\u00a0: {name}',
     'subscriptions.filter_custom': 'Filtre\u00a0: personnalisé',
+    'subscriptions.edit_title':   "Modifier l'abonnement",
+    'subscriptions.credentials_note': 'Laissez les champs secrets vides pour conserver les identifiants existants',
+    'subscriptions.edit_load_error':  "Impossible de charger les détails de l'abonnement",
+    'subscriptions.filter_parse_warning': 'Impossible de convertir le filtre en contrôles — édition en JSON brut.',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #

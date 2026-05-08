@@ -3,7 +3,7 @@ import re
 from nicegui import ui
 
 from i18n import t
-from views.shared import confirm_subscribe, _collect_credentials
+from views.shared import confirm_subscribe, _collect_credentials, _validate_target, _validate_filter
 
 # Valid WIS2 topic: (cache|origin)/a/wis2/{centre-id or +}/data[/segments][/#]
 # - centre-id: alphanumerics + hyphens/underscores, or + wildcard
@@ -17,67 +17,12 @@ _TOPIC_RE = re.compile(
     r'(/#)?$'                           # optional trailing /#
 )
 
-_REQUIRED_RULE_FIELDS: dict[str, type | tuple] = {
-    'id':     str,
-    'order':  (int, float),
-    'match':  dict,
-    'action': str,
-}
-_VALID_ACTIONS = frozenset({'accept', 'reject', 'continue'})
-
 
 def _validate_topic(v: str) -> str | None:
     if not v or not v.strip():
         return t('manual.val.topic_required')
     if not _TOPIC_RE.match(v.strip()):
         return t('manual.val.topic_format')
-    return None
-
-
-def _validate_target(v: str) -> str | None:
-    if not v:
-        return None  # optional — defaults to ./
-    if '..' in v.split('/'):
-        return t('manual.val.path_traversal')
-    if v.startswith('/'):
-        return t('manual.val.path_absolute')
-    return None
-
-
-def _validate_filter(v: str) -> str | None:
-    v = (v or '').strip()
-    if not v or v == '{}':
-        return None  # empty = use the built-in default filter
-
-    try:
-        parsed = json.loads(v)
-    except json.JSONDecodeError as e:
-        return t('manual.val.json_invalid', msg=e.msg, lineno=e.lineno, colno=e.colno)
-
-    if not isinstance(parsed, dict):
-        return t('manual.val.not_object')
-    if 'rules' not in parsed:
-        return t('manual.val.missing_rules')
-    rules = parsed['rules']
-    if not isinstance(rules, list):
-        return t('manual.val.rules_not_array')
-
-    for i, rule in enumerate(rules):
-        if not isinstance(rule, dict):
-            return t('manual.val.rule_not_object', i=i)
-        for field, expected_type in _REQUIRED_RULE_FIELDS.items():
-            if field not in rule:
-                return t('manual.val.rule_missing_field', i=i, field=field)
-            if not isinstance(rule[field], expected_type):
-                type_name = (
-                    expected_type.__name__
-                    if isinstance(expected_type, type)
-                    else 'number'
-                )
-                return t('manual.val.rule_wrong_type', i=i, field=field, type_name=type_name)
-        if rule['action'] not in _VALID_ACTIONS:
-            return t('manual.val.rule_bad_action', i=i)
-
     return None
 
 

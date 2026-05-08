@@ -34,6 +34,7 @@ STRINGS: dict[str, str] = {
     'btn.unselect':         'Снять выбор',
     'btn.select_all':       'Выбрать / снять выбор всех',
     'btn.toggle_nav':       'Переключить навигацию',
+    'btn.edit':             'Редактировать',
 
     # ------------------------------------------------------------------ #
     # Subscription sidebar (shared)                                        #
@@ -127,6 +128,10 @@ STRINGS: dict[str, str] = {
     'subscriptions.filter_default': 'Фильтр: по умолчанию',
     'subscriptions.filter_named':  'Фильтр: {name}',
     'subscriptions.filter_custom': 'Фильтр: пользовательский',
+    'subscriptions.edit_title':   'Редактировать подписку',
+    'subscriptions.credentials_note': 'Оставьте секретные поля пустыми, чтобы сохранить текущие учётные данные',
+    'subscriptions.edit_load_error':       'Не удалось загрузить данные подписки',
+    'subscriptions.filter_parse_warning': 'Не удалось разобрать фильтр в элементы управления — редактирование как JSON.',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #

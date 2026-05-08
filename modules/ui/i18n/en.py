@@ -30,6 +30,7 @@ STRINGS: dict[str, str] = {
     'btn.unselect':         'Unselect',
     'btn.select_all':       'Select / deselect all',
     'btn.toggle_nav':       'Toggle navigation',
+    'btn.edit':             'Edit',
 
     # ------------------------------------------------------------------ #
     # Subscription sidebar (shared)                                        #
@@ -123,6 +124,10 @@ STRINGS: dict[str, str] = {
     'subscriptions.filter_default': 'Filter: default',
     'subscriptions.filter_named':  'Filter: {name}',
     'subscriptions.filter_custom': 'Filter: custom',
+    'subscriptions.edit_title':   'Edit Subscription',
+    'subscriptions.credentials_note': 'Leave secret fields blank to keep existing credentials',
+    'subscriptions.edit_load_error':       'Failed to load subscription details',
+    'subscriptions.filter_parse_warning': 'Filter could not be parsed into controls — editing as raw JSON.',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #

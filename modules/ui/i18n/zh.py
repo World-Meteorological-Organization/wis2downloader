@@ -34,6 +34,7 @@ STRINGS: dict[str, str] = {
     'btn.unselect':         '取消选择',
     'btn.select_all':       '全选 / 全不选',
     'btn.toggle_nav':       '切换导航',
+    'btn.edit':             '编辑',
 
     # ------------------------------------------------------------------ #
     # Subscription sidebar (shared)                                        #
@@ -127,6 +128,10 @@ STRINGS: dict[str, str] = {
     'subscriptions.filter_default': '过滤器：默认',
     'subscriptions.filter_named':  '过滤器：{name}',
     'subscriptions.filter_custom': '过滤器：自定义',
+    'subscriptions.edit_title':   '编辑订阅',
+    'subscriptions.credentials_note': '将密钥字段留空以保留现有凭据',
+    'subscriptions.edit_load_error':       '无法加载订阅详情',
+    'subscriptions.filter_parse_warning': '无法将过滤器解析为控件 — 以原始 JSON 编辑。',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #

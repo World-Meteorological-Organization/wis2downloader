@@ -34,6 +34,7 @@ STRINGS: dict[str, str] = {
     'btn.unselect':         'إلغاء التحديد',
     'btn.select_all':       'تحديد / إلغاء تحديد الكل',
     'btn.toggle_nav':       'تبديل التنقل',
+    'btn.edit':             'تعديل',
 
     # ------------------------------------------------------------------ #
     # Subscription sidebar (shared)                                        #
@@ -127,6 +128,10 @@ STRINGS: dict[str, str] = {
     'subscriptions.filter_default': 'الفلتر: افتراضي',
     'subscriptions.filter_named':  'الفلتر: {name}',
     'subscriptions.filter_custom': 'الفلتر: مخصص',
+    'subscriptions.edit_title':   'تعديل الاشتراك',
+    'subscriptions.credentials_note': 'اترك حقول الأسرار فارغة للإبقاء على بيانات الاعتماد الحالية',
+    'subscriptions.edit_load_error':       'تعذّر تحميل تفاصيل الاشتراك',
+    'subscriptions.filter_parse_warning': 'تعذّر تحليل المرشح إلى عناصر تحكم — يُعرض للتعديل كـ JSON.',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #
