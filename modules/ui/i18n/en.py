@@ -30,6 +30,7 @@ STRINGS: dict[str, str] = {
     'btn.unselect':         'Unselect',
     'btn.select_all':       'Select / deselect all',
     'btn.toggle_nav':       'Toggle navigation',
+    'btn.edit':             'Edit',
 
     # ------------------------------------------------------------------ #
     # Subscription sidebar (shared)                                        #
@@ -54,6 +55,13 @@ STRINGS: dict[str, str] = {
     'sidebar.end_time':              'End time (UTC)',
     'sidebar.time_hint':             'HH:MM',
     'sidebar.custom_filters':        'Custom filters',
+    'sidebar.auth':                  'Authentication',
+    'sidebar.auth_none':             'None',
+    'sidebar.auth_basic':            'Basic HTTP',
+    'sidebar.auth_bearer':           'Bearer Token',
+    'sidebar.auth_username':         'Username',
+    'sidebar.auth_password':         'Password',
+    'sidebar.auth_token':            'Token',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #
@@ -62,6 +70,7 @@ STRINGS: dict[str, str] = {
     'validation.time_format':        'Use HH:MM (24-hour)',
     'validation.date_time_errors':   'Fix date/time format errors before subscribing.',
     'validation.fix_errors':         'Fix validation errors before subscribing.',
+    'validation.auth_credentials_required': 'Fill in all required credential fields.',
 
     # ------------------------------------------------------------------ #
     # Confirm subscription dialog                                          #
@@ -115,6 +124,10 @@ STRINGS: dict[str, str] = {
     'subscriptions.filter_default': 'Filter: default',
     'subscriptions.filter_named':  'Filter: {name}',
     'subscriptions.filter_custom': 'Filter: custom',
+    'subscriptions.edit_title':   'Edit Subscription',
+    'subscriptions.credentials_note': 'Leave secret fields blank to keep existing credentials',
+    'subscriptions.edit_load_error':       'Failed to load subscription details',
+    'subscriptions.filter_parse_warning': 'Filter could not be parsed into controls — editing as raw JSON.',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #

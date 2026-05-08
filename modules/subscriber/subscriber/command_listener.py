@@ -89,6 +89,7 @@ class CommandListener(threading.Thread):
                     sub_id,
                     command.get('save_path', ''),
                     command.get('filter', {}),
+                    command.get('credentials'),
                 )
                 LOGGER.info(f'Added subscription {sub_id} to topic {topic}')
 
@@ -111,6 +112,7 @@ class CommandListener(threading.Thread):
                     sub_id,
                     command.get('save_path', ''),
                     command.get('filter', {}),
+                    command.get('credentials'),
                 )
                 LOGGER.info(f'Updated subscription {sub_id} on topic {topic}')
 

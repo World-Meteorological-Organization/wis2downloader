@@ -42,6 +42,19 @@ RETRYABLE_HTTP_CODES = frozenset({429, 500, 502, 503, 504})
 _pool = urllib3.PoolManager()
 hash_module = importlib.import_module("hashlib")
 
+
+def _build_auth_headers(credentials: dict | None) -> dict:
+    if not credentials:
+        return {}
+    if credentials.get("type") == "basic":
+        raw = f"{credentials['username']}:{credentials['password']}"
+        encoded = base64.b64encode(raw.encode()).decode()
+        return {"Authorization": f"Basic {encoded}"}
+    if credentials.get("type") == "bearer":
+        return {"Authorization": f"Bearer {credentials['token']}"}
+    return {}
+
+
 DOWNLOAD_CHUNK_SIZE = int(os.getenv("DOWNLOAD_CHUNK_SIZE", str(64 * 1024)))  # 64 KB per chunk
 _PROGRESS_LOG_INTERVAL = 1 * 1024 * 1024  # log a progress line every 50 MB
 
@@ -476,6 +489,7 @@ def download_from_wis2(self, job):
             try:
                 response = _pool.request(
                     'GET', download_url,
+                    headers=_build_auth_headers(job.get('credentials')),
                     preload_content=False,
                     timeout=urllib3.Timeout(connect=5.0, read=60.0),
                 )

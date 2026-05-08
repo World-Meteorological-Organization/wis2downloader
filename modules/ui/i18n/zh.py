@@ -34,6 +34,7 @@ STRINGS: dict[str, str] = {
     'btn.unselect':         '取消选择',
     'btn.select_all':       '全选 / 全不选',
     'btn.toggle_nav':       '切换导航',
+    'btn.edit':             '编辑',
 
     # ------------------------------------------------------------------ #
     # Subscription sidebar (shared)                                        #
@@ -58,6 +59,13 @@ STRINGS: dict[str, str] = {
     'sidebar.end_time':              '结束时间（UTC）',
     'sidebar.time_hint':             'HH:MM',
     'sidebar.custom_filters':        '自定义过滤器',
+    'sidebar.auth':                  '身份验证',
+    'sidebar.auth_none':             '无',
+    'sidebar.auth_basic':            'HTTP 基本认证',
+    'sidebar.auth_bearer':           'Bearer 令牌',
+    'sidebar.auth_username':         '用户名',
+    'sidebar.auth_password':         '密码',
+    'sidebar.auth_token':            '令牌',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #
@@ -66,6 +74,7 @@ STRINGS: dict[str, str] = {
     'validation.time_format':        '请使用 HH:MM（24小时制）格式',
     'validation.date_time_errors':   '请在订阅前修正日期/时间格式错误。',
     'validation.fix_errors':         '请在订阅前修正验证错误。',
+    'validation.auth_credentials_required': '请填写所有必填凭据字段。',
 
     # ------------------------------------------------------------------ #
     # Confirm subscription dialog                                          #
@@ -119,6 +128,10 @@ STRINGS: dict[str, str] = {
     'subscriptions.filter_default': '过滤器：默认',
     'subscriptions.filter_named':  '过滤器：{name}',
     'subscriptions.filter_custom': '过滤器：自定义',
+    'subscriptions.edit_title':   '编辑订阅',
+    'subscriptions.credentials_note': '将密钥字段留空以保留现有凭据',
+    'subscriptions.edit_load_error':       '无法加载订阅详情',
+    'subscriptions.filter_parse_warning': '无法将过滤器解析为控件 — 以原始 JSON 编辑。',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #

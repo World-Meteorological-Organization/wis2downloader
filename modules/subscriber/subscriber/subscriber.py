@@ -116,6 +116,7 @@ class Subscriber():
                 "topic": msg.topic,
                 "target": sub_data.get('save_path', ''),
                 "filter": sub_data.get('filter', {}),
+                "credentials": sub_data.get('credentials'),
                 "_broker": self.host,
                 "_received": now,
                 "_queued": now,
@@ -151,7 +152,8 @@ class Subscriber():
         return self.active_subscriptions
 
     def add_subscription(self, topic: str, sub_id: str,
-                         save_path: str, filter_config: dict) -> bool:
+                         save_path: str, filter_config: dict,
+                         credentials: dict | None = None) -> bool:
         """Add or update a single subscription on an already-subscribed topic.
 
         Returns True on success, False if the topic is not currently subscribed.
@@ -164,6 +166,7 @@ class Subscriber():
             'id': sub_id,
             'save_path': save_path,
             'filter': filter_config,
+            'credentials': credentials,
         }
         LOGGER.info(f"Added subscription {sub_id} to topic {topic}")
         return True

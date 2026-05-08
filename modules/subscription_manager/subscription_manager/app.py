@@ -24,6 +24,34 @@ except Exception as e:
     raise e
 
 
+VALID_CRED_TYPES = {"basic", "bearer"}
+
+
+def _validate_credentials(creds: dict | None) -> dict | None:
+    if creds is None:
+        return None
+    if not isinstance(creds, dict):
+        raise ValueError("credentials must be an object")
+    if creds.get("type") not in VALID_CRED_TYPES:
+        raise ValueError("credentials.type must be 'basic' or 'bearer'")
+    if creds["type"] == "basic" and not (creds.get("username") and creds.get("password")):
+        raise ValueError("basic auth requires username and password")
+    if creds["type"] == "bearer" and not creds.get("token"):
+        raise ValueError("bearer auth requires token")
+    return creds
+
+
+def _redact_credentials(sub_data: dict) -> dict:
+    safe = dict(sub_data)
+    creds = safe.get("credentials")
+    if creds:
+        safe["credentials"] = {
+            "type": creds.get("type"),
+            **({"username": creds["username"]} if creds.get("username") else {}),
+        }
+    return safe
+
+
 def get_json() -> dict:
     """Get JSON body safely."""
     if not request.is_json:
@@ -193,12 +221,18 @@ def add_subscription():
     # accept both 'filter' (new) and 'filters' (legacy) in the request body
     filter_config = data.get('filter') or data.get('filters') or {}
 
+    try:
+        credentials = _validate_credentials(data.get('credentials'))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
     sub_id = str(uuid4())
     sub_data = {
         'id': sub_id,
         'topic': topic,
         'save_path': save_path,
         'filter': filter_config,
+        'credentials': credentials,
     }
 
     try:
@@ -218,7 +252,12 @@ def add_subscription():
             "action": "subscribe",
             "topic": topic,
             "subscriptions": {
-                sub_id: {'id': sub_id, 'save_path': save_path, 'filter': filter_config}
+                sub_id: {
+                    'id': sub_id,
+                    'save_path': save_path,
+                    'filter': filter_config,
+                    'credentials': credentials,
+                }
             },
         }
     else:
@@ -229,12 +268,13 @@ def add_subscription():
             "sub_id": sub_id,
             "save_path": save_path,
             "filter": filter_config,
+            'credentials': credentials,
         }
 
     if not publish_command(command):
         return jsonify({"error": "Failed to queue subscription command, Redis unavailable"}), 503
 
-    response = jsonify(sub_data)
+    response = jsonify(_redact_credentials(sub_data))
     response.status_code = 201
     response.headers['Location'] = url_for('get_subscription', sub_id=sub_id)
     return response
@@ -246,7 +286,7 @@ def get_subscription(sub_id):
     sub_data = _get_subscription(sub_id)
     if sub_data is None:
         return jsonify({"error": f"Subscription '{sub_id}' not found"}), 404
-    return jsonify(sub_data), 200
+    return jsonify(_redact_credentials(sub_data)), 200
 
 
 @app.put('/subscriptions/<sub_id>')
@@ -261,6 +301,11 @@ def update_subscription(sub_id):
         sub_data['save_path'] = normalise_path(data['target'])
     if 'filter' in data:
         sub_data['filter'] = data['filter']
+    if 'credentials' in data:
+        try:
+            sub_data['credentials'] = _validate_credentials(data['credentials'])
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
     if not _persist_subscription(sub_id, sub_data):
         return jsonify({"error": "Failed to persist update to Redis"}), 503
@@ -271,11 +316,12 @@ def update_subscription(sub_id):
         "sub_id": sub_id,
         "save_path": sub_data['save_path'],
         "filter": sub_data['filter'],
+        "credentials": sub_data.get('credentials'),
     }
     if not publish_command(command):
         return jsonify({"error": "Failed to queue update command"}), 503
 
-    return jsonify(sub_data), 200
+    return jsonify(_redact_credentials(sub_data)), 200
 
 
 @app.delete('/subscriptions/<sub_id>')

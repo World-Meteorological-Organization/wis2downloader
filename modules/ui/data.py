@@ -84,7 +84,9 @@ def _build_topic_hierarchy() -> dict:
     topic_dict: dict = {}
     for merged in _merged_records:
         for channel in merged.record.mqtt_channels:
-            if channel.startswith('cache/'):
+            if channel and channel.startswith('origin/') and "recommended" in channel:
+                _insert_channel(topic_dict, channel, merged.record)
+            elif channel.startswith('cache/'):
                 _insert_channel(topic_dict, channel, merged.record)
                 break
     return topic_dict
@@ -144,6 +146,12 @@ def _build_merged_records() -> list[MergedRecord]:
                     if lnk.channel and lnk.channel not in existing_channels:
                         m.record.links.append(lnk)
                         existing_channels.add(lnk.channel)
+
+    for m in seen.values():
+        if m.record.wmo_data_policy == 'core':
+            m.record.links.sort(
+                key=lambda lnk: 0 if (lnk.channel and lnk.channel.startswith('cache/')) else 1
+            )
 
     return list(seen.values())
 

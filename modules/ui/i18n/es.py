@@ -32,6 +32,7 @@ STRINGS: dict[str, str] = {
     'btn.unselect':         'Deseleccionar',
     'btn.select_all':       'Seleccionar / deseleccionar todo',
     'btn.toggle_nav':       'Alternar navegación',
+    'btn.edit':             'Editar',
 
     # ------------------------------------------------------------------ #
     # Subscription sidebar (shared)                                        #
@@ -56,6 +57,13 @@ STRINGS: dict[str, str] = {
     'sidebar.end_time':              'Hora de fin (UTC)',
     'sidebar.time_hint':             'HH:MM',
     'sidebar.custom_filters':        'Filtros personalizados',
+    'sidebar.auth':                  'Autenticación',
+    'sidebar.auth_none':             'Ninguna',
+    'sidebar.auth_basic':            'HTTP básico',
+    'sidebar.auth_bearer':           'Token Bearer',
+    'sidebar.auth_username':         'Usuario',
+    'sidebar.auth_password':         'Contraseña',
+    'sidebar.auth_token':            'Token',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #
@@ -64,6 +72,7 @@ STRINGS: dict[str, str] = {
     'validation.time_format':        'Use HH:MM (24 horas)',
     'validation.date_time_errors':   'Corrija los errores de formato de fecha/hora antes de suscribirse.',
     'validation.fix_errors':         'Corrija los errores de validación antes de suscribirse.',
+    'validation.auth_credentials_required': 'Complete todos los campos de credenciales requeridos.',
 
     # ------------------------------------------------------------------ #
     # Confirm subscription dialog                                          #
@@ -117,6 +126,10 @@ STRINGS: dict[str, str] = {
     'subscriptions.filter_default': 'Filtro: predeterminado',
     'subscriptions.filter_named':  'Filtro: {name}',
     'subscriptions.filter_custom': 'Filtro: personalizado',
+    'subscriptions.edit_title':   'Editar suscripción',
+    'subscriptions.credentials_note': 'Deje los campos secretos en blanco para conservar las credenciales existentes',
+    'subscriptions.edit_load_error':       'No se pudieron cargar los detalles de la suscripción',
+    'subscriptions.filter_parse_warning': 'No se pudo convertir el filtro en controles — se edita como JSON.',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #

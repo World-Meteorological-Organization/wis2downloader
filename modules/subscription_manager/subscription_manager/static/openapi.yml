@@ -115,6 +115,23 @@ paths:
                         match:
                           always: true
                         action: "reject"
+              with_basic_auth:
+                summary: Subscribe to an access-controlled dataset using basic auth
+                value:
+                  topic: "cache/a/wis2/+/data/recommended/weather/surface-based-observations/#"
+                  target: "restricted-obs"
+                  credentials:
+                    type: "basic"
+                    username: "myuser"
+                    password: "s3cr3t"
+              with_bearer_token:
+                summary: Subscribe to an access-controlled dataset using a bearer token
+                value:
+                  topic: "cache/a/wis2/de-dwd/data/recommended/weather/#"
+                  target: "dwd-data"
+                  credentials:
+                    type: "bearer"
+                    token: "abc123xyz"
       responses:
         "201":
           description: Subscription created
@@ -277,6 +294,33 @@ paths:
 
 components:
   schemas:
+    Credentials:
+      type: object
+      description: |
+        HTTP credentials for downloading files from access-controlled datasets.
+        `password` and `token` are write-only and are never returned in GET responses.
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [basic, bearer]
+          description: Authentication scheme
+        username:
+          type: string
+          description: Required for type=basic
+          example: "myuser"
+        password:
+          type: string
+          description: Required for type=basic. Write-only.
+          writeOnly: true
+          example: "s3cr3t"
+        token:
+          type: string
+          description: Required for type=bearer. Write-only.
+          writeOnly: true
+          example: "abc123xyz"
+
     Subscription:
       type: object
       description: Full subscription record as stored and returned by the API
@@ -297,6 +341,11 @@ components:
           example: "surface-obs-bufr"
         filter:
           $ref: '#/components/schemas/Filter'
+        credentials:
+          allOf:
+            - $ref: '#/components/schemas/Credentials'
+          nullable: true
+          description: Present only when credentials were supplied. Secrets are redacted.
 
     SubscriptionDetail:
       type: object
@@ -324,6 +373,8 @@ components:
           example: "surface-obs"
         filter:
           $ref: '#/components/schemas/Filter'
+        credentials:
+          $ref: '#/components/schemas/Credentials'
 
     Filter:
       type: object

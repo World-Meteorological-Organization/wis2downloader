@@ -34,6 +34,7 @@ STRINGS: dict[str, str] = {
     'btn.unselect':         'إلغاء التحديد',
     'btn.select_all':       'تحديد / إلغاء تحديد الكل',
     'btn.toggle_nav':       'تبديل التنقل',
+    'btn.edit':             'تعديل',
 
     # ------------------------------------------------------------------ #
     # Subscription sidebar (shared)                                        #
@@ -58,6 +59,13 @@ STRINGS: dict[str, str] = {
     'sidebar.end_time':              'وقت الانتهاء (UTC)',
     'sidebar.time_hint':             'HH:MM',
     'sidebar.custom_filters':        'مرشحات مخصصة',
+    'sidebar.auth':                  'المصادقة',
+    'sidebar.auth_none':             'بدون',
+    'sidebar.auth_basic':            'مصادقة أساسية',
+    'sidebar.auth_bearer':           'رمز الحامل',
+    'sidebar.auth_username':         'اسم المستخدم',
+    'sidebar.auth_password':         'كلمة المرور',
+    'sidebar.auth_token':            'الرمز',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #
@@ -66,6 +74,7 @@ STRINGS: dict[str, str] = {
     'validation.time_format':        'استخدم HH:MM (24 ساعة)',
     'validation.date_time_errors':   'يرجى تصحيح أخطاء تنسيق التاريخ/الوقت قبل الاشتراك.',
     'validation.fix_errors':         'يرجى تصحيح أخطاء التحقق قبل الاشتراك.',
+    'validation.auth_credentials_required': 'يرجى ملء جميع حقول بيانات الاعتماد المطلوبة.',
 
     # ------------------------------------------------------------------ #
     # Confirm subscription dialog                                          #
@@ -119,6 +128,10 @@ STRINGS: dict[str, str] = {
     'subscriptions.filter_default': 'الفلتر: افتراضي',
     'subscriptions.filter_named':  'الفلتر: {name}',
     'subscriptions.filter_custom': 'الفلتر: مخصص',
+    'subscriptions.edit_title':   'تعديل الاشتراك',
+    'subscriptions.credentials_note': 'اترك حقول الأسرار فارغة للإبقاء على بيانات الاعتماد الحالية',
+    'subscriptions.edit_load_error':       'تعذّر تحميل تفاصيل الاشتراك',
+    'subscriptions.filter_parse_warning': 'تعذّر تحليل المرشح إلى عناصر تحكم — يُعرض للتعديل كـ JSON.',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #

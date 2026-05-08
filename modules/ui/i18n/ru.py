@@ -34,6 +34,7 @@ STRINGS: dict[str, str] = {
     'btn.unselect':         'Снять выбор',
     'btn.select_all':       'Выбрать / снять выбор всех',
     'btn.toggle_nav':       'Переключить навигацию',
+    'btn.edit':             'Редактировать',
 
     # ------------------------------------------------------------------ #
     # Subscription sidebar (shared)                                        #
@@ -58,6 +59,13 @@ STRINGS: dict[str, str] = {
     'sidebar.end_time':              'Время окончания (UTC)',
     'sidebar.time_hint':             'ЧЧ:ММ',
     'sidebar.custom_filters':        'Пользовательские фильтры',
+    'sidebar.auth':                  'Аутентификация',
+    'sidebar.auth_none':             'Нет',
+    'sidebar.auth_basic':            'HTTP Basic',
+    'sidebar.auth_bearer':           'Bearer-токен',
+    'sidebar.auth_username':         'Имя пользователя',
+    'sidebar.auth_password':         'Пароль',
+    'sidebar.auth_token':            'Токен',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #
@@ -66,6 +74,7 @@ STRINGS: dict[str, str] = {
     'validation.time_format':        'Используйте формат ЧЧ:ММ (24 часа)',
     'validation.date_time_errors':   'Исправьте ошибки формата даты/времени перед подпиской.',
     'validation.fix_errors':         'Исправьте ошибки валидации перед подпиской.',
+    'validation.auth_credentials_required': 'Заполните все обязательные поля учётных данных.',
 
     # ------------------------------------------------------------------ #
     # Confirm subscription dialog                                          #
@@ -119,6 +128,10 @@ STRINGS: dict[str, str] = {
     'subscriptions.filter_default': 'Фильтр: по умолчанию',
     'subscriptions.filter_named':  'Фильтр: {name}',
     'subscriptions.filter_custom': 'Фильтр: пользовательский',
+    'subscriptions.edit_title':   'Редактировать подписку',
+    'subscriptions.credentials_note': 'Оставьте секретные поля пустыми, чтобы сохранить текущие учётные данные',
+    'subscriptions.edit_load_error':       'Не удалось загрузить данные подписки',
+    'subscriptions.filter_parse_warning': 'Не удалось разобрать фильтр в элементы управления — редактирование как JSON.',
 
     # ------------------------------------------------------------------ #
     # Settings view                                                        #
