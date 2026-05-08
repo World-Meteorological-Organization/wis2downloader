@@ -317,72 +317,9 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
                             inp.tooltip(description)
                         custom_inputs[fname] = inp
 
-        # --- Authentication (visible only when exactly one dataset is selected) ---
-        auth_type = None
-        username_input = None
-        password_input = None
-        token_input = None
-
-        auth_container = ui.column().classes("w-full")
-        if is_page_selection:
-            # Catalogue path: select is disabled. Drive visibility from the
-            # explicitly tracked selected_dataset_ids so that selecting,
-            # unselecting, or switching between datasets all update correctly.
-            auth_container.visible = (len(state.selected_dataset_ids) == 1)
-        else:
-            # Tree path: select is interactive, bind reactively.
-            auth_container.bind_visibility_from(
-                dataset_select, 'value', backward=lambda v: bool(v) and len(v) == 1
-            )
-        with auth_container:
-            ui.separator()
-            ui.label(t('sidebar.auth')).classes("sidebar-section-title")
-            auth_type = ui.radio(
-                {
-                    'none': t('sidebar.auth_none'),
-                    'basic': t('sidebar.auth_basic'),
-                    'bearer': t('sidebar.auth_bearer'),
-                },
-                value='none',
-            ).props('inline')
-
-            def _req(v):
-                return t('validation.auth_credentials_required') if not (v or '').strip() else None
-
-            with ui.column().bind_visibility_from(
-                auth_type, 'value', backward=lambda v: v == 'basic'
-            ):
-                username_input = ui.input(
-                    label=t('sidebar.auth_username'),
-                    validation=_req,
-                ).classes("filter-input")
-                password_input = ui.input(
-                    label=t('sidebar.auth_password'),
-                    password=True,
-                    password_toggle_button=True,
-                    validation=_req,
-                ).classes("filter-input")
-
-            with ui.column().bind_visibility_from(
-                auth_type, 'value', backward=lambda v: v == 'bearer'
-            ):
-                token_input = ui.input(
-                    label=t('sidebar.auth_token'),
-                    password=True,
-                    password_toggle_button=True,
-                    validation=_req,
-                ).classes("filter-input")
-
         ui.separator()
 
         def on_subscribe_click():
-            if auth_type is not None:
-                if auth_type.value == 'basic':
-                    username_input.validate()
-                    password_input.validate()
-                elif auth_type.value == 'bearer':
-                    token_input.validate()
-
             confirm_subscribe(
                 _collect_per_topic_filters(
                     topics, dataset_select, media_type,
@@ -391,10 +328,6 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
                     custom_inputs, custom_filter_defs,
                 ),
                 directory.value,
-                _collect_credentials(
-                    auth_container, auth_type,
-                    username_input, password_input, token_input,
-                ),
             )
 
         ui.button(t('btn.subscribe'), icon="check_circle").classes("subscribe-btn").on(
