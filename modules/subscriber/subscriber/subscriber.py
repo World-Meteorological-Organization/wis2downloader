@@ -123,8 +123,12 @@ class Subscriber():
                 "payload": payload,
             }
             try:
-                wis2_download(job).apply_async()
-                LOGGER.info(f"Job queued for topic {msg.topic}")
+                queue = sub_data.get('queue', 'small_files')
+                wis2_download(job).apply_async(queue=queue)
+                LOGGER.info(
+                    f"Job queued for topic {msg.topic} "
+                    f"on queue '{queue}'"
+                )
             except Exception as e:
                 LOGGER.error(
                     f"Failed to queue job for topic {msg.topic}: {e}",
@@ -153,7 +157,8 @@ class Subscriber():
 
     def add_subscription(self, topic: str, sub_id: str,
                          save_path: str, filter_config: dict,
-                         credentials: dict | None = None) -> bool:
+                         credentials: dict | None = None,
+                         queue: str = 'small_files') -> bool:
         """Add or update a single subscription on an already-subscribed topic.
 
         Returns True on success, False if the topic is not currently subscribed.
@@ -167,6 +172,7 @@ class Subscriber():
             'save_path': save_path,
             'filter': filter_config,
             'credentials': credentials,
+            'queue': queue,
         }
         LOGGER.info(f"Added subscription {sub_id} to topic {topic}")
         return True

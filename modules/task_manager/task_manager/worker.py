@@ -28,7 +28,8 @@ app.conf.result_expires = 86400  # 1 day, or do we want 1 hour? (TBD)
 app.conf.update(
     task_serializer='json',
     accept_content=['json'],
-    result_serializer='json'
+    result_serializer='json',
+    task_default_queue='small_files',
 )
 
 # Import your tasks

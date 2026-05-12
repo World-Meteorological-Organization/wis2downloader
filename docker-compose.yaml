@@ -150,7 +150,7 @@ services:
       retries: 3
 
   # Task handling
-  celery-download-workers:
+  celery-workers-high-priority:
     restart: always
     build:
       context: .
@@ -165,7 +165,51 @@ services:
     networks:
       - redis-net
     logging: *loki-logging
-    command: ["/bin/bash", "-c", "source .venv/bin/activate && task_manager_start worker --pool=threads --concurrency=32 --loglevel=${LOG_LEVEL:-info}"]
+    command: ["/bin/bash", "-c", "source .venv/bin/activate && task_manager_start worker --pool=threads --concurrency=8 --loglevel=${LOG_LEVEL:-info} -Q high_priority"]
+    healthcheck:
+      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${CELERY_BACKEND_DB} celery inspect ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  celery-workers-small-files:
+    restart: always
+    build:
+      context: .
+      dockerfile: ./containers/celery/Dockerfile
+    volumes:
+      - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
+    env_file: *default-env
+    tty: true
+    depends_on:
+      - redis
+      - subscription-manager
+    networks:
+      - redis-net
+    logging: *loki-logging
+    command: ["/bin/bash", "-c", "source .venv/bin/activate && task_manager_start worker --pool=threads --concurrency=24 --loglevel=${LOG_LEVEL:-info} -Q small_files"]
+    healthcheck:
+      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${CELERY_BACKEND_DB} celery inspect ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  celery-workers-large-files:
+    restart: always
+    build:
+      context: .
+      dockerfile: ./containers/celery/Dockerfile
+    volumes:
+      - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
+    env_file: *default-env
+    tty: true
+    depends_on:
+      - redis
+      - subscription-manager
+    networks:
+      - redis-net
+    logging: *loki-logging
+    command: ["/bin/bash", "-c", "source .venv/bin/activate && task_manager_start worker --pool=threads --concurrency=8 --loglevel=${LOG_LEVEL:-info} -Q large_files"]
     healthcheck:
       test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${CELERY_BACKEND_DB} celery inspect ping"]
       interval: 30s
