@@ -66,6 +66,10 @@ STRINGS: dict[str, str] = {
     'sidebar.auth_username':         '用户名',
     'sidebar.auth_password':         '密码',
     'sidebar.auth_token':            '令牌',
+    'sidebar.queue':                 '优先队列',
+    'sidebar.queue_high':            '高优先级',
+    'sidebar.queue_small':           '小文件',
+    'sidebar.queue_large':           '大文件',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #

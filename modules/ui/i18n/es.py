@@ -64,6 +64,10 @@ STRINGS: dict[str, str] = {
     'sidebar.auth_username':         'Usuario',
     'sidebar.auth_password':         'Contraseña',
     'sidebar.auth_token':            'Token',
+    'sidebar.queue':                 'Cola de Prioridad',
+    'sidebar.queue_high':            'Alta Prioridad',
+    'sidebar.queue_small':           'Archivos Pequeños',
+    'sidebar.queue_large':           'Archivos Grandes',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #

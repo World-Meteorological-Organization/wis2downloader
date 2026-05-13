@@ -124,7 +124,7 @@ class Subscriber():
             }
             try:
                 queue = sub_data.get('queue', 'small_files')
-                wis2_download(job).apply_async(queue=queue)
+                wis2_download(job, queue=queue).apply_async()
                 LOGGER.info(
                     f"Job queued for topic {msg.topic} "
                     f"on queue '{queue}'"

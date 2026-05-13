@@ -454,6 +454,18 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
 
         ui.separator()
 
+        ui.label(t('sidebar.queue')).classes("sidebar-section-title")
+        queue_radio = ui.radio(
+            {
+                'high_priority': t('sidebar.queue_high'),
+                'small_files':   t('sidebar.queue_small'),
+                'large_files':   t('sidebar.queue_large'),
+            },
+            value='small_files',
+        ).props('inline')
+
+        ui.separator()
+
         def on_subscribe_click():
             confirm_subscribe(
                 _collect_per_topic_filters(
@@ -463,6 +475,7 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
                     custom_inputs, custom_filter_defs,
                 ),
                 directory.value,
+                queue=queue_radio.value or 'small_files',
             )
 
         ui.button(t('btn.subscribe'), icon="check_circle").classes("subscribe-btn").on(
@@ -470,7 +483,8 @@ def on_topics_picked(e, state, layout, is_page_selection=False, sender=None, dat
         )
 
 
-def confirm_subscribe(topic_filters: dict | None, directory, credentials=None):
+def confirm_subscribe(topic_filters: dict | None, directory,
+                      credentials=None, queue='small_files'):
     if topic_filters is None:
         return  # validation errors already shown inline
     if credentials is False:
@@ -482,6 +496,7 @@ def confirm_subscribe(topic_filters: dict | None, directory, credentials=None):
             "topic": topic,
             "target": target,
             "filter": f,
+            "queue": queue,
             **({"credentials": _preview_credentials(credentials)} if credentials else {}),
         }
         for topic, f in topic_filters.items()
@@ -497,19 +512,21 @@ def confirm_subscribe(topic_filters: dict | None, directory, credentials=None):
 
             async def on_confirm():
                 dialog.close()
-                await subscribe_to_topics(topic_filters, target, credentials)
+                await subscribe_to_topics(topic_filters, target, credentials, queue)
 
             ui.button(t('btn.confirm'), icon="check_circle").props("color=primary").on('click', on_confirm)
     dialog.open()
 
 
-async def subscribe_to_topics(topic_filters: dict, directory, credentials=None):
+async def subscribe_to_topics(topic_filters: dict, directory,
+                               credentials=None, queue='small_files'):
     async with httpx.AsyncClient() as client:
         for topic, filters in topic_filters.items():
             payload = {
                 "topic": topic,
                 "target": directory,
                 "filter": filters,
+                "queue": queue,
             }
             if credentials:
                 payload["credentials"] = credentials

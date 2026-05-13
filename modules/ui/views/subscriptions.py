@@ -75,6 +75,7 @@ def render(container):
             creds = sub_full.get('credentials') or {}
             original_auth_type = creds.get('type', 'none')
             current_username = creds.get('username', '')
+            current_queue = sub_full.get('queue', 'small_files')
 
             # Decide rendering mode for filters
             parsed = _try_parse_filter(filter_cfg)
@@ -172,6 +173,17 @@ def render(container):
                             value=parsed['end_time'] or '',
                             validation=lambda v: None if not v or _TIME_RE.match(v) else t('validation.time_format'),
                         ).classes("filter-input")
+
+                ui.separator()
+                ui.label(t('sidebar.queue')).classes("sidebar-section-title")
+                queue_radio = ui.radio(
+                    {
+                        'high_priority': t('sidebar.queue_high'),
+                        'small_files':   t('sidebar.queue_small'),
+                        'large_files':   t('sidebar.queue_large'),
+                    },
+                    value=current_queue,
+                ).props('inline')
 
                 ui.separator()
                 ui.label(t('sidebar.auth')).classes("sidebar-section-title")
@@ -275,6 +287,7 @@ def render(container):
                     payload: dict = {
                         'target': target_input.value.strip() or './',
                         'filter': filter_result,
+                        'queue': queue_radio.value or 'small_files',
                     }
                     if include_credentials:
                         payload['credentials'] = credentials_value

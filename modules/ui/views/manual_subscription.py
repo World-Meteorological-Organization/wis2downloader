@@ -3,7 +3,10 @@ import re
 from nicegui import ui
 
 from i18n import t
-from views.shared import confirm_subscribe, _collect_credentials, _validate_target, _validate_filter
+from views.shared import (
+    confirm_subscribe, _collect_credentials,
+    _validate_target, _validate_filter,
+)
 
 # Valid WIS2 topic: (cache|origin)/a/wis2/{centre-id or +}/data[/segments][/#]
 # - centre-id: alphanumerics + hyphens/underscores, or + wildcard
@@ -51,6 +54,18 @@ def render(container):
                     placeholder=t('manual.filter_hint'),
                     validation=_validate_filter,
                 ).classes("directory-input filter-textarea")
+
+                ui.separator()
+
+                ui.label(t('sidebar.queue')).classes("sidebar-section-title")
+                queue_radio = ui.radio(
+                    {
+                        'high_priority': t('sidebar.queue_high'),
+                        'small_files':   t('sidebar.queue_small'),
+                        'large_files':   t('sidebar.queue_large'),
+                    },
+                    value='small_files',
+                ).props('inline')
 
                 ui.separator()
 
@@ -116,7 +131,12 @@ def render(container):
                     topic = topic_input.value.strip()
                     raw = (filter_area.value or '').strip()
                     filters = json.loads(raw) if raw and raw != '{}' else {}
-                    confirm_subscribe({topic: filters}, target_input.value, credentials)
+                    confirm_subscribe(
+                        {topic: filters},
+                        target_input.value,
+                        credentials,
+                        queue=queue_radio.value or 'small_files',
+                    )
 
                 ui.button(t('btn.subscribe'), icon="check_circle").classes("subscribe-btn").on(
                     'click', on_subscribe,

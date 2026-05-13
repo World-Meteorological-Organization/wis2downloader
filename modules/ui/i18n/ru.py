@@ -66,6 +66,10 @@ STRINGS: dict[str, str] = {
     'sidebar.auth_username':         'Имя пользователя',
     'sidebar.auth_password':         'Пароль',
     'sidebar.auth_token':            'Токен',
+    'sidebar.queue':                 'Очередь приоритетов',
+    'sidebar.queue_high':            'Высокий приоритет',
+    'sidebar.queue_small':           'Малые файлы',
+    'sidebar.queue_large':           'Большие файлы',
 
     # ------------------------------------------------------------------ #
     # Validation messages                                                  #
