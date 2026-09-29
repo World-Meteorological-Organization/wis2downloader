@@ -23,7 +23,7 @@ import paho.mqtt.publish as mqtt_publish
 import pytest
 import redis
 import requests
-from pywis_pubsub.publish import create_message, get_url_info
+from pywis_pubsub.wnm.publish import create_message, get_url_info
 
 TEST_FILE_URL = os.getenv("TEST_FILE_URL", "")
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:5001")

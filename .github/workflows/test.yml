@@ -103,7 +103,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install test dependencies
-        run: pip install pytest requests paho-mqtt redis pywis-pubsub
+        run: pip install pytest requests paho-mqtt redis pywis-pubsub==0.13.0
 
       - name: Run API integration tests
         run: pytest tests/integration/test_api.py -v --tb=short
