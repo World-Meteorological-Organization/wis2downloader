@@ -76,5 +76,11 @@ dump.rdb
 .gemini/
 
 .github/setup.js
+
 # Local docs translation helper
 /docs/translate.py
+
+# Stale package consolidation copy (#55, v2)
+/modules/wis2downloader/
+
+*.pptx
