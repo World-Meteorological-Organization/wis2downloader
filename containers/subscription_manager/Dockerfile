@@ -36,4 +36,4 @@ RUN source /home/wis2/.venv/bin/activate && \
     pip install --no-deps -e subscription_manager
 
 # now the default command
-CMD ["/bin/bash", "-c", "source .venv/bin/activate && gunicorn --bind 0.0.0.0:5001 --workers 1 --threads 2 subscription_manager.app:app"]
+CMD ["/bin/bash", "-c", "source .venv/bin/activate && gunicorn --config python:subscription_manager.gunicorn_conf --bind 0.0.0.0:5001 --workers 1 --threads 2 subscription_manager.app:app"]

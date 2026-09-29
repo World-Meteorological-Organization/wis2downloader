@@ -3,20 +3,21 @@ import os
 import sys
 
 from shared.logging import setup_logging
-from shared.redis_client import (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD)
+from shared.valkey_client import (VALKEY_HOST, VALKEY_PORT, VALKEY_PASSWORD)
 
 # Set up logging
 setup_logging()  # Configure root logger
 LOGGER = setup_logging(__name__)
 
-if not REDIS_PASSWORD:
-    raise ValueError("REDIS_PASSWORD must be set")
+if not VALKEY_PASSWORD:
+    raise ValueError("VALKEY_PASSWORD must be set")
 
 SCHEDULER_BACKEND_DB = int(os.getenv("SCHEDULER_BACKEND_DB", "2"))
 SCHEDULER_RESULT_DB = int(os.getenv("SCHEDULER_RESULT_DB", "3"))
 
-SCHEDULER_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{SCHEDULER_BACKEND_DB}"
-SCHEDULER_RESULT_BACKEND = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{SCHEDULER_RESULT_DB}"
+# kombu has no valkey:// transport yet (celery/kombu#2246)
+SCHEDULER_BROKER_URL = f"redis://:{VALKEY_PASSWORD}@{VALKEY_HOST}:{VALKEY_PORT}/{SCHEDULER_BACKEND_DB}"
+SCHEDULER_RESULT_BACKEND = f"redis://:{VALKEY_PASSWORD}@{VALKEY_HOST}:{VALKEY_PORT}/{SCHEDULER_RESULT_DB}"
 
 # --- Celery App Setup ---
 app = Celery('tasks',
@@ -28,7 +29,9 @@ app.conf.result_expires = 300
 app.conf.update(
     task_serializer='json',
     accept_content=['json'],
-    result_serializer='json'
+    result_serializer='json',
+    task_soft_time_limit=3000,
+    task_time_limit=3600,
 )
 
 # Import your tasks

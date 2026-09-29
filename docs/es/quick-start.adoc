@@ -34,7 +34,7 @@ Ejecute el script de configuración para crear un archivo `.env` con secretos ge
 bash setup.sh
 ----
 
-Este script copia `default.env` a `.env` y genera valores aleatorios para `FLASK_SECRET_KEY` y `REDIS_PASSWORD`. Revise el archivo `.env` y ajuste los parámetros si es necesario — los valores predeterminados son adecuados para un despliegue en una sola máquina.
+Este script copia `default.env` a `.env` y genera valores aleatorios para `FLASK_SECRET_KEY` y `VALKEY_PASSWORD`. Revise el archivo `.env` y ajuste los parámetros si es necesario — los valores predeterminados son adecuados para un despliegue en una sola máquina.
 
 IMPORTANT: Mantenga el archivo `.env` seguro. Contiene credenciales sensibles y no debe incluirse en el control de versiones.
 
@@ -84,7 +84,7 @@ Si no puede crear un usuario equivalente, consulte la sección link:admin-guide.
 docker compose up -d
 ----
 
-Este comando inicia todos los servicios: gestor de suscripciones, suscriptores MQTT (Global Brokers de Francia y Brasil), workers Celery (colas de alta prioridad, archivos pequeños y archivos grandes), Redis, Prometheus, Grafana y Loki.
+Este comando inicia todos los servicios: gestor de suscripciones, suscriptores MQTT (Global Brokers de Francia y Brasil), workers Celery (colas de alta prioridad, archivos pequeños y archivos grandes), Valkey, Prometheus, Grafana y Loki.
 
 Compruebe que todo esté funcionando:
 

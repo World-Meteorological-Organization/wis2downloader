@@ -28,18 +28,16 @@ def setup_logging(name: Optional[str] = None, level: Optional[str] = None) -> lo
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
 
+    root = logging.getLogger()
     if name is None:
-        # Configure root logger
-        logger = logging.getLogger()
-        if logger.hasHandlers():
-            logger.handlers.clear()
-    else:
-        logger = logging.getLogger(name)
+        root.handlers.clear()
+        root.addHandler(handler)
+        root.setLevel(log_level)
+        return root
 
+    if not root.handlers:
+        root.addHandler(handler)
+
+    logger = logging.getLogger(name)
     logger.setLevel(log_level)
-
-    # Only add handler if not already present (avoid duplicates)
-    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
-        logger.addHandler(handler)
-
     return logger

@@ -3,8 +3,8 @@
 # speeds up health check intervals, and redirects the subscriber to a
 # local Mosquitto broker instead of the real WIS2 Global Brokers.
 services:
-  redis:
-    command: redis-server --requirepass ci_test_password --appendonly yes --protected-mode no
+  valkey:
+    command: valkey-server --requirepass ci_test_password --appendonly yes --protected-mode no
     ports:
       - "6379:6379"
     logging:
@@ -13,7 +13,7 @@ services:
         max-size: "10M"
         max-file: "2"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "ci_test_password", "ping"]
+      test: ["CMD", "valkey-cli", "-a", "ci_test_password", "ping"]
       interval: 5s
       timeout: 3s
       retries: 15
@@ -39,7 +39,7 @@ services:
     ports:
       - "1883:1883"
     networks:
-      - redis-net
+      - valkey-net
     logging:
       driver: json-file
       options:
@@ -63,7 +63,7 @@ services:
       GLOBAL_BROKER_PASSWORD: ci
       MQTT_PROTOCOL: tcp
     depends_on:
-      redis:
+      valkey:
         condition: service_healthy
       mosquitto:
         condition: service_healthy
@@ -73,7 +73,7 @@ services:
         max-size: "10M"
         max-file: "2"
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import redis; r = redis.Redis(host='redis', password='ci_test_password', port=6379); exit(0 if r.pubsub_channels(b'subscription_commands') else 1)\""]
+      test: ["CMD-SHELL", "python3 -c \"import redis; r = redis.Redis(host='valkey', password='ci_test_password', port=6379); exit(0 if r.pubsub_channels(b'subscription_commands') else 1)\""]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -86,7 +86,7 @@ services:
         max-size: "10M"
         max-file: "2"
     healthcheck:
-      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:ci_test_password@redis:6379/0 celery inspect ping -t 5 | grep -q pong"]
+      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:ci_test_password@valkey:6379/0 celery inspect ping -t 5 | grep -q pong"]
       interval: 10s
       timeout: 15s
       retries: 12

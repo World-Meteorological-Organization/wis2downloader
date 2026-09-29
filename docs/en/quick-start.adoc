@@ -34,7 +34,7 @@ Run the setup script to create a `.env` file with randomised secrets:
 bash setup.sh
 ----
 
-This copies `default.env` to `.env` and generates random values for `FLASK_SECRET_KEY` and `REDIS_PASSWORD`. Review `.env` and adjust any settings if needed — the defaults are suitable for a single-machine deployment.
+This copies `default.env` to `.env` and generates random values for `FLASK_SECRET_KEY` and `VALKEY_PASSWORD`. Review `.env` and adjust any settings if needed — the defaults are suitable for a single-machine deployment.
 
 IMPORTANT: Keep `.env` secure. It contains credentials and should not be committed to version control.
 
@@ -84,7 +84,7 @@ If you cannot create a matching user, see the link:admin-guide.html#_volume_perm
 docker compose up -d
 ----
 
-This starts all services: subscription manager, MQTT subscribers (France and Brazil Global Brokers), Celery workers (high-priority, small-files, and large-files queues), Redis, Prometheus, Grafana, and Loki.
+This starts all services: subscription manager, MQTT subscribers (France and Brazil Global Brokers), Celery workers (high-priority, small-files, and large-files queues), Valkey, Prometheus, Grafana, and Loki.
 
 Check everything is running:
 

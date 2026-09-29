@@ -186,7 +186,7 @@ The *Manual Subscribe* view (kbd:[Alt+4]) includes an authentication section for
 |Token (sent as `Authorization: Bearer <token>`)
 |===
 
-NOTE: Credentials are stored in Redis and sent with each download request for the subscription. The password and token are redacted in API responses.
+NOTE: Credentials are stored in Valkey and sent with each download request for the subscription. The password and token are redacted in API responses.
 
 === Managing Subscriptions
 
@@ -199,7 +199,7 @@ Use *Reload Subscriptions* to refresh the list after any changes made via the AP
 
 === Settings
 
-The Settings view shows how many records were loaded from each GDC. Click *Refresh GDC data* to force a fresh fetch from all three catalogues, bypassing the Redis cache.
+The Settings view shows how many records were loaded from each GDC. Click *Refresh GDC data* to force a fresh fetch from all three catalogues, bypassing the Valkey cache.
 
 == Understanding WIS2 Topics
 
@@ -394,7 +394,7 @@ Subscriptions that download from password-protected or token-protected sources a
 }
 ----
 
-NOTE: The API redacts secrets in responses — `password` is omitted and `token` is replaced with `***`. The full credentials are stored in Redis and used only during download.
+NOTE: The API redacts secrets in responses — `password` is omitted and `token` is replaced with `***`. The full credentials are stored in Valkey and used only during download.
 
 [[Filtering]]
 == Filtering

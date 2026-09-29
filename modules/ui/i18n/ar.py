@@ -144,7 +144,7 @@ STRINGS: dict[str, str] = {
     'settings.gdc_section': 'كتالوجات الاكتشاف العالمية',
     'settings.gdc_desc': (
         'يتم جلب السجلات من الكتالوجات الثلاثة GDC عند بدء التشغيل ودمجها. '
-        'يتم تخزين النتائج مؤقتًا في Redis لمدة 6 ساعات.'
+        'يتم تخزين النتائج مؤقتًا في Valkey لمدة 6 ساعات.'
     ),
     'settings.records':     '{name}: {count} سجل',
     'settings.not_loaded':  '{name}: غير محمّل',

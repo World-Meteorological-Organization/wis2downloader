@@ -26,22 +26,22 @@ WIS2 Downloader هو نظام موزَّع يتكون من أربعة مكونا
   ┌──────────────────────────────────────────────────────────┐
   │                                                           │
   │  Web UI (NiceGUI :8080)                                   │
-  │    - reads GDC catalogue data from Redis cache            │
+  │    - reads GDC catalogue data from Valkey cache            │
   │    - posts subscriptions to Subscription Manager API      │
   │                          │                                │
   │                          ▼                                │
   │  Subscription Manager (Flask API :5001)                   │
-  │    - persists subscriptions in Redis                      │
+  │    - persists subscriptions in Valkey                      │
   │    - publishes subscribe/unsubscribe commands via PubSub  │
   │                          │                                │
-  │              Redis PubSub (commands)                      │
+  │              Valkey PubSub (commands)                      │
   │                          │                                │
   │                          ▼                                │
   │  Subscriber (MQTT Client)                                 │
   │    - connects to WIS2 Global Broker                       │
   │    - on notification: queues Celery download task         │
   │                          │                                │
-  │              Redis (Celery queue + dedup state)           │
+  │              Valkey (Celery queue + dedup state)           │
   │                          │                                │
   │                          ▼                                │
   │  Celery Workers                                           │
@@ -52,10 +52,10 @@ WIS2 Downloader هو نظام موزَّع يتكون من أربعة مكونا
 
 === تدفق البيانات
 
-1. عند بدء التشغيل، تجلب واجهة الويب سجلات WCMP2 من نقاط نهاية GDC الثلاث (أو من ذاكرة التخزين المؤقت في Redis) وتبني تسلسلاً هرمياً للمواضيع في الذاكرة
+1. عند بدء التشغيل، تجلب واجهة الويب سجلات WCMP2 من نقاط نهاية GDC الثلاث (أو من ذاكرة التخزين المؤقت في Valkey) وتبني تسلسلاً هرمياً للمواضيع في الذاكرة
 2. يتصفح المستخدم عرض الكتالوج أو الشجرة ويختار موضوعاً في واجهة الويب
 3. ينقر المستخدم على *اشتراك* ← تُرسل واجهة الويب طلب POST إلى واجهة برمجة تطبيقات Subscription Manager
-4. يحفظ Subscription Manager الاشتراك في Redis وينشر أمر اشتراك إلى قناة Redis PubSub
+4. يحفظ Subscription Manager الاشتراك في Valkey وينشر أمر اشتراك إلى قناة Valkey PubSub
 5. يتلقى Subscriber الأمر ويشترك في موضوع MQTT على WIS2 Global Broker
 6. عند وصول إشعار WIS2، يضع Subscriber مهمة تنزيل Celery في قائمة الانتظار
 7. يقوم عامل Celery بتنزيل الملف، والتحقق من الهاش، وتطبيق المرشحات، وحفظه على القرص
@@ -69,14 +69,14 @@ modules/
 │   └── shared/
 │       ├── __init__.py
 │       ├── logging.py      # Centralized logging
-│       └── redis_client.py # Redis client singleton
+│       └── valkey_client.py # Valkey client singleton
 │
 ├── subscriber/             # MQTT subscriber service
 │   └── subscriber/
 │       ├── __init__.py
 │       ├── manager.py      # Entry point, thread management
 │       ├── subscriber.py   # MQTT client wrapper
-│       └── command_listener.py  # Redis PubSub listener
+│       └── command_listener.py  # Valkey PubSub listener
 │
 ├── subscription_manager/   # REST API service
 │   └── subscription_manager/
@@ -121,24 +121,24 @@ modules/
 
 توفر أدوات مساعدة مشتركة تُستخدم عبر جميع الخدمات.
 
-==== عميل Redis
+==== عميل Valkey
 
-.modules/shared/shared/redis_client.py
+.modules/shared/shared/valkey_client.py
 [source,python]
 ----
-from shared import get_redis_client
+from shared import get_valkey_client
 
-# الحصول على عميل Redis (نمط Singleton)
-redis = get_redis_client()
+# الحصول على عميل Valkey (نمط Singleton)
+valkey = get_valkey_client()
 
-# الاستخدام كعميل Redis عادي
-redis.set('key', 'value')
-redis.get('key')
+# الاستخدام كعميل Valkey عادي
+valkey.set('key', 'value')
+valkey.get('key')
 ----
 
 العميل:
 
-* يتصل مباشرةً بخادم Redis
+* يتصل مباشرةً بخادم Valkey
 * يخزن الاتصال مؤقتاً (نمط Singleton)
 * يتضمن منطق إعادة المحاولة للأخطاء العابرة
 
@@ -177,8 +177,8 @@ def run_manager():
     # 1. Create MQTT subscriber
     mqtt_subscriber = Subscriber(**broker_config)
 
-    # 2. Create Redis command listener
-    redis_listener = CommandListener(
+    # 2. Create Valkey command listener
+    valkey_listener = CommandListener(
         subscriber=mqtt_subscriber,
         channel=COMMAND_CHANNEL
     )
@@ -187,8 +187,8 @@ def run_manager():
     mqtt_thread = threading.Thread(target=mqtt_subscriber.start, daemon=True)
     mqtt_thread.start()
 
-    # 4. Start Redis listener (blocks)
-    redis_listener.start()
+    # 4. Start Valkey listener (blocks)
+    valkey_listener.start()
 ----
 
 ==== مشترك MQTT
@@ -230,7 +230,7 @@ class Subscriber:
 class CommandListener(threading.Thread):
     def __init__(self, subscriber, channel):
         self.subscriber = subscriber
-        self.pubsub = get_redis_client().pubsub()
+        self.pubsub = get_valkey_client().pubsub()
 
     def run(self):
         self.pubsub.subscribe(self.channel)
@@ -267,7 +267,7 @@ def add_subscription():
     target = normalise_path(data.get('target', ''))
     filters = data.get('filters', {})
 
-    # Publish command to subscriber via Redis PubSub
+    # Publish command to subscriber via Valkey PubSub
     command = {
         "action": "subscribe",
         "topic": topic,
@@ -276,7 +276,7 @@ def add_subscription():
     }
     publish_command(command, COMMAND_CHANNEL)
 
-    # Persist to Redis for durability
+    # Persist to Valkey for durability
     persist_subscription(topic, target, filters)
 
     return jsonify({"status": "accepted", ...}), 202
@@ -284,14 +284,14 @@ def add_subscription():
 
 ==== نقطة نهاية المقاييس
 
-تُخزَّن المقاييس في Redis باستخدام عمليات `HINCRBYFLOAT` الذرية، مما يجعلها آمنة عبر حاويات عامل Celery المتعددة. تقرأ نقطة النهاية من Redis وتُصيِّر تنسيق نص Prometheus:
+تُخزَّن المقاييس في Valkey باستخدام عمليات `HINCRBYFLOAT` الذرية، مما يجعلها آمنة عبر حاويات عامل Celery المتعددة. تقرأ نقطة النهاية من Valkey وتُصيِّر تنسيق نص Prometheus:
 
 [source,python]
 ----
 @app.route('/metrics')
 def expose_metrics():
     # Update live gauge before exposing
-    queue_length = redis_client.llen(CELERY_DEFAULT_QUEUE)
+    queue_length = valkey_client.llen(CELERY_DEFAULT_QUEUE)
     set_gauge('celery_queue_length', {'queue_name': CELERY_DEFAULT_QUEUE}, queue_length)
     return Response(generate_prometheus_text(), mimetype="text/plain")
 ----
@@ -343,7 +343,7 @@ def download_from_wis2(self, job):
             return result
 
     # 3. Acquire lock
-    lock_acquired = redis_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
+    lock_acquired = valkey_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
     if not lock_acquired:
         raise self.retry(countdown=10, max_retries=10)
 
@@ -378,7 +378,7 @@ def wis2_download(args):
 
 ==== المُجدوِل (المهام الدورية)
 
-يتولى تطبيق Celery منفصل (`scheduler.py`) مهام الصيانة باستخدام Celery Beat. يستخدم قواعد بيانات Redis 2/3 تجنبًا للتداخل مع قوائم انتظار عمال التنزيل (قواعد البيانات 0/1). تُعرَّف المهام الدورية في `tasks/scheduled_tasks.py`:
+يتولى تطبيق Celery منفصل (`scheduler.py`) مهام الصيانة باستخدام Celery Beat. يستخدم قواعد بيانات Valkey 2/3 تجنبًا للتداخل مع قوائم انتظار عمال التنزيل (قواعد البيانات 0/1). تُعرَّف المهام الدورية في `tasks/scheduled_tasks.py`:
 
 [cols="2,1,3"]
 |===
@@ -389,8 +389,8 @@ def wis2_download(args):
 |تُعيِّن مقاييس `disk_total_bytes` و`disk_used_bytes` و`disk_free_bytes`
 
 |`clean_directory`
-|كل 10 دقائق
-|تحذف الملفات الأقدم من `DOWNLOAD_RETENTION_PERIOD` يومًا؛ تُنقِص مقياس `disk_downloads_bytes` لكل ملف محذوف
+|يوميًا، 00:15 UTC
+|يحذف مجلدات الأيام `{target}/YYYY/MM/DD` بالكامل عندما تصبح جميع ملفاتها أقدم من `DOWNLOAD_RETENTION_PERIOD` يومًا (UTC)، ثم يحذف مجلدات الأشهر والسنوات الفارغة. لا تُسرد إلا المجلدات، لذا لا تزداد التكلفة مع عدد الملفات. لا تُمس الملفات الموجودة خارج هذا الهيكل. يُنقص `disk_downloads_bytes` بمقدار البايتات المحررة
 
 |`recalibrate_downloads_size`
 |يوميًا
@@ -460,7 +460,7 @@ modules/ui/
 |`https://wis2-gdc.weather.gc.ca`
 |===
 
-تُخزَّن استجابات JSON الخام في Redis تحت مفاتيح `gdc:cache:CMA` و`gdc:cache:DWD` و`gdc:cache:ECCC` مع مهلة انتهاء صلاحية يتحكم فيها `GDC_CACHE_TTL_SECONDS` (الافتراضي 6 ساعات). Redis اختياري — إذا لم يكن متاحاً، يتم جلب البيانات عبر HTTP عند كل بدء تشغيل.
+تُخزَّن استجابات JSON الخام في Valkey تحت مفاتيح `gdc:cache:CMA` و`gdc:cache:DWD` و`gdc:cache:ECCC` مع مهلة انتهاء صلاحية يتحكم فيها `GDC_CACHE_TTL_SECONDS` (الافتراضي 6 ساعات). Valkey اختياري — إذا لم يكن متاحاً، يتم جلب البيانات عبر HTTP عند كل بدء تشغيل.
 
 ==== السجلات المدمجة
 
@@ -523,7 +523,7 @@ modules/ui/
 |تزيل `/#` من النهاية، وتتنقل في التسلسل الهرمي، وتجمع بشكل متكرر جميع مجموعات البيانات من تلك العقدة وعقدها الفرعية
 
 |`scrape_all(force=False)`
-|تجلب بيانات GDC (ذاكرة التخزين المؤقت في Redis أولاً، ثم HTTP)، وتُعيد بناء `_merged_records` و`_topic_hierarchy`
+|تجلب بيانات GDC (ذاكرة التخزين المؤقت في Valkey أولاً، ثم HTTP)، وتُعيد بناء `_merged_records` و`_topic_hierarchy`
 |===
 
 === نموذج WCMP2 (models/wcmp2.py)
@@ -849,9 +849,9 @@ def render(container):
 
 == التواصل بين الخدمات
 
-=== Redis PubSub (الأوامر)
+=== Valkey PubSub (الأوامر)
 
-يستخدم التواصل بين Subscription Manager وSubscriber نظام Redis PubSub على قناة `subscription_commands`:
+يستخدم التواصل بين Subscription Manager وSubscriber نظام Valkey PubSub على قناة `subscription_commands`:
 
 [source,json]
 ----
@@ -901,7 +901,7 @@ job = {
 }
 ----
 
-=== مفاتيح Redis
+=== مفاتيح Valkey
 
 [cols="2,3"]
 |===
@@ -980,9 +980,9 @@ def my_custom_task(data):
 
 === إضافة مقياس جديد
 
-تُخزَّن المقاييس في Redis عبر `shared.redis_metrics`. لإضافة مقياس جديد:
+تُخزَّن المقاييس في Valkey عبر `shared.valkey_metrics`. لإضافة مقياس جديد:
 
-1. سجِّله في قاموس `METRICS` في `modules/shared/shared/redis_metrics.py`:
+1. سجِّله في قاموس `METRICS` في `modules/shared/shared/valkey_metrics.py`:
 +
 [source,python]
 ----
@@ -1058,13 +1058,13 @@ pip install -e modules/task_manager
 pip install -e modules/subscriber
 pip install -e modules/subscription_manager
 
-# تشغيل Redis (نسخة واحدة للتطوير)
-docker run -d -p 6379:6379 redis:7.2-alpine redis-server --requirepass devpassword
+# تشغيل Valkey (نسخة واحدة للتطوير)
+docker run -d -p 6379:6379 valkey/valkey:9.1.2 valkey-server --requirepass devpassword
 
 # ضبط البيئة
-export REDIS_HOST=localhost
-export REDIS_PORT=6379
-export REDIS_PASSWORD=devpassword
+export VALKEY_HOST=localhost
+export VALKEY_PORT=6379
+export VALKEY_PASSWORD=devpassword
 export FLASK_SECRET_KEY=dev-secret-key
 export LOG_LEVEL=DEBUG
 
@@ -1108,12 +1108,12 @@ docker exec -it wis2downloader-celery-1 \
   celery -A task_manager.worker inspect reserved
 ----
 
-=== فحص Redis
+=== فحص Valkey
 
 [source,bash]
 ----
-# الاتصال بـ Redis (استخدم كلمة المرور من البيئة)
-docker exec -it redis redis-cli -a $REDIS_PASSWORD
+# الاتصال بـ Valkey (استخدم كلمة المرور من البيئة)
+docker exec -it valkey valkey-cli -a $VALKEY_PASSWORD
 
 # سرد الاشتراكات
 HGETALL global:subscriptions
@@ -1129,7 +1129,7 @@ KEYS gdc:cache:*
 TTL gdc:cache:CMA
 ----
 
-NOTE: تتطلب جميع أوامر Redis المصادقة. علامة `-a $REDIS_PASSWORD` تمرر كلمة المرور من بيئتك.
+NOTE: تتطلب جميع أوامر Valkey المصادقة. علامة `-a $VALKEY_PASSWORD` تمرر كلمة المرور من بيئتك.
 
 === تنقيح MQTT
 

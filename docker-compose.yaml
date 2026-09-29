@@ -23,6 +23,10 @@ services:
     container_name: loki
     image: grafana/loki:3.6.7
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${LOKI_MEMORY_LIMIT:-1g}"
     command:
       - -config.file=/etc/loki/loki-config.yml
     ports:
@@ -31,7 +35,7 @@ services:
       - loki-data:/loki
       - ./config/loki/loki-config.yml:/etc/loki/loki-config.yml
     networks:
-      - redis-net
+      - valkey-net
     logging: *default-logging
 
 
@@ -39,6 +43,10 @@ services:
     container_name: prometheus
     image: prom/prometheus:v3.10.0
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${PROMETHEUS_MEMORY_LIMIT:-512m}"
     ports:
       - "9090:9090"
     volumes:
@@ -49,7 +57,7 @@ services:
       - '--storage.tsdb.retention.time=10d'
       - '--log.level=warn'
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
@@ -61,6 +69,10 @@ services:
     container_name: grafana
     image: grafana/grafana:12.4.1
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${GRAFANA_MEMORY_LIMIT:-512m}"
     ports:
       - "3000:3000"
     volumes:
@@ -78,7 +90,7 @@ services:
       - prometheus
       - loki
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
@@ -88,21 +100,21 @@ services:
 
   # Databases / message queues
 
-  redis:
-    container_name: redis
+  valkey:
+    container_name: valkey
     build:
-      context: ./containers/redis/
+      context: ./containers/valkey/
       dockerfile: Dockerfile
     restart: always
     env_file: *default-env
-    command: ["redis-server", "--appendonly", "yes", "--protected-mode", "no", "--requirepass", "${REDIS_PASSWORD}"]
+    command: ["valkey-server", "--appendonly", "yes", "--protected-mode", "no", "--requirepass", "${VALKEY_PASSWORD}"]
     volumes:
-      - redis-data:${CONTAINER_DATA_PATH}
+      - valkey-data:${CONTAINER_DATA_PATH}
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "valkey-cli", "-a", "${VALKEY_PASSWORD}", "ping"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -110,6 +122,10 @@ services:
   # Task handling
   celery-workers-high-priority:
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${WORKER_MEMORY_LIMIT:-1g}"
     build:
       context: .
       dockerfile: ./containers/celery/Dockerfile
@@ -121,20 +137,24 @@ services:
     env_file: *default-env
     tty: true
     depends_on:
-      - redis
+      - valkey
       - subscription-manager
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     command: ["/bin/bash", "-c", "source .venv/bin/activate && task_manager_start worker --pool=threads --concurrency=8 --loglevel=${LOG_LEVEL:-info} -Q high_priority"]
     healthcheck:
-      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${CELERY_BACKEND_DB} celery inspect ping"]
+      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${VALKEY_PASSWORD}@${VALKEY_HOST}:${VALKEY_PORT}/${CELERY_BACKEND_DB} celery inspect ping"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   celery-workers-small-files:
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${WORKER_MEMORY_LIMIT:-1g}"
     build:
       context: .
       dockerfile: ./containers/celery/Dockerfile
@@ -146,20 +166,24 @@ services:
     env_file: *default-env
     tty: true
     depends_on:
-      - redis
+      - valkey
       - subscription-manager
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     command: ["/bin/bash", "-c", "source .venv/bin/activate && task_manager_start worker --pool=threads --concurrency=24 --loglevel=${LOG_LEVEL:-info} -Q small_files"]
     healthcheck:
-      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${CELERY_BACKEND_DB} celery inspect ping"]
+      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${VALKEY_PASSWORD}@${VALKEY_HOST}:${VALKEY_PORT}/${CELERY_BACKEND_DB} celery inspect ping"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   celery-workers-large-files:
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${WORKER_MEMORY_LIMIT:-1g}"
     build:
       context: .
       dockerfile: ./containers/celery/Dockerfile
@@ -171,14 +195,14 @@ services:
     env_file: *default-env
     tty: true
     depends_on:
-      - redis
+      - valkey
       - subscription-manager
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     command: ["/bin/bash", "-c", "source .venv/bin/activate && task_manager_start worker --pool=threads --concurrency=8 --loglevel=${LOG_LEVEL:-info} -Q large_files"]
     healthcheck:
-      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${CELERY_BACKEND_DB} celery inspect ping"]
+      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${VALKEY_PASSWORD}@${VALKEY_HOST}:${VALKEY_PORT}/${CELERY_BACKEND_DB} celery inspect ping"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -186,6 +210,10 @@ services:
 
   celery-scheduler-workers:
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${SCHEDULER_MEMORY_LIMIT:-512m}"
     build:
       context: .
       dockerfile: ./containers/celery/Dockerfile
@@ -197,20 +225,24 @@ services:
     env_file: *default-env
     tty: true
     depends_on:
-      - redis
+      - valkey
       - subscription-manager
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     command: [ "/bin/bash", "-c", "source .venv/bin/activate && scheduler_start worker --concurrency=4 --loglevel=${LOG_LEVEL:-info}" ]
     healthcheck:
-      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${SCHEDULER_BACKEND_DB} celery inspect ping"]
+      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:${VALKEY_PASSWORD}@${VALKEY_HOST}:${VALKEY_PORT}/${SCHEDULER_BACKEND_DB} celery inspect ping"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   celery-beats:
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${BEAT_MEMORY_LIMIT:-256m}"
     build:
       context: .
       dockerfile: ./containers/celery/Dockerfile
@@ -222,10 +254,10 @@ services:
     env_file: *default-env
     tty: true
     depends_on:
-      - redis
+      - valkey
       - subscription-manager
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     command: [ "/bin/bash", "-c", "source .venv/bin/activate && scheduler_start beat --loglevel=${LOG_LEVEL:-info}" ]
     healthcheck:
@@ -238,6 +270,10 @@ services:
   subscription-manager:
     container_name: subscription-manager
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${SUBSCRIPTION_MANAGER_MEMORY_LIMIT:-256m}"
     build:
       context: .
       dockerfile: ./containers/subscription_manager/Dockerfile
@@ -247,14 +283,16 @@ services:
     env_file: *default-env
     ports:
       - "5002:5001"
+    volumes:
+      - "${HOST_SUBSCRIPTIONS_PATH:-./subscriptions}:/subscriptions"
     environment:
       - FLASK_HOST=0.0.0.0
       - FLASK_PORT=5001
     tty: true
     depends_on:
-      - redis
+      - valkey
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
@@ -269,6 +307,10 @@ services:
         dockerfile: ./containers/ui/Dockerfile
       ports:
         - "8080:8080"
+      deploy:
+        resources:
+          limits:
+            memory: "${UI_MEMORY_LIMIT:-512m}"
       env_file: *default-env
       environment:
         - WIS2DOWNLOADER_SUBSCRIPTION_MANAGER_URL=http://subscription-manager:5001
@@ -276,11 +318,15 @@ services:
       depends_on:
         - subscription-manager
       networks:
-      - redis-net
+      - valkey-net
 
   subscriber-france:
     container_name: subscriber-france
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${SUBSCRIBER_MEMORY_LIMIT:-256m}"
     build:
       context: .
       dockerfile: ./containers/subscriber/Dockerfile
@@ -295,9 +341,9 @@ services:
       GLOBAL_BROKER_PASSWORD: everyone
       MQTT_PROTOCOL: websockets
     depends_on:
-      - redis
+      - valkey
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     healthcheck:
       test: ["CMD", "pgrep", "-f", "subscriber_start"]
@@ -308,6 +354,10 @@ services:
   subscriber-brazil:
     container_name: subscriber-brazil
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${SUBSCRIBER_MEMORY_LIMIT:-256m}"
     build:
       context: .
       dockerfile: ./containers/subscriber/Dockerfile
@@ -322,9 +372,9 @@ services:
       GLOBAL_BROKER_PASSWORD: everyone
       MQTT_PROTOCOL: websockets
     depends_on:
-      - redis
+      - valkey
     networks:
-      - redis-net
+      - valkey-net
     logging: *loki-logging
     healthcheck:
       test: ["CMD", "pgrep", "-f", "subscriber_start"]
@@ -336,8 +386,8 @@ volumes:
   loki-data:
   prometheus-data:
   grafana-data:
-  redis-data:
+  valkey-data:
 
 networks:
-  redis-net:
+  valkey-net:
     driver: bridge

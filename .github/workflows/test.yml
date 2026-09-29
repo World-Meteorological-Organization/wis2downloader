@@ -52,15 +52,16 @@ jobs:
       - name: Write test .env
         run: |
           cat > .env << 'EOF'
-          REDIS_PASSWORD=ci_test_password
+          VALKEY_PASSWORD=ci_test_password
           FLASK_SECRET_KEY=ci_test_secret_key
+          SUBSCRIPTIONS_ENCRYPTION_KEY=eouIadSYFPQ5P5PF3os7IJpkX-OmhCuoPZov2k4s-JA=
           CONTAINER_DATA_PATH=/data
           HOST_DATA_PATH=/tmp/wis2-downloads
           LOG_LEVEL=INFO
-          REDIS_HOST=redis
-          REDIS_PORT=6379
-          REDIS_TTL_SECONDS=3600
-          REDIS_MESSAGE_LOCK=300
+          VALKEY_HOST=valkey
+          VALKEY_PORT=6379
+          VALKEY_TTL_SECONDS=3600
+          VALKEY_MESSAGE_LOCK=300
           CELERY_BACKEND_DB=0
           CELERY_RESULT_DB=1
           SCHEDULER_BACKEND_DB=2
@@ -71,14 +72,14 @@ jobs:
 
       - name: Build images
         run: |
-          docker compose --env-file .env build redis subscription-manager subscriber-france celery-workers-small-files
+          docker compose --env-file .env build valkey subscription-manager subscriber-france celery-workers-small-files
         env:
           DOCKER_BUILDKIT: 1
 
       - name: Start services
         run: |
           docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml \
-            up -d redis mosquitto subscription-manager subscriber-france celery-workers-small-files
+            up -d valkey mosquitto subscription-manager subscriber-france celery-workers-small-files
 
       - name: Wait for subscription-manager to be healthy
         run: |
@@ -110,7 +111,7 @@ jobs:
       - name: Run download flow tests
         env:
           TEST_FILE_URL: https://wmostorage.blob.core.windows.net/wmo-public/wmo-information-system/pywis-pubsub-test/WIGOS_0-454-2-AWSCHIKANGAWA_20221109T135500.bufr4
-          REDIS_PASSWORD: ci_test_password
+          VALKEY_PASSWORD: ci_test_password
         run: pytest tests/integration/test_download.py -v --tb=short
 
       - name: Show service logs on failure

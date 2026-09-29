@@ -140,7 +140,7 @@ STRINGS: dict[str, str] = {
     'settings.gdc_section': 'Global Discovery Catalogues',
     'settings.gdc_desc': (
         'Records are fetched from all three GDCs at startup and merged. '
-        'Results are cached in Redis for 6 hours.'
+        'Results are cached in Valkey for 6 hours.'
     ),
     'settings.records':     '{name}: {count} records',
     'settings.not_loaded':  '{name}: not loaded',

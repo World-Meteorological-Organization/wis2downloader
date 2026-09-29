@@ -21,8 +21,36 @@
 
 * Docker 20.10+
 * Docker Compose 2.0+
-* 4 جيجابايت ذاكرة RAM كحد أدنى (يُنصح بـ 8 جيجابايت للإنتاج)
 * وصول شبكي إلى الوسيط العالمي WIS2 (المنفذ 443)
+
+=== متطلبات النظام
+
+[cols="1,1,1,3"]
+|===
+| |الحد الأدنى |الموصى به |ملاحظات
+
+|RAM
+|4 GB
+|8 GB
+|يبلغ مجموع حدود ذاكرة الحاويات نحو 7 GB (انظر <<container-memory-limits>>)
+
+|CPU
+|2 vCPU
+|4 vCPU
+|تعتمد عمليات التنزيل أساسًا على الشبكة
+
+|قرص النظام
+|20 GB
+|30 GB
+|الصور (نحو 3 GB)، وذاكرة التخزين المؤقت للبناء، وبيانات Loki وPrometheus
+
+|قرص البيانات
+|الحجم اليومي × أيام الاحتفاظ + 25%
+|وحدة تخزين منفصلة
+|قد تستنفد الملفات الصغيرة الكثيرة عُقد inode قبل نفاد المساحة: استخدم XFS أو `mkfs.ext4 -i 4096`
+|===
+
+هذه الأرقام تقديرية مأخوذة من حزمة خاملة. قِس ذروة استخدام الذاكرة (`docker stats`) والحجم اليومي (`wis2downloader_downloads_bytes_total`) باستخدام اشتراكاتك.
 
 === التثبيت
 
@@ -54,9 +82,10 @@ docker compose up -d
 
 IMPORTANT: قبل النشر في بيئة الإنتاج، يجب عليك تهيئة إعدادات الأمان التالية في ملف `.env`:
 
-1. **`REDIS_PASSWORD`** - عيِّن كلمة مرور قوية وفريدة (مطلوب)
+1. **`VALKEY_PASSWORD`** - عيِّن كلمة مرور قوية وفريدة (مطلوب)
 2. **`FLASK_SECRET_KEY`** - عيِّن مفتاح سري عشوائي من الناحية التشفيرية (مطلوب)
-3. **`FLASK_DEBUG`** - عيِّن القيمة `false` في الإنتاج
+3. **`SUBSCRIPTIONS_ENCRYPTION_KEY`** - يشفّر بيانات اعتماد الاشتراكات في ملف الاشتراكات (مطلوب، يُولَّد بواسطة `setup.sh`). احتفظ بنسخة احتياطية منه: بدونه لا يمكن استعادة بيانات الاعتماد المحفوظة.
+4. **`FLASK_DEBUG`** - عيِّن القيمة `false` في الإنتاج
 4. **كلمة مرور Grafana** - غيِّر القيمة الافتراضية `admin/admin` بعد تسجيل الدخول الأول
 
 يحتوي ملف `.env` على بيانات اعتماد حساسة. تأكد من أنه:
@@ -238,6 +267,16 @@ docker-compose logs -f subscriber
 |_مطلوب_
 |مفتاح سري لجلسة Flask (يفشل التطبيق إذا لم يُعيَّن)
 
+|`SUBSCRIPTIONS_ENCRYPTION_KEY`
+|string
+|_مطلوب_
+|مفتاح Fernet لتشفير بيانات الاعتماد في ملف الاشتراكات (يفشل مدير الاشتراكات إذا كان مفقودًا أو غير صالح)
+
+|`HOST_SUBSCRIPTIONS_PATH`
+|path
+|`./subscriptions`
+|مجلد المضيف لملف `subscriptions.json`
+
 |`FLASK_DEBUG`
 |boolean
 |`false`
@@ -311,38 +350,38 @@ docker-compose logs -f subscriber
 |معرّف جلسة دائم للاستئناف بعد إعادة التشغيل
 |===
 
-==== إعدادات Redis
+==== إعدادات Valkey
 
 [cols="2,1,1,4"]
 |===
 |المتغير |النوع |القيمة الافتراضية |الوصف
 
-|`REDIS_HOST`
+|`VALKEY_HOST`
 |string
-|`redis`
-|اسم مضيف خادم Redis
+|`valkey`
+|اسم مضيف خادم Valkey
 
-|`REDIS_PORT`
+|`VALKEY_PORT`
 |integer
 |`6379`
-|منفذ خادم Redis
+|منفذ خادم Valkey
 
-|`REDIS_DATABASE`
+|`VALKEY_DATABASE`
 |integer
 |`0`
-|رقم قاعدة بيانات Redis
+|رقم قاعدة بيانات Valkey
 
-|`REDIS_PASSWORD`
+|`VALKEY_PASSWORD`
 |string
 |_مطلوب_
-|كلمة مرور مصادقة Redis (يفشل التطبيق إذا لم تُعيَّن)
+|كلمة مرور مصادقة Valkey (يفشل التطبيق إذا لم تُعيَّن)
 
-|`REDIS_TTL_SECONDS`
+|`VALKEY_TTL_SECONDS`
 |integer
 |`3600`
 |مدة البقاء لمفاتيح إزالة التكرار
 
-|`REDIS_MESSAGE_LOCK`
+|`VALKEY_MESSAGE_LOCK`
 |integer
 |`300`
 |انتهاء صلاحية القفل لمنع التنزيلات المتزامنة
@@ -356,13 +395,38 @@ docker-compose logs -f subscriber
 
 |`CELERY_BROKER_URL`
 |string
-|`redis://:${REDIS_PASSWORD}@redis:6379/0`
+|`redis://:${VALKEY_PASSWORD}@valkey:6379/0`
 |سلسلة اتصال الوسيط Celery (لاحظ تنسيق كلمة المرور)
 
 |`CELERY_RESULT_BACKEND`
 |string
-|`redis://:${REDIS_PASSWORD}@redis:6379/1`
+|`redis://:${VALKEY_PASSWORD}@valkey:6379/1`
 |سلسلة اتصال خلفية النتائج (لاحظ تنسيق كلمة المرور)
+
+|`DOWNLOAD_MAX_SECONDS`
+|integer
+|`1800`
+|الحد الأقصى لمدة التنزيل الواحد؛ تفشل التنزيلات الأطول بالخطأ `DownloadTimeoutError`
+|===
+
+[[container-memory-limits]]
+==== حدود ذاكرة الحاويات
+
+تُحدَّد حدود الذاكرة لكل خدمة في `docker-compose.yaml` ويمكن تجاوزها في `.env`. لا يوجد حد لـ Valkey.
+
+[cols="2,1,3"]
+|===
+|المتغير |القيمة الافتراضية |الخدمات
+
+|`WORKER_MEMORY_LIMIT` |`1g` |عمّال التنزيل (لكل منها)
+|`SCHEDULER_MEMORY_LIMIT` |`512m` |عامل المجدول
+|`BEAT_MEMORY_LIMIT` |`256m` |Celery beat
+|`SUBSCRIBER_MEMORY_LIMIT` |`256m` |المشتركون (لكل منها)
+|`SUBSCRIPTION_MANAGER_MEMORY_LIMIT` |`256m` |مدير الاشتراكات
+|`UI_MEMORY_LIMIT` |`512m` |واجهة الويب
+|`GRAFANA_MEMORY_LIMIT` |`512m` |Grafana
+|`PROMETHEUS_MEMORY_LIMIT` |`512m` |Prometheus
+|`LOKI_MEMORY_LIMIT` |`1g` |Loki
 |===
 
 ==== تصفية التنزيلات
@@ -406,7 +470,7 @@ docker-compose logs -f subscriber
 |`GDC_CACHE_TTL_SECONDS`
 |integer
 |`21600`
-|ثوانٍ لتخزين بيانات كتالوج GDC مؤقتًا في Redis (6 ساعات افتراضيًا)؛ عيِّن `0` للجلب المباشر دائمًا
+|ثوانٍ لتخزين بيانات كتالوج GDC مؤقتًا في Valkey (6 ساعات افتراضيًا)؛ عيِّن `0` للجلب المباشر دائمًا
 |===
 
 === هيكل الملفات
@@ -420,6 +484,7 @@ wis2downloader/
 │   └── prometheus/              # Prometheus scrape config
 ├── containers/                  # Dockerfiles
 ├── downloads/                   # Downloaded data (mounted volume)
+├── subscriptions/               # subscriptions.json (mounted volume)
 ├── modules/                     # Python modules
 │   ├── shared/                  # Shared utilities
 │   ├── subscriber/              # MQTT subscriber
@@ -433,19 +498,19 @@ wis2downloader/
 
 == التوسع
 
-=== Redis
+=== Valkey
 
-يستخدم النظام نسخة واحدة من Redis لـ:
+يستخدم النظام نسخة واحدة من Valkey لـ:
 
 * تبادل الرسائل pub/sub بين الخدمات
 * تخزين حالة الاشتراكات
 * تتبع إزالة التكرار
 * قائمة انتظار مهام Celery والنتائج
 
-يستخدم النظام نسخة Redis واحدة ولا يوفر توافرًا عاليًا. بصرف النظر عن الحجم، تأكد من ديمومة بيانات Redis:
+يستخدم النظام نسخة Valkey واحدة ولا يوفر توافرًا عاليًا. بصرف النظر عن الحجم، تأكد من ديمومة بيانات Valkey:
 
-* تفعيل استمرارية Redis (AOF + RDB)
-* تنفيذ نسخ احتياطية منتظمة لـ dump Redis
+* تفعيل استمرارية Valkey (AOF + RDB)
+* تنفيذ نسخ احتياطية منتظمة لـ dump Valkey
 
 === توسع العمال
 
@@ -487,31 +552,19 @@ celery-workers-small-files:
 
 [source,yaml]
 ----
-  subscriber-france:
-    container_name: subscriber-france
-    restart: always
-    build:
-      context: .
-      dockerfile: ./containers/subscriber/Dockerfile
-    env_file: *default-env
-    environment:
-      GLOBAL_BROKER_HOST: globalbroker.meteo.fr
-      GLOBAL_BROKER_PORT: 443
-      GLOBAL_BROKER_USERNAME: everyone
-      GLOBAL_BROKER_PASSWORD: everyone
-      MQTT_PROTOCOL: websockets
-    depends_on:
-      - redis
-    networks:
-      - redis-net
-    logging: *default-logging
-
   subscriber-china:
     container_name: subscriber-china
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: "${SUBSCRIBER_MEMORY_LIMIT:-256m}"
     build:
       context: .
       dockerfile: ./containers/subscriber/Dockerfile
+      args:
+        WIS2DOWNLOADER_UID: ${WIS2DOWNLOADER_UID:-10001}
+        WIS2DOWNLOADER_GID: ${WIS2DOWNLOADER_GID:-988}
     env_file: *default-env
     environment:
       GLOBAL_BROKER_HOST: gb.wis.cma.cn
@@ -520,15 +573,20 @@ celery-workers-small-files:
       GLOBAL_BROKER_PASSWORD: everyone
       MQTT_PROTOCOL: websockets
     depends_on:
-      - redis
+      - valkey
     networks:
-      - redis-net
-    logging: *default-logging
+      - valkey-net
+    logging: *loki-logging
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "subscriber_start"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 ----
 
 IMPORTANT: يجب أن يكون لكل مشترك `container_name` فريد.
 
-تشترك جميع المشتركين في نفس خلفية Redis، لذا يتلقى جميع نُسخ المشتركين الاشتراكات التي أُنشئت عبر API. يتم إزالة التكرار من التنزيلات، لذلك لن يُنزَّل نفس الملف مرتين حتى لو وصلت إشعارات من وسطاء متعددين.
+تشترك جميع المشتركين في نفس خلفية Valkey، لذا يتلقى جميع نُسخ المشتركين الاشتراكات التي أُنشئت عبر API. يتم إزالة التكرار من التنزيلات، لذلك لن يُنزَّل نفس الملف مرتين حتى لو وصلت إشعارات من وسطاء متعددين.
 
 == المراقبة
 
@@ -536,7 +594,7 @@ IMPORTANT: يجب أن يكون لكل مشترك `container_name` فريد.
 
 نقطة نهاية المقاييس: `http://localhost:5002/metrics`
 
-NOTE: تُخزَّن المقاييس بصورة ذرية في Redis باستخدام `HINCRBYFLOAT` وتُعرَض عند نقطة النهاية `/metrics` بتنسيق نص Prometheus. هذا الأسلوب آمن عبر حاويات عامل Celery المتعددة دون الحاجة إلى نظام ملفات مشترك أو مجلد متعدد العمليات لـ `prometheus_client`.
+NOTE: تُخزَّن المقاييس بصورة ذرية في Valkey باستخدام `HINCRBYFLOAT` وتُعرَض عند نقطة النهاية `/metrics` بتنسيق نص Prometheus. هذا الأسلوب آمن عبر حاويات عامل Celery المتعددة دون الحاجة إلى نظام ملفات مشترك أو مجلد متعدد العمليات لـ `prometheus_client`.
 
 ==== المقاييس المتاحة
 
@@ -653,16 +711,24 @@ docker-compose logs -f -t subscriber
 
 === النسخ الاحتياطي
 
-==== بيانات Redis
+==== بيانات Valkey
 
 [source,bash]
 ----
 # تشغيل لقطة RDB
-docker exec redis redis-cli -a $REDIS_PASSWORD BGSAVE
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD BGSAVE
 
 # نسخ اللقطة
-docker cp redis:/data/dump.rdb ./backup/
+docker cp valkey:/data/dump.rdb ./backup/
 ----
+
+==== الاشتراكات
+
+يكتب مدير الاشتراكات جميع الاشتراكات في `subscriptions/subscriptions.json` بعد كل تغيير وعند بدء التشغيل. تُشفَّر بيانات الاعتماد في الملف باستخدام `SUBSCRIPTIONS_ENCRYPTION_KEY`، ولا يستطيع قراءة الملف إلا مستخدم الحاوية.
+
+إذا لم تكن في Valkey أي اشتراكات عند بدء التشغيل، تُستعاد من هذا الملف ويُبلَّغ المشتركون. للاستعادة على مضيف جديد أو لاستنساخ إعداد، انسخ `subscriptions.json` و`SUBSCRIPTIONS_ENCRYPTION_KEY` قبل أول تشغيل. عند استخدام مفتاح مختلف، تُستعاد الاشتراكات بدون بيانات الاعتماد.
+
+احتفظ بنسخة احتياطية من الملف مع المفتاح، على أن يُخزَّن المفتاح بشكل منفصل.
 
 ==== الملفات المُنزَّلة
 
@@ -679,10 +745,10 @@ WARNING: هذه العمليات مدمِّرة.
 [source,bash]
 ----
 # مسح جميع الاشتراكات
-docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:subscriptions
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD DEL global:subscriptions
 
 # مسح ذاكرة إزالة التكرار (يتيح إعادة تنزيل جميع البيانات)
-docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli -a $REDIS_PASSWORD DEL
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i valkey valkey-cli -a $VALKEY_PASSWORD DEL
 
 # مسح الملفات المنزَّلة
 rm -rf downloads/*
@@ -748,20 +814,20 @@ docker-compose logs celery-workers-small-files | tail -50
 curl -s http://localhost:5002/metrics | grep queue_length
 ----
 
-=== أخطاء اتصال Redis
+=== أخطاء اتصال Valkey
 
-1. تحقق من تشغيل Redis:
+1. تحقق من تشغيل Valkey:
 +
 [source,bash]
 ----
-docker exec redis redis-cli -a $REDIS_PASSWORD PING
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD PING
 ----
 
 2. تحقق من اتصالية الشبكة:
 +
 [source,bash]
 ----
-docker network inspect wis2downloader_redis-net
+docker network inspect wis2downloader_valkey-net
 ----
 
 === الاستخدام العالي للذاكرة
@@ -787,11 +853,11 @@ docker network inspect wis2downloader_redis-net
 docker-compose logs wis2downloader-ui | tail -30
 ----
 
-2. تأكد من وجود مفاتيح ذاكرة التخزين المؤقت GDC في Redis:
+2. تأكد من وجود مفاتيح ذاكرة التخزين المؤقت GDC في Valkey:
 +
 [source,bash]
 ----
-docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "gdc:cache:*"
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD KEYS "gdc:cache:*"
 ----
 +
 إذا لم تكن هناك مفاتيح، فقد فشل الجلب الأولي أو لا يزال قيد التنفيذ. انتظر لحظة وأعد تحميل الصفحة.

@@ -5,7 +5,7 @@ Common utilities used across all WIS2 Downloader services.
 ## Overview
 
 This module provides:
-- Redis client singleton with automatic reconnection
+- Valkey client singleton with automatic reconnection
 - Centralized logging configuration with UTC timestamps
 
 ## Documentation
@@ -15,7 +15,7 @@ This module provides:
 ## Usage
 
 ```python
-from shared import get_redis_client, setup_logging
+from shared import get_valkey_client, setup_logging
 
 # Configure root logger (call once at startup)
 setup_logging()
@@ -23,24 +23,24 @@ setup_logging()
 # Get module-specific logger
 LOGGER = setup_logging(__name__)
 
-# Get Redis client (singleton)
-redis = get_redis_client()
-redis.set('key', 'value')
+# Get Valkey client (singleton)
+valkey = get_valkey_client()
+valkey.set('key', 'value')
 ```
 
 ## Key Files
 
 | File | Description |
 |------|-------------|
-| `redis_client.py` | Redis client singleton |
+| `valkey_client.py` | Valkey client singleton |
 | `logging.py` | Centralized logging with UTC timestamps |
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `REDIS_HOST` | `localhost` | Redis server hostname |
-| `REDIS_PORT` | `6379` | Redis server port |
-| `REDIS_DATABASE` | `0` | Redis database number |
-| `REDIS_PASSWORD` | _required_ | Redis authentication password |
+| `VALKEY_HOST` | `localhost` | Valkey server hostname |
+| `VALKEY_PORT` | `6379` | Valkey server port |
+| `VALKEY_DATABASE` | `0` | Valkey database number |
+| `VALKEY_PASSWORD` | _required_ | Valkey authentication password |
 | `LOG_LEVEL` | `DEBUG` | Logging level |

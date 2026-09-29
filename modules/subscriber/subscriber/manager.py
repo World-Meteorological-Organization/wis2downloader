@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from .command_listener import CommandListener
 from .subscriber import Subscriber
-from shared import setup_logging, get_redis_client
+from shared import setup_logging, get_valkey_client, DEFAULT_QUEUE
 
 LOGGER = setup_logging(__name__)
 
@@ -19,7 +19,7 @@ LEGACY_TOPICS_KEY = "global:topics"
 LEGACY_SUBSCRIPTION_KEY = "global:all_subscriptions"
 
 
-def _migrate_legacy_subscriptions(redis_client) -> dict:
+def _migrate_legacy_subscriptions(valkey_client) -> dict:
     """Migrate from global:topics or global:all_subscriptions to global:subscriptions.
 
     Checks global:topics first (intermediate format), then falls back to
@@ -28,7 +28,7 @@ def _migrate_legacy_subscriptions(redis_client) -> dict:
     Returns a dict of {sub_id: sub_data} for the migrated entries.
     """
     # Try global:topics (intermediate format from previous refactor)
-    topics_data = redis_client.hgetall(LEGACY_TOPICS_KEY)
+    topics_data = valkey_client.hgetall(LEGACY_TOPICS_KEY)
     if topics_data:
         migrated = {}
         for topic_bytes, data_bytes in topics_data.items():
@@ -46,12 +46,12 @@ def _migrate_legacy_subscriptions(redis_client) -> dict:
                     'filter': dest.get('filter', {}),
                 }
                 migrated[dest_id] = sub_data
-                redis_client.hset(GLOBAL_SUBSCRIPTIONS_KEY, dest_id, json.dumps(sub_data))
+                valkey_client.hset(GLOBAL_SUBSCRIPTIONS_KEY, dest_id, json.dumps(sub_data))
                 LOGGER.info(f"Migrated subscription {dest_id} (topic: {topic})")
         return migrated
 
     # Fall back to global:all_subscriptions (original format)
-    legacy_data = redis_client.hgetall(LEGACY_SUBSCRIPTION_KEY)
+    legacy_data = valkey_client.hgetall(LEGACY_SUBSCRIPTION_KEY)
     if not legacy_data:
         return {}
 
@@ -71,21 +71,21 @@ def _migrate_legacy_subscriptions(redis_client) -> dict:
             'filter': data.get('filters', {}),
         }
         migrated[sub_id] = sub_data
-        redis_client.hset(GLOBAL_SUBSCRIPTIONS_KEY, sub_id, json.dumps(sub_data))
+        valkey_client.hset(GLOBAL_SUBSCRIPTIONS_KEY, sub_id, json.dumps(sub_data))
         LOGGER.info(f"Migrated legacy subscription for topic {topic} as {sub_id}")
 
     return migrated
 
 
-def load_persisted_subscriptions(redis_client, mqtt_subscriber):
-    """Load existing subscriptions from Redis on startup."""
+def load_persisted_subscriptions(valkey_client, mqtt_subscriber):
+    """Load existing subscriptions from Valkey on startup."""
     try:
-        all_subs_raw = redis_client.hgetall(GLOBAL_SUBSCRIPTIONS_KEY)
+        all_subs_raw = valkey_client.hgetall(GLOBAL_SUBSCRIPTIONS_KEY)
 
         if not all_subs_raw:
             LOGGER.info(
                 "global:subscriptions is empty — checking for legacy data to migrate")
-            migrated = _migrate_legacy_subscriptions(redis_client)
+            migrated = _migrate_legacy_subscriptions(valkey_client)
             if not migrated:
                 LOGGER.info("No persisted subscriptions found")
                 return
@@ -111,6 +111,8 @@ def load_persisted_subscriptions(redis_client, mqtt_subscriber):
                 'id': sub_id,
                 'save_path': sub_data.get('save_path'),
                 'filter': sub_data.get('filter', {}),
+                'credentials': sub_data.get('credentials'),
+                'queue': sub_data.get('queue', DEFAULT_QUEUE),
             }
 
         for topic, subscriptions in by_topic.items():
@@ -155,11 +157,11 @@ def run_manager():
 
     mqtt_subscriber = Subscriber(**broker_config)
 
-    redis_listener = CommandListener(
+    valkey_listener = CommandListener(
         subscriber=mqtt_subscriber,
         channel=COMMAND_CHANNEL
     )
-    redis_client = get_redis_client()
+    valkey_client = get_valkey_client()
 
     mqtt_thread = threading.Thread(target=mqtt_subscriber.start, daemon=True)
 
@@ -187,17 +189,17 @@ def run_manager():
         LOGGER.error("MQTT connection not established within %ss, exiting", _mqtt_connect_timeout)
         sys.exit(1)
 
-    redis_listener.start()
+    valkey_listener.start()
 
-    # get existing subscriptions from Redis and subscribe
-    load_persisted_subscriptions(redis_client, mqtt_subscriber)
+    # get existing subscriptions from Valkey and subscribe
+    load_persisted_subscriptions(valkey_client, mqtt_subscriber)
 
     LOGGER.info(f"Subscription manager started for broker: {broker_config.get('host')}")
 
     try:
         while not shutdown_event.is_set():
             time.sleep(1)
-            redis_client.set(health_key, 'alive', ex=60)
+            valkey_client.set(health_key, 'alive', ex=60)
             if not mqtt_thread.is_alive():
                 LOGGER.critical("MQTT thread died! Shutting down process.")
                 break
@@ -207,7 +209,7 @@ def run_manager():
 
     finally:
         LOGGER.info("Shutting down subscription manager")
-        redis_listener.stop()
+        valkey_listener.stop()
         mqtt_subscriber.stop()
         mqtt_thread.join(timeout=60)
         LOGGER.info("Subscription manager shutdown complete")

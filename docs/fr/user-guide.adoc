@@ -191,7 +191,7 @@ La vue *Abonnement manuel* (kbd:[Alt+4]) inclut une section d'authentification p
 |Jeton (envoyé en tant que `Authorization: Bearer <token>`)
 |===
 
-NOTE: Les identifiants sont stockés dans Redis et envoyés avec chaque requête de téléchargement de l'abonnement. Le mot de passe et le jeton sont masqués dans les réponses de l'API.
+NOTE: Les identifiants sont stockés dans Valkey et envoyés avec chaque requête de téléchargement de l'abonnement. Le mot de passe et le jeton sont masqués dans les réponses de l'API.
 
 === Gestion des abonnements
 
@@ -204,7 +204,7 @@ Utilisez *Recharger les abonnements* pour actualiser la liste après des modific
 
 === Paramètres
 
-La vue Paramètres affiche le nombre d'enregistrements chargés depuis chaque GDC. Cliquez sur *Actualiser les données GDC* pour forcer une récupération fraîche depuis les trois catalogues, en contournant le cache Redis.
+La vue Paramètres affiche le nombre d'enregistrements chargés depuis chaque GDC. Cliquez sur *Actualiser les données GDC* pour forcer une récupération fraîche depuis les trois catalogues, en contournant le cache Valkey.
 
 == Comprendre les rubriques WIS2
 
@@ -399,7 +399,7 @@ Les abonnements téléchargeant depuis des sources protégées par mot de passe 
 }
 ----
 
-NOTE: L'API masque les secrets dans les réponses — `password` est omis et `token` est remplacé par `***`. Les identifiants complets sont stockés dans Redis et utilisés uniquement lors du téléchargement.
+NOTE: L'API masque les secrets dans les réponses — `password` est omis et `token` est remplacé par `***`. Les identifiants complets sont stockés dans Valkey et utilisés uniquement lors du téléchargement.
 
 [[Filtrage]]
 == Filtrage

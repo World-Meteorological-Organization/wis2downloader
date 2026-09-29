@@ -9,13 +9,15 @@ import mimetypes
 import os
 from pathlib import Path
 import tempfile
+import time
 import urllib3
 from urllib.parse import urlsplit
+import zlib
 
 from task_manager.worker import app as app
 
 # Import shared utilities
-from shared import get_redis_client, apply_filters, MatchContext, incr_counter
+from shared import get_valkey_client, apply_filters, MatchContext, incr_counter
 
 LOGGER = get_task_logger(__name__)
 
@@ -27,8 +29,10 @@ STATUS_SKIPPED = "SKIPPED"
 STATUS_PENDING = "PENDING"
 STATUS_VALID_CONDITIONS = [STATUS_SUCCESS, STATUS_FAILED, STATUS_SKIPPED, STATUS_PENDING]
 try:
-    REDIS_TTL_SECONDS = int(os.getenv("REDIS_TTL_SECONDS", 3600))
-    LOCK_EXPIRE = int(os.getenv("REDIS_MESSAGE_LOCK", 300))
+    VALKEY_TTL_SECONDS = int(os.getenv("VALKEY_TTL_SECONDS", 3600))
+    LOCK_EXPIRE = int(os.getenv("VALKEY_MESSAGE_LOCK", 300))
+    # Celery time limits are not enforced by the threads pool, so downloads enforce their own
+    DOWNLOAD_MAX_SECONDS = int(os.getenv("DOWNLOAD_MAX_SECONDS", 1800))
 except Exception as e:
     LOGGER.error(f"Error getting environment variables {e}")
     raise e
@@ -90,7 +94,7 @@ DEFAULT_FILTER = {
 }
 
 
-def set_status(key, type, status):
+def set_status(key, type, status, pubtime=None):
     if key in (None, ''):
         LOGGER.warning("No key provided")
         return
@@ -100,13 +104,43 @@ def set_status(key, type, status):
     if status not in STATUS_VALID_CONDITIONS:
         LOGGER.warning(f"Invalid status '{status}' for {key} ({type})")
     tracker_id = f"{TRACKER}:{type}:{key}"
+    fields = {'status': status}
+    if pubtime:
+        fields['pubtime'] = pubtime
 
     try:
-        redis_client = get_redis_client()
-        redis_client.hset(tracker_id, 'status', status)
-        redis_client.expire(tracker_id, REDIS_TTL_SECONDS)  # Set expiration
+        valkey_client = get_valkey_client()
+        valkey_client.hset(tracker_id, mapping=fields)
+        valkey_client.expire(tracker_id, VALKEY_TTL_SECONDS)  # Set expiration
     except Exception as e:
-        LOGGER.error(f"Redis error in set_status: {e}")
+        LOGGER.error(f"Valkey error in set_status: {e}")
+
+
+def get_pubtime(data_id):
+    """Return the pubtime of the last successfully processed version of data_id."""
+    try:
+        value = get_valkey_client().hget(f"{TRACKER}:by-data-id:{data_id}", 'pubtime')
+        return value.decode('utf-8') if value else None
+    except Exception as e:
+        LOGGER.error(f"Valkey error in get_pubtime: {e}")
+        return None
+
+
+def _parse_pubtime(value):
+    try:
+        parsed = dt.datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+    # WNM pubtime is UTC
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
+
+
+def _is_newer(pubtime, previous) -> bool:
+    """True unless both pubtimes parse and pubtime is not after previous."""
+    new, old = _parse_pubtime(pubtime), _parse_pubtime(previous)
+    if new is None or old is None:
+        return True
+    return new > old
 
 
 def get_status(key, type):
@@ -121,14 +155,14 @@ def get_status(key, type):
     tracker_id = f"{TRACKER}:{type}:{key}"
 
     try:
-        redis_client = get_redis_client()
-        if redis_client.hexists(tracker_id, 'status'):
-            status = redis_client.hget(tracker_id, 'status')
+        valkey_client = get_valkey_client()
+        if valkey_client.hexists(tracker_id, 'status'):
+            status = valkey_client.hget(tracker_id, 'status')
             status = status.decode('utf-8')
             if status not in STATUS_VALID_CONDITIONS:
                 LOGGER.warning(f"Invalid status '{status}' for {key}")
     except Exception as e:
-        LOGGER.error(f"Redis error in get_status: {e}")
+        LOGGER.error(f"Valkey error in get_status: {e}")
 
     return status
 
@@ -146,11 +180,56 @@ def guess_file_type(data):
     return mime, ext
 
 
+def _decode_content(content: dict | None) -> bytes | None:
+    """Decode WNM properties.content (utf-8, base64 or gzip). None if absent or invalid."""
+    if not content:
+        return None
+    encoding, value, size = content.get('encoding'), content.get('value'), content.get('size')
+    if not isinstance(size, int) or size < 0:
+        LOGGER.warning("Embedded content has invalid size %r, using download link", size)
+        return None
+    try:
+        if encoding == 'utf-8':
+            data = value.encode('utf-8')
+        elif encoding == 'base64':
+            data = base64.b64decode(value, validate=True)
+        elif encoding == 'gzip':
+            # Decompress at most size + 1 bytes so a mismatch is detected without inflating further
+            decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
+            data = decompressor.decompress(base64.b64decode(value, validate=True), size + 1)
+            if not decompressor.eof:
+                data = b''
+        else:
+            LOGGER.warning("Embedded content has unsupported encoding %r, using download link", encoding)
+            return None
+    except (AttributeError, ValueError, zlib.error) as e:
+        LOGGER.warning("Could not decode embedded content (%s), using download link", e)
+        return None
+    if len(data) != size:
+        LOGGER.warning("Embedded content size %d does not match declared %d, using download link", len(data), size)
+        return None
+    return data
+
+
+def _write_content_to_file(data: bytes, dest_path: str, hasher) -> tuple[int, str]:
+    with open(dest_path, "wb") as fh:
+        fh.write(data)
+    if hasher is not None:
+        hasher.update(data)
+    mime_type, _ = guess_file_type(data[:8192])
+    return len(data), mime_type
+
+
+class DownloadTimeoutError(Exception):
+    pass
+
+
 def _stream_response_to_file(
     response,
     dest_path: str,
     hasher,
     download_url: str,
+    deadline: float | None = None,
 ) -> tuple[int, str]:
     """Stream *response* body to *dest_path*.
 
@@ -159,7 +238,8 @@ def _stream_response_to_file(
     _PROGRESS_LOG_INTERVAL bytes.
 
     Returns (total_bytes_written, detected_mime_type).
-    Raises OSError on disk errors or urllib3 exceptions on network errors.
+    Raises DownloadTimeoutError if time.monotonic() passes *deadline*,
+    OSError on disk errors or urllib3 exceptions on network errors.
     The caller is responsible for calling response.release_conn().
     """
     actual_size = 0
@@ -169,6 +249,8 @@ def _stream_response_to_file(
 
     with open(dest_path, "wb") as fh:
         for chunk in response.stream(DOWNLOAD_CHUNK_SIZE):
+            if deadline is not None and time.monotonic() > deadline:
+                raise DownloadTimeoutError(f"Download time limit exceeded after {actual_size} bytes")
             if not chunk:
                 continue
             if first_chunk:
@@ -346,9 +428,22 @@ def download_from_wis2(self, job):
     result['received'] = job['_received']
     result['queued'] = job['_queued']
 
+    pubtime = job.get('payload', {}).get('properties', {}).get('pubtime')
+    _, _, is_update = _select_download_link(job.get('payload', {}).get('links', []))
+
     # deduplication step
     for key, type in [(message_id, 'by-msg-id'), (data_id, 'by-data-id'), (filehash, 'by-hash')]:
         if key:
+            # An update keeps the original data_id (WNM 1.8); accept it if newer
+            if type == 'by-data-id' and is_update:
+                previous = get_pubtime(data_id)
+                if previous and not _is_newer(pubtime, previous):
+                    result['status'] = STATUS_SKIPPED
+                    result['reason'] = f"Update for '{data_id}' not newer than processed version ({previous})"
+                    result['error_class'] = "OutdatedUpdate"
+                    set_status(message_id, 'by-msg-id', STATUS_SKIPPED)
+                    return result
+                continue
             status = get_status(key, type)
             if status and status == STATUS_SUCCESS:
                 LOGGER.debug(f"ID '{key}' ({type}) previously processed with status '{status}'")
@@ -366,8 +461,8 @@ def download_from_wis2(self, job):
     # acquire lock on ID to make sure we only process once.
     lock_key_identifier = filehash or data_id or message_id
     lock_key = f"wis2:notification:data:lock:{lock_key_identifier}"
-    redis_client = get_redis_client()
-    lock_acquired = redis_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
+    valkey_client = get_valkey_client()
+    lock_acquired = valkey_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
     if not lock_acquired:  # lock acquired by another worker
         LOGGER.debug(f"Could not acquire lock for {lock_key_identifier}, retrying in 10 seconds")
         try:
@@ -478,93 +573,114 @@ def download_from_wis2(self, job):
                 return result
             hasher = hash_fn()
 
-        # Stream the download directly to a temp file to avoid loading large
-        # files into memory.  The hash is computed incrementally and the MIME
+        # Use data embedded in the notification if valid, otherwise stream the
+        # download to a temp file. The hash is computed incrementally and the MIME
         # type is detected from the first chunk.
         result['status'] = STATUS_PENDING
         result['download_start'] = _now_utc_str()
-        response = None
-        tmp_path = None
-        try:
-            try:
-                response = _pool.request(
-                    'GET', download_url,
-                    headers=_build_auth_headers(job.get('credentials')),
-                    preload_content=False,
-                    timeout=urllib3.Timeout(connect=5.0, read=60.0),
-                )
-            except urllib3.exceptions.ConnectTimeoutError as e:
-                result['status'] = STATUS_FAILED
-                result['reason'] = f"Connection timeout error for {result['global_cache']}, see logs"
-                result['error_class'] = str(e.__class__.__name__)
-                LOGGER.warning("Connection timeout %s for %s", e, result['global_cache'])
-                return result
-            except urllib3.exceptions.ReadTimeoutError as e:
-                result['status'] = STATUS_FAILED
-                result['reason'] = f"Download timeout error for {result['global_cache']}, see logs"
-                result['error_class'] = str(e.__class__.__name__)
-                LOGGER.warning("Read timeout %s for %s", e, result['global_cache'])
-                return result
-            except urllib3.exceptions.MaxRetryError as e:
-                result['status'] = STATUS_FAILED
-                result['reason'] = f"Maximum retries downloading from {result['global_cache']} exceeded"
-                result['error_class'] = str(e.__class__.__name__)
-                return result
-            except Exception as e:
-                result['status'] = STATUS_FAILED
-                result['reason'] = f"Error while downloading from {result['global_cache']}, see logs"
-                result['error_class'] = str(e.__class__.__name__)
-                LOGGER.warning("Error %s while downloading from %s", e, result['global_cache'])
-                return result
-
-            if response.status != 200:
-                if response.status in RETRYABLE_HTTP_CODES:
-                    countdown = min(2 ** self.request.retries * 5, 300)
-                    LOGGER.warning(
-                        "HTTP %d from %s, retry %d in %ds",
-                        response.status, result['global_cache'],
-                        self.request.retries + 1, countdown,
-                    )
-                    raise self.retry(countdown=countdown, max_retries=5)
-                result['status'] = STATUS_FAILED
-                result['reason'] = f"HTTP {response.status} response from {result['global_cache']}"
-                result['error_class'] = "HTTPError"
-                LOGGER.warning("HTTP %d (non-retryable) downloading %s", response.status, download_url)
-                return result
-
-            # Stream response body to a temp file.
+        content = _decode_content(job.get('payload', {}).get('properties', {}).get('content'))
+        if content is not None:
             fh, tmp_path = tempfile.mkstemp(dir=target_directory, prefix='.tmp_')
             os.close(fh)
             try:
-                actual_size, mime_type = _stream_response_to_file(
-                    response, tmp_path, hasher, download_url
-                )
-            except urllib3.exceptions.ReadTimeoutError as e:
-                result['status'] = STATUS_FAILED
-                result['reason'] = f"Read timeout during download from {result['global_cache']}, see logs"
-                result['error_class'] = str(e.__class__.__name__)
-                LOGGER.warning("Read timeout during streaming from %s: %s", result['global_cache'], e)
-                return result
+                actual_size, mime_type = _write_content_to_file(content, tmp_path, hasher)
             except OSError as e:
-                result['status'] = STATUS_FAILED
-                result['reason'] = "Failed to write file during download, see logs"
-                result['error_class'] = str(e.__class__.__name__)
-                LOGGER.error("Disk error streaming %s to %s: %s", download_url, tmp_path, e)
-                return result
-            except Exception as e:
-                result['status'] = STATUS_FAILED
-                result['reason'] = f"Error during download from {result['global_cache']}, see logs"
-                result['error_class'] = str(e.__class__.__name__)
-                LOGGER.warning("Error streaming from %s: %s", result['global_cache'], e)
-                return result
-
-        finally:
-            if response is not None:
-                response.release_conn()
-            # Clean up any partial temp file on failure
-            if result.get('status') == STATUS_FAILED and tmp_path:
                 Path(tmp_path).unlink(missing_ok=True)
-                tmp_path = None
+                result['status'] = STATUS_FAILED
+                result['reason'] = "Failed to write embedded content, see logs"
+                result['error_class'] = str(e.__class__.__name__)
+                LOGGER.error("Disk error writing embedded content to %s: %s", tmp_path, e)
+                return result
+        else:
+            deadline = time.monotonic() + DOWNLOAD_MAX_SECONDS
+            response = None
+            tmp_path = None
+            try:
+                try:
+                    response = _pool.request(
+                        'GET', download_url,
+                        headers=_build_auth_headers(job.get('credentials')),
+                        preload_content=False,
+                        timeout=urllib3.Timeout(connect=5.0, read=60.0),
+                    )
+                except urllib3.exceptions.ConnectTimeoutError as e:
+                    result['status'] = STATUS_FAILED
+                    result['reason'] = f"Connection timeout error for {result['global_cache']}, see logs"
+                    result['error_class'] = str(e.__class__.__name__)
+                    LOGGER.warning("Connection timeout %s for %s", e, result['global_cache'])
+                    return result
+                except urllib3.exceptions.ReadTimeoutError as e:
+                    result['status'] = STATUS_FAILED
+                    result['reason'] = f"Download timeout error for {result['global_cache']}, see logs"
+                    result['error_class'] = str(e.__class__.__name__)
+                    LOGGER.warning("Read timeout %s for %s", e, result['global_cache'])
+                    return result
+                except urllib3.exceptions.MaxRetryError as e:
+                    result['status'] = STATUS_FAILED
+                    result['reason'] = f"Maximum retries downloading from {result['global_cache']} exceeded"
+                    result['error_class'] = str(e.__class__.__name__)
+                    return result
+                except Exception as e:
+                    result['status'] = STATUS_FAILED
+                    result['reason'] = f"Error while downloading from {result['global_cache']}, see logs"
+                    result['error_class'] = str(e.__class__.__name__)
+                    LOGGER.warning("Error %s while downloading from %s", e, result['global_cache'])
+                    return result
+
+                if response.status != 200:
+                    if response.status in RETRYABLE_HTTP_CODES:
+                        countdown = min(2 ** self.request.retries * 5, 300)
+                        LOGGER.warning(
+                            "HTTP %d from %s, retry %d in %ds",
+                            response.status, result['global_cache'],
+                            self.request.retries + 1, countdown,
+                        )
+                        raise self.retry(countdown=countdown, max_retries=5)
+                    result['status'] = STATUS_FAILED
+                    result['reason'] = f"HTTP {response.status} response from {result['global_cache']}"
+                    result['error_class'] = "HTTPError"
+                    LOGGER.warning("HTTP %d (non-retryable) downloading %s", response.status, download_url)
+                    return result
+
+                # Stream response body to a temp file.
+                fh, tmp_path = tempfile.mkstemp(dir=target_directory, prefix='.tmp_')
+                os.close(fh)
+                try:
+                    actual_size, mime_type = _stream_response_to_file(
+                        response, tmp_path, hasher, download_url, deadline
+                    )
+                except DownloadTimeoutError as e:
+                    result['status'] = STATUS_FAILED
+                    result['reason'] = f"Download from {result['global_cache']} exceeded {DOWNLOAD_MAX_SECONDS}s"
+                    result['error_class'] = "DownloadTimeoutError"
+                    LOGGER.warning("Download time limit exceeded for %s: %s", download_url, e)
+                    return result
+                except urllib3.exceptions.ReadTimeoutError as e:
+                    result['status'] = STATUS_FAILED
+                    result['reason'] = f"Read timeout during download from {result['global_cache']}, see logs"
+                    result['error_class'] = str(e.__class__.__name__)
+                    LOGGER.warning("Read timeout during streaming from %s: %s", result['global_cache'], e)
+                    return result
+                except OSError as e:
+                    result['status'] = STATUS_FAILED
+                    result['reason'] = "Failed to write file during download, see logs"
+                    result['error_class'] = str(e.__class__.__name__)
+                    LOGGER.error("Disk error streaming %s to %s: %s", download_url, tmp_path, e)
+                    return result
+                except Exception as e:
+                    result['status'] = STATUS_FAILED
+                    result['reason'] = f"Error during download from {result['global_cache']}, see logs"
+                    result['error_class'] = str(e.__class__.__name__)
+                    LOGGER.warning("Error streaming from %s: %s", result['global_cache'], e)
+                    return result
+
+            finally:
+                if response is not None:
+                    response.release_conn()
+                # Clean up any partial temp file on failure
+                if result.get('status') == STATUS_FAILED and tmp_path:
+                    Path(tmp_path).unlink(missing_ok=True)
+                    tmp_path = None
 
         result['download_end'] = _now_utc_str()
         result['actual_filesize'] = actual_size
@@ -654,10 +770,11 @@ def download_from_wis2(self, job):
 
     finally:
         if lock_acquired:
-            redis_client.delete(lock_key)
+            valkey_client.delete(lock_key)
         final_status = result.get('status', STATUS_FAILED)
         set_status(message_id, 'by-msg-id', final_status)
-        set_status(data_id, 'by-data-id', final_status)
+        set_status(data_id, 'by-data-id', final_status,
+                   pubtime=pubtime if final_status == STATUS_SUCCESS else None)
         set_status(filehash, 'by-hash', final_status)
 
 

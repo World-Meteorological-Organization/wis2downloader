@@ -142,7 +142,7 @@ STRINGS: dict[str, str] = {
     'settings.gdc_section': 'Catálogos de descubrimiento globales',
     'settings.gdc_desc': (
         'Los registros se obtienen de los tres GDC al inicio y se fusionan. '
-        'Los resultados se almacenan en caché en Redis durante 6 horas.'
+        'Los resultados se almacenan en caché en Valkey durante 6 horas.'
     ),
     'settings.records':     '{name}: {count} registros',
     'settings.not_loaded':  '{name}: no cargado',

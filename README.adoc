@@ -15,7 +15,7 @@ toc::[]
 
 WIS2 Downloader subscribes to MQTT topics on WIS2 Global Brokers, receives notification messages, and downloads the referenced data files. It features:
 
-* **Reliability** - Redis-backed state with automatic reconnection
+* **Reliability** - Valkey-backed state with automatic reconnection
 * **Scalability** - Celery workers for parallel downloads
 * **Deduplication** - Prevents duplicate downloads via message ID, data ID, and file hash tracking
 * **Filtering** - Filter by media type at subscription level
@@ -32,7 +32,7 @@ WIS2 Downloader subscribes to MQTT topics on WIS2 Global Brokers, receives notif
                                     └────────┬────────┘
                                              │
                                              ▼
-┌─────────────┐    Redis PubSub    ┌─────────────────┐
+┌─────────────┐    Valkey PubSub    ┌─────────────────┐
 │ Subscription│◄──────────────────►│   Subscriber    │
 │   Manager   │    (commands)      │   (MQTT Client) │
 │  (REST API) │                    └────────┬────────┘
@@ -52,7 +52,7 @@ WIS2 Downloader subscribes to MQTT topics on WIS2 Global Brokers, receives notif
                                    └─────────────────┘
 
               ┌─────────────────────────────────┐
-              │             Redis               │
+              │             Valkey               │
               │    (State + Task Queue)         │
               └─────────────────────────────────┘
 ----
@@ -140,9 +140,9 @@ Full documentation is available at https://world-meteorological-organization.git
 |3000
 |Metrics visualization (admin/admin)
 
-|redis
+|valkey
 |6379 (internal)
-|Redis for state storage and task queue
+|Valkey for state storage and task queue
 |===
 
 == Configuration

@@ -174,11 +174,11 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{container_name=\"redis\"}",
+          "expr": "{container_name=\"valkey\"}",
           "refId": "A"
         }
       ],
-      "title": "Redis Logs",
+      "title": "Valkey Logs",
       "type": "logs"
     }
   ],

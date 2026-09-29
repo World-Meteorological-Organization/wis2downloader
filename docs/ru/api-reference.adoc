@@ -50,7 +50,7 @@ GET /subscriptions
 |Успех — карта топик → карта UUID подписки → детали подписки
 
 |503
-|Redis недоступен
+|Valkey недоступен
 |===
 
 ==== Пример
@@ -138,7 +138,7 @@ Content-Type: application/json
 |Неверный запрос — отсутствующие или недопустимые поля
 
 |503
-|Сервис недоступен — сбой подключения к Redis
+|Сервис недоступен — сбой подключения к Valkey
 |===
 
 ==== Заголовки ответа
@@ -323,7 +323,7 @@ Content-Type: application/json
 |Подписка не найдена
 
 |503
-|Redis недоступен
+|Valkey недоступен
 |===
 
 ==== Пример
@@ -357,7 +357,7 @@ DELETE /subscriptions/{id}
 |Подписка не найдена
 
 |503
-|Redis недоступен
+|Valkey недоступен
 |===
 
 ==== Пример
@@ -495,12 +495,12 @@ GET /swagger
 |UUID не существует
 
 |503
-|"Failed to connect to Redis: ..."
-|Redis недоступен
+|"Failed to connect to Valkey: ..."
+|Valkey недоступен
 
 |503
 |"Failed to queue subscription command..."
-|Сбой Redis pub/sub
+|Сбой Valkey pub/sub
 |===
 
 == Схемы данных
