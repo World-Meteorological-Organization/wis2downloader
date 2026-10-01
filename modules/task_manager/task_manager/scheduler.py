@@ -4,13 +4,17 @@ import sys
 
 from shared.logging import setup_logging
 from shared.valkey_client import (VALKEY_HOST, VALKEY_PORT, VALKEY_PASSWORD)
+from shared.config_check import Setting, VALKEY_SETTINGS, require_settings
 
 # Set up logging
 setup_logging()  # Configure root logger
 LOGGER = setup_logging(__name__)
 
-if not VALKEY_PASSWORD:
-    raise ValueError("VALKEY_PASSWORD must be set")
+require_settings('celery-scheduler', (
+    *VALKEY_SETTINGS,
+    *(Setting(name, integer=True) for name in (
+        'SCHEDULER_BACKEND_DB', 'SCHEDULER_RESULT_DB', 'DOWNLOAD_RETENTION_PERIOD')),
+))
 
 SCHEDULER_BACKEND_DB = int(os.getenv("SCHEDULER_BACKEND_DB", "2"))
 SCHEDULER_RESULT_DB = int(os.getenv("SCHEDULER_RESULT_DB", "3"))

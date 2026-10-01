@@ -9,6 +9,7 @@ from uuid import uuid4
 from .command_listener import CommandListener
 from .subscriber import Subscriber
 from shared import setup_logging, get_valkey_client, DEFAULT_QUEUE
+from shared.config_check import Setting, VALKEY_SETTINGS, require_settings
 
 LOGGER = setup_logging(__name__)
 
@@ -127,33 +128,25 @@ def load_persisted_subscriptions(valkey_client, mqtt_subscriber):
 
 def run_manager():
 
-    try:
-        _host = os.getenv("GLOBAL_BROKER_HOST")
-        _port = int(os.getenv("GLOBAL_BROKER_PORT", 443))
-        _uid = os.getenv("GLOBAL_BROKER_USERNAME", "everyone")
-        _pwd = os.getenv("GLOBAL_BROKER_PASSWORD", "everyone")
-        _protocol = os.getenv("MQTT_PROTOCOL", "websockets")
-        _session = os.getenv("MQTT_SESSION_ID", str(uuid4()))
-
-    except Exception as e:
-        LOGGER.error(f"Error setting global broker MQTT configuration: {e}")
-        raise e
+    require_settings('subscriber', (
+        *VALKEY_SETTINGS,
+        Setting('GLOBAL_BROKER_HOST', required=True),
+        Setting('GLOBAL_BROKER_PORT', integer=True),
+        Setting('QUEUE_DELAY_SECONDS', integer=True),
+    ))
 
     broker_config = {
-        'host': _host,
-        'port': _port,
-        'uid': _uid,
-        'pwd': _pwd,
-        'protocol': _protocol,
-        'session': _session
+        'host': os.environ['GLOBAL_BROKER_HOST'],
+        'port': int(os.getenv("GLOBAL_BROKER_PORT", 443)),
+        'uid': os.getenv("GLOBAL_BROKER_USERNAME", "everyone"),
+        'pwd': os.getenv("GLOBAL_BROKER_PASSWORD", "everyone"),
+        'protocol': os.getenv("MQTT_PROTOCOL", "websockets"),
+        'session': os.getenv("MQTT_SESSION_ID", str(uuid4())),
+        'queue_delay': int(os.getenv("QUEUE_DELAY_SECONDS", 0)),
     }
 
-    subscriber_id = broker_config.get('host', 'unknown').replace('.', '-')
+    subscriber_id = broker_config['host'].replace('.', '-')
     health_key = f"subscriber:health:{subscriber_id}"
-
-    if not broker_config.get('host'):
-        LOGGER.error("No broker host provided, exiting")
-        sys.exit(1)
 
     mqtt_subscriber = Subscriber(**broker_config)
 

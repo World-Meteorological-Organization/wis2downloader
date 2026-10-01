@@ -14,21 +14,31 @@ generate_encryption_key() {
     openssl rand -base64 32 | tr '+/' '-_'
 }
 
-if [ -f .env ]; then
-    if ! grep -q '^SUBSCRIPTIONS_ENCRYPTION_KEY=..' .env; then
-        sed -i '/^SUBSCRIPTIONS_ENCRYPTION_KEY=/d' .env
-        echo "SUBSCRIPTIONS_ENCRYPTION_KEY=\"$(generate_encryption_key)\"" >> .env
-        echo "SUBSCRIPTIONS_ENCRYPTION_KEY added to existing .env. Back it up: without it saved credentials cannot be restored."
+# Set NAME to VALUE in .env if NAME is missing or empty; existing values are kept
+fill_secret() {
+    local name="$1" value="$2"
+    if ! grep -q "^${name}=.." .env; then
+        sed -i "/^${name}=/d" .env
+        echo "${name}=\"${value}\"" >> .env
+        echo "${name} generated."
     fi
+}
+
+fill_secrets() {
+    fill_secret FLASK_SECRET_KEY "$(openssl rand -hex 32)"
+    fill_secret VALKEY_PASSWORD "$(openssl rand -hex 16)"
+    fill_secret SUBSCRIPTIONS_ENCRYPTION_KEY "$(generate_encryption_key)"
+    fill_secret STORAGE_SECRET "$(openssl rand -hex 32)"
+}
+
+if [ -f .env ]; then
+    fill_secrets
     echo ".env already exists — remove it first if you want to regenerate secrets."
     exit 1
 fi
 
 cp default.env .env
-
-sed -i "s/FLASK_SECRET_KEY=.*/FLASK_SECRET_KEY=\"$(openssl rand -hex 32)\"/" .env
-sed -i "s/VALKEY_PASSWORD=.*/VALKEY_PASSWORD=\"$(openssl rand -hex 16)\"/" .env
-sed -i "s/SUBSCRIPTIONS_ENCRYPTION_KEY=.*/SUBSCRIPTIONS_ENCRYPTION_KEY=\"$(generate_encryption_key)\"/" .env
+fill_secrets
 
 echo ".env created with generated secrets."
 echo "Back up SUBSCRIPTIONS_ENCRYPTION_KEY: without it saved credentials cannot be restored."

@@ -10,17 +10,19 @@ from .logging import setup_logging
 
 LOGGER = setup_logging(__name__)
 
-try:
-    VALKEY_HOST: str = os.getenv("VALKEY_HOST", "localhost")
-    VALKEY_PORT: int = int(os.getenv("VALKEY_PORT", 6379))
-    VALKEY_DB: int = int(os.getenv("VALKEY_DATABASE", 0))
-    VALKEY_PASSWORD: str = os.getenv("VALKEY_PASSWORD")
-except Exception as e:
-    LOGGER.error(f"Error getting environment variables {e}")
-    raise e
 
-if not VALKEY_PASSWORD:
-    raise ValueError("VALKEY_PASSWORD must be set")
+def _int_env(name: str, default: int) -> int:
+    # Invalid values are reported by config_check.require_settings at service startup
+    try:
+        return int(os.getenv(name, default))
+    except ValueError:
+        return default
+
+
+VALKEY_HOST: str = os.getenv("VALKEY_HOST", "localhost")
+VALKEY_PORT: int = _int_env("VALKEY_PORT", 6379)
+VALKEY_DB: int = _int_env("VALKEY_DATABASE", 0)
+VALKEY_PASSWORD: str | None = os.getenv("VALKEY_PASSWORD")
 
 _valkey_client: Optional[redis.Redis] = None
 

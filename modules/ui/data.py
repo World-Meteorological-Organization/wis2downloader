@@ -11,7 +11,10 @@ from models.wcmp2 import WCMP2Record
 
 LOGGER = setup_logging(__name__)
 
-GDC_CACHE_TTL = int(os.getenv("GDC_CACHE_TTL_SECONDS", str(6 * 3600)))
+try:
+    GDC_CACHE_TTL = int(os.getenv("GDC_CACHE_TTL_SECONDS", str(6 * 3600)))
+except ValueError:  # reported by the startup config check in main.py
+    GDC_CACHE_TTL = 6 * 3600
 
 GDC_SOURCES = [
     ("https://gdc.wis.cma.cn",        "CMA"),

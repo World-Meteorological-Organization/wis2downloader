@@ -5,13 +5,18 @@ import sys
 from shared.logging import setup_logging
 from shared.valkey_client import (VALKEY_HOST, VALKEY_PORT, VALKEY_PASSWORD)
 from shared.queues import DEFAULT_QUEUE
+from shared.config_check import Setting, VALKEY_SETTINGS, require_settings
 
 # Set up logging
 setup_logging()  # Configure root logger
 LOGGER = setup_logging(__name__)
 
-if not VALKEY_PASSWORD:
-    raise ValueError("VALKEY_PASSWORD must be set")
+require_settings('celery-worker', (
+    *VALKEY_SETTINGS,
+    *(Setting(name, integer=True) for name in (
+        'CELERY_BACKEND_DB', 'CELERY_RESULT_DB', 'VALKEY_TTL_SECONDS', 'VALKEY_MESSAGE_LOCK',
+        'DOWNLOAD_MAX_SECONDS', 'DOWNLOAD_CHUNK_SIZE')),
+))
 
 CELERY_BACKEND_DB = int(os.getenv("CELERY_BACKEND_DB", "0"))
 CELERY_RESULT_DB = int(os.getenv("CELERY_RESULT_DB", "1"))
