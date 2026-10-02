@@ -9,17 +9,39 @@ else
     echo "Loki Docker plugin installed."
 fi
 
+# 32 random bytes, url-safe base64 (Fernet key format)
+generate_encryption_key() {
+    openssl rand -base64 32 | tr '+/' '-_'
+}
+
+# Set NAME to VALUE in .env if NAME is missing or empty; existing values are kept
+fill_secret() {
+    local name="$1" value="$2"
+    if ! grep -q "^${name}=.." .env; then
+        sed -i "/^${name}=/d" .env
+        echo "${name}=\"${value}\"" >> .env
+        echo "${name} generated."
+    fi
+}
+
+fill_secrets() {
+    fill_secret FLASK_SECRET_KEY "$(openssl rand -hex 32)"
+    fill_secret VALKEY_PASSWORD "$(openssl rand -hex 16)"
+    fill_secret SUBSCRIPTIONS_ENCRYPTION_KEY "$(generate_encryption_key)"
+    fill_secret STORAGE_SECRET "$(openssl rand -hex 32)"
+}
+
 if [ -f .env ]; then
+    fill_secrets
     echo ".env already exists — remove it first if you want to regenerate secrets."
     exit 1
 fi
 
 cp default.env .env
-
-sed -i "s/FLASK_SECRET_KEY=.*/FLASK_SECRET_KEY=\"$(openssl rand -hex 32)\"/" .env
-sed -i "s/REDIS_PASSWORD=.*/REDIS_PASSWORD=\"$(openssl rand -hex 16)\"/" .env
+fill_secrets
 
 echo ".env created with generated secrets."
+echo "Back up SUBSCRIPTIONS_ENCRYPTION_KEY: without it saved credentials cannot be restored."
 
 read -p "Enter download path in host (or press Enter to use default from .env): " HOST_DATA_PATH
 if [ ! -z "$HOST_DATA_PATH" ]; then
@@ -69,5 +91,11 @@ if [ -n "$EFFECTIVE_DATA_PATH" ]; then
     mkdir -p "$EFFECTIVE_DATA_PATH"
     echo "Download path '$EFFECTIVE_DATA_PATH' created."
 fi
+
+SUBSCRIPTIONS_PATH="$(grep '^HOST_SUBSCRIPTIONS_PATH=' .env | cut -d= -f2- | tr -d '"')"
+SUBSCRIPTIONS_PATH="${SUBSCRIPTIONS_PATH:-./subscriptions}"
+mkdir -p "$SUBSCRIPTIONS_PATH"
+chmod 700 "$SUBSCRIPTIONS_PATH"
+echo "Subscriptions path '$SUBSCRIPTIONS_PATH' created."
 
 echo "Review .env and adjust any settings before running: docker compose up -d"

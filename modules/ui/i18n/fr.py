@@ -146,7 +146,7 @@ STRINGS: dict[str, str] = {
     'settings.gdc_desc': (
         'Les enregistrements sont récupérés depuis les trois GDC au '
         'démarrage et fusionnés. Les résultats sont mis en cache dans '
-        'Redis pendant 6 heures.'
+        'Valkey pendant 6 heures.'
     ),
     'settings.records':     '{name}\u00a0: {count} enregistrements',
     'settings.not_loaded':  '{name}\u00a0: non chargé',

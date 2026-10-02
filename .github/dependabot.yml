@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: pip
+    directories:
+      - /containers
+      - /modules/subscription_manager
+      - /modules/task_manager
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories:
+      - /containers/backend
+      - /containers/ui
+      - /containers/valkey
+    schedule:
+      interval: weekly

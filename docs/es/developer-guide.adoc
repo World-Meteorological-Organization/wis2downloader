@@ -16,22 +16,22 @@ WIS2 Downloader es un sistema distribuido con cuatro componentes principales:
   ┌──────────────────────────────────────────────────────────┐
   │                                                           │
   │  Web UI (NiceGUI :8080)                                   │
-  │    - reads GDC catalogue data from Redis cache            │
+  │    - reads GDC catalogue data from Valkey cache            │
   │    - posts subscriptions to Subscription Manager API      │
   │                          │                                │
   │                          ▼                                │
   │  Subscription Manager (Flask API :5001)                   │
-  │    - persists subscriptions in Redis                      │
+  │    - persists subscriptions in Valkey                      │
   │    - publishes subscribe/unsubscribe commands via PubSub  │
   │                          │                                │
-  │              Redis PubSub (commands)                      │
+  │              Valkey PubSub (commands)                      │
   │                          │                                │
   │                          ▼                                │
   │  Subscriber (MQTT Client)                                 │
   │    - connects to WIS2 Global Broker                       │
   │    - on notification: queues Celery download task         │
   │                          │                                │
-  │              Redis (Celery queue + dedup state)           │
+  │              Valkey (Celery queue + dedup state)           │
   │                          │                                │
   │                          ▼                                │
   │  Celery Workers                                           │
@@ -42,10 +42,10 @@ WIS2 Downloader es un sistema distribuido con cuatro componentes principales:
 
 === Flujo de datos
 
-1. Al inicio, la interfaz web obtiene registros WCMP2 desde los tres puntos de acceso GDC (o caché Redis) y construye una jerarquía de temas en memoria
+1. Al inicio, la interfaz web obtiene registros WCMP2 desde los tres puntos de acceso GDC (o caché Valkey) y construye una jerarquía de temas en memoria
 2. El usuario explora la vista Catálogo o Árbol y selecciona un tema en la interfaz web
 3. El usuario hace clic en *Suscribirse* → la interfaz web envía un POST de suscripción a la API REST del gestor de suscripciones
-4. El gestor de suscripciones persiste la suscripción en Redis y publica un comando de suscripción en el canal PubSub de Redis
+4. El gestor de suscripciones persiste la suscripción en Valkey y publica un comando de suscripción en el canal PubSub de Valkey
 5. El suscriptor recibe el comando y se suscribe al tema MQTT en el bróker global WIS2
 6. Cuando llega una notificación WIS2, el suscriptor pone en cola una tarea de descarga Celery
 7. El worker Celery descarga el archivo, verifica el hash, aplica filtros y guarda en disco
@@ -59,14 +59,14 @@ modules/
 │   └── shared/
 │       ├── __init__.py
 │       ├── logging.py      # Centralized logging
-│       └── redis_client.py # Redis client singleton
+│       └── valkey_client.py # Valkey client singleton
 │
 ├── subscriber/             # MQTT subscriber service
 │   └── subscriber/
 │       ├── __init__.py
 │       ├── manager.py      # Entry point, thread management
 │       ├── subscriber.py   # MQTT client wrapper
-│       └── command_listener.py  # Redis PubSub listener
+│       └── command_listener.py  # Valkey PubSub listener
 │
 ├── subscription_manager/   # REST API service
 │   └── subscription_manager/
@@ -111,24 +111,24 @@ modules/
 
 Proporciona utilidades comunes usadas en todos los servicios.
 
-==== Cliente Redis
+==== Cliente Valkey
 
-.modules/shared/shared/redis_client.py
+.modules/shared/shared/valkey_client.py
 [source,python]
 ----
-from shared import get_redis_client
+from shared import get_valkey_client
 
-# Obtener el cliente Redis (singleton)
-redis = get_redis_client()
+# Obtener el cliente Valkey (singleton)
+valkey = get_valkey_client()
 
-# Usar como cliente Redis normal
-redis.set('key', 'value')
-redis.get('key')
+# Usar como cliente Valkey normal
+valkey.set('key', 'value')
+valkey.get('key')
 ----
 
 El cliente:
 
-* Se conecta directamente al servidor Redis
+* Se conecta directamente al servidor Valkey
 * Almacena en caché la conexión (patrón singleton)
 * Incluye lógica de reintento para fallos transitorios
 
@@ -167,8 +167,8 @@ def run_manager():
     # 1. Create MQTT subscriber
     mqtt_subscriber = Subscriber(**broker_config)
 
-    # 2. Create Redis command listener
-    redis_listener = CommandListener(
+    # 2. Create Valkey command listener
+    valkey_listener = CommandListener(
         subscriber=mqtt_subscriber,
         channel=COMMAND_CHANNEL
     )
@@ -177,8 +177,8 @@ def run_manager():
     mqtt_thread = threading.Thread(target=mqtt_subscriber.start, daemon=True)
     mqtt_thread.start()
 
-    # 4. Start Redis listener (blocks)
-    redis_listener.start()
+    # 4. Start Valkey listener (blocks)
+    valkey_listener.start()
 ----
 
 ==== Suscriptor MQTT
@@ -220,7 +220,7 @@ class Subscriber:
 class CommandListener(threading.Thread):
     def __init__(self, subscriber, channel):
         self.subscriber = subscriber
-        self.pubsub = get_redis_client().pubsub()
+        self.pubsub = get_valkey_client().pubsub()
 
     def run(self):
         self.pubsub.subscribe(self.channel)
@@ -257,7 +257,7 @@ def add_subscription():
     target = normalise_path(data.get('target', ''))
     filters = data.get('filters', {})
 
-    # Publish command to subscriber via Redis PubSub
+    # Publish command to subscriber via Valkey PubSub
     command = {
         "action": "subscribe",
         "topic": topic,
@@ -266,7 +266,7 @@ def add_subscription():
     }
     publish_command(command, COMMAND_CHANNEL)
 
-    # Persist to Redis for durability
+    # Persist to Valkey for durability
     persist_subscription(topic, target, filters)
 
     return jsonify({"status": "accepted", ...}), 202
@@ -274,13 +274,13 @@ def add_subscription():
 
 ==== Punto de acceso de métricas
 
-Las métricas se almacenan en Redis mediante operaciones atómicas `HINCRBYFLOAT`, lo que las hace seguras en múltiples contenedores de workers Celery. El punto de acceso lee de Redis y genera el formato de texto Prometheus:
+Las métricas se almacenan en Valkey mediante operaciones atómicas `HINCRBYFLOAT`, lo que las hace seguras en múltiples contenedores de workers Celery. El punto de acceso lee de Valkey y genera el formato de texto Prometheus:
 
 [source,python]
 ----
 @app.route('/metrics')
 def expose_metrics():
-    from shared.redis_metrics import generate_prometheus_text, set_gauge
+    from shared.valkey_metrics import generate_prometheus_text, set_gauge
     set_gauge('celery_queue_length', {}, get_queue_length())
     return Response(generate_prometheus_text(), mimetype='text/plain')
 ----
@@ -332,7 +332,7 @@ def download_from_wis2(self, job):
             return result
 
     # 3. Acquire lock
-    lock_acquired = redis_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
+    lock_acquired = valkey_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
     if not lock_acquired:
         raise self.retry(countdown=10, max_retries=10)
 
@@ -368,7 +368,7 @@ def wis2_download(args):
 
 ==== Planificador (tareas periódicas)
 
-Una aplicación Celery separada (`scheduler.py`) gestiona las tareas de mantenimiento mediante Celery Beat. Utiliza las bases de datos Redis 2/3 para no interferir con las colas del worker de descarga (bases de datos 0/1). Las tareas periódicas se definen en `tasks/scheduled_tasks.py`:
+Una aplicación Celery separada (`scheduler.py`) gestiona las tareas de mantenimiento mediante Celery Beat. Utiliza las bases de datos Valkey 2/3 para no interferir con las colas del worker de descarga (bases de datos 0/1). Las tareas periódicas se definen en `tasks/scheduled_tasks.py`:
 
 [cols="2,1,3"]
 |===
@@ -379,8 +379,8 @@ Una aplicación Celery separada (`scheduler.py`) gestiona las tareas de mantenim
 |Establece los indicadores `disk_total_bytes`, `disk_used_bytes`, `disk_free_bytes`
 
 |`clean_directory`
-|Cada 10 min
-|Elimina archivos más antiguos que `DOWNLOAD_RETENTION_PERIOD` días; decrementa `disk_downloads_bytes` por cada archivo eliminado
+|Diario, 00:15 UTC
+|Elimina completos los directorios diarios `{target}/YYYY/MM/DD` cuyos archivos superan todos `DOWNLOAD_RETENTION_PERIOD` días (UTC) y después los directorios de mes/año vacíos. Solo se listan directorios, por lo que el coste no crece con el número de archivos. Los archivos fuera de esta estructura no se tocan. Reduce `disk_downloads_bytes` en los bytes liberados
 
 |`recalibrate_downloads_size`
 |Diariamente
@@ -450,7 +450,7 @@ Los registros se obtienen de tres puntos de acceso GDC públicos al inicio:
 |`https://wis2-gdc.weather.gc.ca`
 |===
 
-Las respuestas JSON brutas se almacenan en caché en Redis bajo las claves `gdc:cache:CMA`, `gdc:cache:DWD` y `gdc:cache:ECCC` con un TTL controlado por `GDC_CACHE_TTL_SECONDS` (6 horas por defecto). Redis es opcional — si no está disponible, los datos se obtienen por HTTP en cada inicio.
+Las respuestas JSON brutas se almacenan en caché en Valkey bajo las claves `gdc:cache:CMA`, `gdc:cache:DWD` y `gdc:cache:ECCC` con un TTL controlado por `GDC_CACHE_TTL_SECONDS` (6 horas por defecto). Valkey es opcional — si no está disponible, los datos se obtienen por HTTP en cada inicio.
 
 ==== Registros fusionados
 
@@ -513,7 +513,7 @@ La jerarquía se almacena en `_topic_hierarchy` y se devuelve por `topic_hierarc
 |Elimina el `/#` final, navega la jerarquía y recopila recursivamente todos los conjuntos de datos de ese nodo y sus descendientes
 
 |`scrape_all(force=False)`
-|Obtiene datos GDC (caché Redis primero, luego HTTP), reconstruye `_merged_records` y `_topic_hierarchy`
+|Obtiene datos GDC (caché Valkey primero, luego HTTP), reconstruye `_merged_records` y `_topic_hierarchy`
 |===
 
 === Modelo WCMP2 (models/wcmp2.py)
@@ -839,9 +839,9 @@ def render(container):
 
 == Comunicación entre servicios
 
-=== Redis PubSub (Comandos)
+=== Valkey PubSub (Comandos)
 
-La comunicación gestor de suscripciones → suscriptor usa Redis PubSub en el canal `subscription_commands`:
+La comunicación gestor de suscripciones → suscriptor usa Valkey PubSub en el canal `subscription_commands`:
 
 [source,json]
 ----
@@ -889,7 +889,7 @@ job = {
 }
 ----
 
-=== Claves Redis
+=== Claves Valkey
 
 [cols="2,3"]
 |===
@@ -968,9 +968,9 @@ def my_custom_task(data):
 
 === Agregar una nueva métrica
 
-Las métricas se almacenan en Redis a través de `shared.redis_metrics`. Para agregar una nueva métrica:
+Las métricas se almacenan en Valkey a través de `shared.valkey_metrics`. Para agregar una nueva métrica:
 
-1. Regístrela en el dict `METRICS` en `modules/shared/shared/redis_metrics.py`:
+1. Regístrela en el dict `METRICS` en `modules/shared/shared/valkey_metrics.py`:
 +
 [source,python]
 ----
@@ -1048,13 +1048,13 @@ pip install -e modules/task_manager
 pip install -e modules/subscriber
 pip install -e modules/subscription_manager
 
-# Iniciar Redis (instancia única para desarrollo)
-docker run -d -p 6379:6379 redis:7.2-alpine redis-server --requirepass devpassword
+# Iniciar Valkey (instancia única para desarrollo)
+docker run -d -p 6379:6379 valkey/valkey:9.1.2 valkey-server --requirepass devpassword
 
 # Configurar entorno
-export REDIS_HOST=localhost
-export REDIS_PORT=6379
-export REDIS_PASSWORD=devpassword
+export VALKEY_HOST=localhost
+export VALKEY_PORT=6379
+export VALKEY_PASSWORD=devpassword
 export FLASK_SECRET_KEY=dev-secret-key
 export LOG_LEVEL=DEBUG
 
@@ -1098,12 +1098,12 @@ docker exec -it wis2downloader-celery-1 \
   celery -A task_manager.worker inspect reserved
 ----
 
-=== Inspección de Redis
+=== Inspección de Valkey
 
 [source,bash]
 ----
-# Conectar a Redis (usar contraseña del entorno)
-docker exec -it redis redis-cli -a $REDIS_PASSWORD
+# Conectar a Valkey (usar contraseña del entorno)
+docker exec -it valkey valkey-cli -a $VALKEY_PASSWORD
 
 # Listar suscripciones
 HGETALL global:subscriptions
@@ -1119,7 +1119,7 @@ KEYS gdc:cache:*
 TTL gdc:cache:CMA
 ----
 
-NOTE: Todos los comandos Redis requieren autenticación. El indicador `-a $REDIS_PASSWORD` pasa la contraseña desde su entorno.
+NOTE: Todos los comandos Valkey requieren autenticación. El indicador `-a $VALKEY_PASSWORD` pasa la contraseña desde su entorno.
 
 === Depuración de MQTT
 

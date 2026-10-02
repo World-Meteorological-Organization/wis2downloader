@@ -11,7 +11,10 @@ from models.wcmp2 import WCMP2Record
 
 LOGGER = setup_logging(__name__)
 
-GDC_CACHE_TTL = int(os.getenv("GDC_CACHE_TTL_SECONDS", str(6 * 3600)))
+try:
+    GDC_CACHE_TTL = int(os.getenv("GDC_CACHE_TTL_SECONDS", str(6 * 3600)))
+except ValueError:  # reported by the startup config check in main.py
+    GDC_CACHE_TTL = 6 * 3600
 
 GDC_SOURCES = [
     ("https://gdc.wis.cma.cn",        "CMA"),
@@ -175,10 +178,10 @@ async def _fetch_one(
             cached = await r.get(cache_key)
             if cached:
                 gdc_records[key] = _parse_features(json.loads(cached))
-                LOGGER.info(f"Loaded {key} from Redis cache ({len(gdc_records[key])} records)")
+                LOGGER.info(f"Loaded {key} from Valkey cache ({len(gdc_records[key])} records)")
                 return
         except Exception as e:
-            LOGGER.warning(f"Redis cache read failed for {key}, fetching from HTTP: {e}")
+            LOGGER.warning(f"Valkey cache read failed for {key}, fetching from HTTP: {e}")
 
     try:
         response = await client.get(
@@ -193,7 +196,7 @@ async def _fetch_one(
             try:
                 await r.set(cache_key, json.dumps(data), ex=GDC_CACHE_TTL)
             except Exception as e:
-                LOGGER.warning(f"Redis cache write failed for {key}: {e}")
+                LOGGER.warning(f"Valkey cache write failed for {key}: {e}")
     except Exception as e:
         LOGGER.error(f"Error fetching {key} GDC data from {url}: {e}")
 
@@ -204,14 +207,14 @@ async def scrape_all(force: bool = False):
     r = None
     try:
         r = aioredis.Redis(
-            host=os.getenv("REDIS_HOST", "localhost"),
-            port=int(os.getenv("REDIS_PORT", 6379)),
-            password=os.getenv("REDIS_PASSWORD"),
+            host=os.getenv("VALKEY_HOST", "localhost"),
+            port=int(os.getenv("VALKEY_PORT", 6379)),
+            password=os.getenv("VALKEY_PASSWORD"),
             decode_responses=True,
             socket_connect_timeout=2,
         )
     except Exception as e:
-        LOGGER.warning(f"Could not create Redis client, will fetch GDC data from HTTP: {e}")
+        LOGGER.warning(f"Could not create Valkey client, will fetch GDC data from HTTP: {e}")
 
     try:
         async with httpx.AsyncClient() as client:

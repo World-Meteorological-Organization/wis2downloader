@@ -4,6 +4,7 @@ from nicegui import app, ui, Client
 from nicegui.events import KeyEventArguments
 
 from shared import setup_logging
+from shared.config_check import Setting, require_settings
 from layout import build_layout
 import data as data_module
 from data import scrape_all
@@ -12,6 +13,13 @@ from components.navigation_drawer import NAV_ITEMS
 from i18n import current_lang, is_rtl
 
 setup_logging()
+
+# Valkey is optional for the UI (GDC cache), so its password is not required here
+require_settings('ui', (
+    Setting('STORAGE_SECRET', required=True, secret=True),
+    Setting('VALKEY_PORT', integer=True),
+    Setting('GDC_CACHE_TTL_SECONDS', integer=True),
+))
 
 app.add_static_files('/assets', 'assets')
 if os.path.isdir('site'):
@@ -119,6 +127,6 @@ def main_page(client: Client):
     show_view(app.storage.user.get('current_view', 'dashboard'))
 
 
-ui.run(storage_secret=os.getenv('STORAGE_SECRET', 'wis2downloader-secret'),
+ui.run(storage_secret=os.environ['STORAGE_SECRET'],
        reload=False,
        favicon='assets/logo.png')

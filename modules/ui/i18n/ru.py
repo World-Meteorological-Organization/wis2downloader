@@ -144,7 +144,7 @@ STRINGS: dict[str, str] = {
     'settings.gdc_section': 'Глобальные каталоги обнаружения',
     'settings.gdc_desc': (
         'Записи загружаются из всех трёх GDC при запуске и объединяются. '
-        'Результаты кэшируются в Redis на 6 часов.'
+        'Результаты кэшируются в Valkey на 6 часов.'
     ),
     'settings.records':     '{name}: {count} записей',
     'settings.not_loaded':  '{name}: не загружен',

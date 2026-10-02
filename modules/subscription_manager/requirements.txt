@@ -6,3 +6,4 @@ urllib3
 pyyaml
 prometheus_client>=0.20.0
 certifi>=2024.2.2
+cryptography

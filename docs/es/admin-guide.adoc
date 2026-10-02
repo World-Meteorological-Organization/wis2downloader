@@ -12,8 +12,36 @@
 
 * Docker 20.10+
 * Docker Compose 2.0+
-* 4 GB de RAM mínimo (8 GB recomendados para producción)
 * Acceso de red al bróker global WIS2 (puerto 443)
+
+=== Requisitos del sistema
+
+[cols="1,1,1,3"]
+|===
+| |Mínimo |Recomendado |Notas
+
+|RAM
+|4 GB
+|8 GB
+|Los límites de memoria de los contenedores suman ~7 GB (véase <<container-memory-limits>>)
+
+|CPU
+|2 vCPU
+|4 vCPU
+|Las descargas dependen principalmente de la red
+
+|Disco del sistema
+|20 GB
+|30 GB
+|Imágenes (~3 GB), caché de compilación, datos de Loki y Prometheus
+
+|Disco de datos
+|volumen diario × días de retención + 25 %
+|volumen separado
+|Muchos archivos pequeños pueden agotar los inodos antes que el espacio: use XFS o `mkfs.ext4 -i 4096`
+|===
+
+Las cifras se estiman a partir de una pila inactiva. Mida la memoria máxima (`docker stats`) y el volumen diario (`wis2downloader_downloads_bytes_total`) con sus suscripciones.
 
 === Instalación
 
@@ -45,9 +73,10 @@ docker compose up -d
 
 IMPORTANT: Antes de desplegar en producción, debe configurar estos ajustes de seguridad en su archivo `.env`:
 
-1. **`REDIS_PASSWORD`** - Establezca una contraseña única y segura (obligatorio)
+1. **`VALKEY_PASSWORD`** - Establezca una contraseña única y segura (obligatorio)
 2. **`FLASK_SECRET_KEY`** - Establezca una clave secreta criptográficamente aleatoria (obligatorio)
-3. **`FLASK_DEBUG`** - Establezca en `false` para producción
+3. **`SUBSCRIPTIONS_ENCRYPTION_KEY`** - Cifra las credenciales de las suscripciones en el archivo de suscripciones (obligatoria, generada por `setup.sh`). Haga una copia de seguridad: sin ella, las credenciales guardadas no se pueden restaurar.
+4. **`FLASK_DEBUG`** - Establezca en `false` para producción
 4. **Contraseña de Grafana** - Cambie el valor predeterminado `admin/admin` tras el primer inicio de sesión
 
 El archivo `.env` contiene credenciales sensibles. Asegúrese de que:
@@ -229,6 +258,16 @@ docker-compose logs -f subscriber
 |_obligatorio_
 |Clave secreta de sesión Flask (la aplicación falla si no está configurada)
 
+|`SUBSCRIPTIONS_ENCRYPTION_KEY`
+|string
+|_obligatorio_
+|Clave Fernet para cifrar las credenciales en el archivo de suscripciones (el gestor de suscripciones falla si falta o no es válida)
+
+|`HOST_SUBSCRIPTIONS_PATH`
+|path
+|`./subscriptions`
+|Directorio del host para `subscriptions.json`
+
 |`FLASK_DEBUG`
 |boolean
 |`false`
@@ -253,6 +292,11 @@ docker-compose logs -f subscriber
 |integer
 |`988`
 |ID de grupo utilizado al construir las imágenes. Debe coincidir con el grupo del directorio host para las escrituras de volumen.
+
+|`WIS2DOWNLOADER_BIND_ADDRESS`
+|string
+|`127.0.0.1`
+|Dirección del host en la que escuchan los puertos publicados (API, UI, Grafana, Prometheus, Loki). Use `0.0.0.0` para permitir el acceso desde otras máquinas.
 
 |`HOST_DATA_PATH`
 |path
@@ -302,38 +346,38 @@ docker-compose logs -f subscriber
 |ID de sesión persistente para reanudar tras reinicio
 |===
 
-==== Configuración de Redis
+==== Configuración de Valkey
 
 [cols="2,1,1,4"]
 |===
 |Variable |Tipo |Valor predeterminado |Descripción
 
-|`REDIS_HOST`
+|`VALKEY_HOST`
 |string
-|`redis`
-|Nombre de host del servidor Redis
+|`valkey`
+|Nombre de host del servidor Valkey
 
-|`REDIS_PORT`
+|`VALKEY_PORT`
 |integer
 |`6379`
-|Puerto del servidor Redis
+|Puerto del servidor Valkey
 
-|`REDIS_DATABASE`
+|`VALKEY_DATABASE`
 |integer
 |`0`
-|Número de base de datos Redis
+|Número de base de datos Valkey
 
-|`REDIS_PASSWORD`
+|`VALKEY_PASSWORD`
 |string
 |_obligatorio_
-|Contraseña de autenticación Redis (la aplicación falla si no está configurada)
+|Contraseña de autenticación Valkey (la aplicación falla si no está configurada)
 
-|`REDIS_TTL_SECONDS`
+|`VALKEY_TTL_SECONDS`
 |integer
 |`3600`
 |TTL para claves de deduplicación
 
-|`REDIS_MESSAGE_LOCK`
+|`VALKEY_MESSAGE_LOCK`
 |integer
 |`300`
 |Expiración del bloqueo para prevención de descargas concurrentes
@@ -347,13 +391,43 @@ docker-compose logs -f subscriber
 
 |`CELERY_BROKER_URL`
 |string
-|`redis://:${REDIS_PASSWORD}@redis:6379/0`
+|`redis://:${VALKEY_PASSWORD}@valkey:6379/0`
 |Cadena de conexión al bróker Celery (notar formato de contraseña)
 
 |`CELERY_RESULT_BACKEND`
 |string
-|`redis://:${REDIS_PASSWORD}@redis:6379/1`
+|`redis://:${VALKEY_PASSWORD}@valkey:6379/1`
 |Cadena de conexión al backend de resultados (notar formato de contraseña)
+
+|`DOWNLOAD_MAX_SECONDS`
+|integer
+|`1800`
+|Tiempo máximo de una descarga; las descargas más largas fallan con `DownloadTimeoutError`
+
+|`DOWNLOAD_ALLOW_PRIVATE_ADDRESSES`
+|boolean
+|`false`
+|Permite descargas desde direcciones privadas, de loopback y link-local (p. ej. una caché en una red local). Las descargas bloqueadas fallan con `BlockedAddressError`.
+|===
+
+[[container-memory-limits]]
+==== Límites de memoria de los contenedores
+
+Los límites de memoria se definen por servicio en `docker-compose.yaml` y pueden sobrescribirse en `.env`. Valkey no tiene límite.
+
+[cols="2,1,3"]
+|===
+|Variable |Valor predeterminado |Servicios
+
+|`WORKER_MEMORY_LIMIT` |`1g` |Workers de descarga (cada uno)
+|`SCHEDULER_MEMORY_LIMIT` |`512m` |Worker del planificador
+|`BEAT_MEMORY_LIMIT` |`256m` |Celery beat
+|`SUBSCRIBER_MEMORY_LIMIT` |`256m` |Suscriptores (cada uno)
+|`SUBSCRIPTION_MANAGER_MEMORY_LIMIT` |`256m` |Gestor de suscripciones
+|`UI_MEMORY_LIMIT` |`512m` |Interfaz web
+|`GRAFANA_MEMORY_LIMIT` |`512m` |Grafana
+|`PROMETHEUS_MEMORY_LIMIT` |`512m` |Prometheus
+|`LOKI_MEMORY_LIMIT` |`1g` |Loki
 |===
 
 ==== Filtrado de descargas
@@ -397,7 +471,7 @@ docker-compose logs -f subscriber
 |`GDC_CACHE_TTL_SECONDS`
 |integer
 |`21600`
-|Segundos para almacenar en caché los datos del catálogo GDC en Redis (6 horas por defecto); establezca en `0` para obtener siempre datos en tiempo real
+|Segundos para almacenar en caché los datos del catálogo GDC en Valkey (6 horas por defecto); establezca en `0` para obtener siempre datos en tiempo real
 |===
 
 === Estructura de archivos
@@ -411,6 +485,7 @@ wis2downloader/
 │   └── prometheus/              # Prometheus scrape config
 ├── containers/                  # Dockerfiles
 ├── downloads/                   # Downloaded data (mounted volume)
+├── subscriptions/               # subscriptions.json (mounted volume)
 ├── modules/                     # Python modules
 │   ├── shared/                  # Shared utilities
 │   ├── subscriber/              # MQTT subscriber
@@ -424,19 +499,19 @@ wis2downloader/
 
 == Escalado
 
-=== Redis
+=== Valkey
 
-El sistema utiliza una única instancia Redis para:
+El sistema utiliza una única instancia Valkey para:
 
 * Mensajería pub/sub entre servicios
 * Almacenamiento del estado de suscripciones
 * Seguimiento de deduplicación
 * Cola de tareas Celery y resultados
 
-El sistema usa una única instancia Redis y no proporciona alta disponibilidad. Independientemente de la escala, asegúrese de que los datos Redis sean duraderos:
+El sistema usa una única instancia Valkey y no proporciona alta disponibilidad. Independientemente de la escala, asegúrese de que los datos Valkey sean duraderos:
 
-* Habilite la persistencia Redis (AOF + RDB)
-* Implemente copias de seguridad regulares del dump Redis
+* Habilite la persistencia Valkey (AOF + RDB)
+* Implemente copias de seguridad regulares del dump Valkey
 
 === Escalado de workers
 
@@ -478,31 +553,15 @@ Cada servicio suscriptor se conecta a un único bróker global WIS2. Para recibi
 
 [source,yaml]
 ----
-  subscriber-france:
-    container_name: subscriber-france
-    restart: always
-    build:
-      context: .
-      dockerfile: ./containers/subscriber/Dockerfile
-    env_file: *default-env
-    environment:
-      GLOBAL_BROKER_HOST: globalbroker.meteo.fr
-      GLOBAL_BROKER_PORT: 443
-      GLOBAL_BROKER_USERNAME: everyone
-      GLOBAL_BROKER_PASSWORD: everyone
-      MQTT_PROTOCOL: websockets
-    depends_on:
-      - redis
-    networks:
-      - redis-net
-    logging: *default-logging
-
   subscriber-china:
     container_name: subscriber-china
     restart: always
-    build:
-      context: .
-      dockerfile: ./containers/subscriber/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: "${SUBSCRIBER_MEMORY_LIMIT:-256m}"
+    image: wis2downloader-backend
+    build: *backend-build
     env_file: *default-env
     environment:
       GLOBAL_BROKER_HOST: gb.wis.cma.cn
@@ -511,15 +570,21 @@ Cada servicio suscriptor se conecta a un único bróker global WIS2. Para recibi
       GLOBAL_BROKER_PASSWORD: everyone
       MQTT_PROTOCOL: websockets
     depends_on:
-      - redis
+      - valkey
     networks:
-      - redis-net
-    logging: *default-logging
+      - valkey-net
+    logging: *loki-logging
+    command: ["subscriber_start"]
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "subscriber_start"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 ----
 
 IMPORTANT: Cada suscriptor debe tener un `container_name` único.
 
-Todos los suscriptores comparten el mismo backend Redis, por lo que las suscripciones creadas a través de la API son recibidas por todas las instancias de suscriptores. Las descargas están deduplicadas, por lo que el mismo archivo no se descargará dos veces aunque las notificaciones lleguen de múltiples brókers.
+Todos los suscriptores comparten el mismo backend Valkey, por lo que las suscripciones creadas a través de la API son recibidas por todas las instancias de suscriptores. Las descargas están deduplicadas, por lo que el mismo archivo no se descargará dos veces aunque las notificaciones lleguen de múltiples brókers.
 
 == Monitoreo
 
@@ -527,7 +592,7 @@ Todos los suscriptores comparten el mismo backend Redis, por lo que las suscripc
 
 Punto de acceso de métricas: `http://localhost:5002/metrics`
 
-NOTE: Las métricas se almacenan de forma atómica en Redis usando `HINCRBYFLOAT` y se exponen en el punto de acceso `/metrics` en formato de texto Prometheus. Este enfoque es seguro en múltiples contenedores de workers Celery sin requerir un sistema de archivos compartido ni el directorio multiproceso de `prometheus_client`.
+NOTE: Las métricas se almacenan de forma atómica en Valkey usando `HINCRBYFLOAT` y se exponen en el punto de acceso `/metrics` en formato de texto Prometheus. Este enfoque es seguro en múltiples contenedores de workers Celery sin requerir un sistema de archivos compartido ni el directorio multiproceso de `prometheus_client`.
 
 ==== Métricas disponibles
 
@@ -644,16 +709,24 @@ Los registros también son recopilados por Loki y consultables en Grafana.
 
 === Copia de seguridad
 
-==== Datos Redis
+==== Datos Valkey
 
 [source,bash]
 ----
 # Activar instantánea RDB
-docker exec redis redis-cli -a $REDIS_PASSWORD BGSAVE
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD BGSAVE
 
 # Copiar instantánea
-docker cp redis:/data/dump.rdb ./backup/
+docker cp valkey:/data/dump.rdb ./backup/
 ----
+
+==== Suscripciones
+
+El gestor de suscripciones escribe todas las suscripciones en `subscriptions/subscriptions.json` tras cada cambio y al iniciar. Las credenciales del archivo se cifran con `SUBSCRIPTIONS_ENCRYPTION_KEY`; solo el usuario del contenedor puede leer el archivo.
+
+Si Valkey no contiene suscripciones al iniciar, se restauran desde este archivo y se notifica a los suscriptores. Para restaurar en un host nuevo o clonar una instalación, copie `subscriptions.json` y `SUBSCRIPTIONS_ENCRYPTION_KEY` antes del primer inicio. Con una clave distinta, las suscripciones se restauran sin credenciales.
+
+Haga una copia de seguridad del archivo junto con la clave, guardada por separado.
 
 ==== Archivos descargados
 
@@ -670,10 +743,10 @@ WARNING: Estas operaciones son destructivas.
 [source,bash]
 ----
 # Borrar todas las suscripciones
-docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:subscriptions
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD DEL global:subscriptions
 
 # Borrar caché de deduplicación (permite volver a descargar todos los datos)
-docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli -a $REDIS_PASSWORD DEL
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i valkey valkey-cli -a $VALKEY_PASSWORD DEL
 
 # Borrar archivos descargados
 rm -rf downloads/*
@@ -739,20 +812,20 @@ docker-compose logs celery-workers-small-files | tail -50
 curl -s http://localhost:5002/metrics | grep queue_length
 ----
 
-=== Errores de conexión Redis
+=== Errores de conexión Valkey
 
-1. Verifique que Redis está en ejecución:
+1. Verifique que Valkey está en ejecución:
 +
 [source,bash]
 ----
-docker exec redis redis-cli -a $REDIS_PASSWORD PING
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD PING
 ----
 
 2. Verifique la conectividad de red:
 +
 [source,bash]
 ----
-docker network inspect wis2downloader_redis-net
+docker network inspect wis2downloader_valkey-net
 ----
 
 === Uso elevado de memoria
@@ -778,11 +851,11 @@ Si las vistas de catálogo o árbol muestran "Catalogue data not loaded":
 docker-compose logs wis2downloader-ui | tail -30
 ----
 
-2. Confirme que las claves de caché GDC existen en Redis:
+2. Confirme que las claves de caché GDC existen en Valkey:
 +
 [source,bash]
 ----
-docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "gdc:cache:*"
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD KEYS "gdc:cache:*"
 ----
 +
 Si no hay claves presentes, la obtención inicial falló o aún está en progreso. Espere un momento y recargue la página.

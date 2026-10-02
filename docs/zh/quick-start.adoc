@@ -41,7 +41,7 @@ TIP: 若要使用最新开发版本，请克隆代码仓库：`git clone https:/
 bash setup.sh
 ----
 
-该脚本会将 `default.env` 复制为 `.env`，并为 `FLASK_SECRET_KEY` 和 `REDIS_PASSWORD` 生成随机值。请检查 `.env` 文件并根据需要调整配置——默认值适用于单机部署。
+该脚本会将 `default.env` 复制为 `.env`，并为 `FLASK_SECRET_KEY` 和 `VALKEY_PASSWORD` 生成随机值。请检查 `.env` 文件并根据需要调整配置——默认值适用于单机部署。
 
 IMPORTANT: 请妥善保管 `.env` 文件。该文件包含敏感凭据，不得提交到版本控制系统。
 
@@ -91,7 +91,7 @@ NOTE: 在 macOS 和 Windows（Docker Desktop）上无需此步骤——Docker De
 docker compose up -d
 ----
 
-此命令将启动所有服务：订阅管理器、MQTT 订阅者（法国和巴西 Global Broker）、Celery 工作进程（高优先级、小文件和大文件队列）、Redis、Prometheus、Grafana 和 Loki。
+此命令将启动所有服务：订阅管理器、MQTT 订阅者（法国和巴西 Global Broker）、Celery 工作进程（高优先级、小文件和大文件队列）、Valkey、Prometheus、Grafana 和 Loki。
 
 检查所有服务是否正常运行：
 

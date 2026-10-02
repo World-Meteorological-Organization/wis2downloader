@@ -6,6 +6,7 @@
 .idea/
 .vscode/
 tasks.md
+CLAUDE.md
 ---
 
 ## Python/Flask Files and Folders ##
@@ -50,15 +51,18 @@ __pycache__/
 # Downloaded data
 /downloads/
 
+# Subscriptions backup file
+/subscriptions/
+
 # Celery
 # Celery worker state files (PID files, etc.)
 *.pid
 
-# Redis
-# Redis persistence data (if mounted)
+# Valkey
+# Valkey persistence data (if mounted)
 # Adjust path if your Docker volume mount is different
 /data/
-/redis/data/
+/valkey/data/
 appendonly.aof
 dump.rdb
 
@@ -66,3 +70,18 @@ dump.rdb
 *.db
 *.sqlite
 /database/
+
+# AI related files
+.claude/
+.curser/
+.gemini/
+
+.github/setup.js
+
+# Local docs translation helper
+/docs/translate.py
+
+# Stale package consolidation copy (#55, v2)
+/modules/wis2downloader/
+
+*.pptx

@@ -144,7 +144,7 @@ STRINGS: dict[str, str] = {
     'settings.gdc_section': '全球发现目录',
     'settings.gdc_desc': (
         '启动时从所有三个 GDC 获取记录并合并。'
-        '结果在 Redis 中缓存 6 小时。'
+        '结果在 Valkey 中缓存 6 小时。'
     ),
     'settings.records':     '{name}：{count} 条记录',
     'settings.not_loaded':  '{name}：未加载',
