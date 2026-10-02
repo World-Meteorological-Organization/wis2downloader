@@ -300,6 +300,11 @@ docker-compose logs -f subscriber
 |`988`
 |构建容器镜像时使用的组 ID。必须与卷写入所需的主机目录所属组匹配。
 
+|`WIS2DOWNLOADER_BIND_ADDRESS`
+|string
+|`127.0.0.1`
+|已发布端口（API、UI、Grafana、Prometheus、Loki）监听的主机地址。设为 `0.0.0.0` 以允许其他机器访问。
+
 |`HOST_DATA_PATH`
 |path
 |`./downloads`
@@ -405,6 +410,11 @@ docker-compose logs -f subscriber
 |integer
 |`1800`
 |单次下载的最长时间；超时的下载以 `DownloadTimeoutError` 失败
+
+|`DOWNLOAD_ALLOW_PRIVATE_ADDRESSES`
+|boolean
+|`false`
+|允许从私有、回环和链路本地地址下载（例如本地网络上的缓存）。被阻止的下载以 `BlockedAddressError` 失败。
 |===
 
 [[container-memory-limits]]
@@ -557,12 +567,8 @@ celery-workers-small-files:
       resources:
         limits:
           memory: "${SUBSCRIBER_MEMORY_LIMIT:-256m}"
-    build:
-      context: .
-      dockerfile: ./containers/subscriber/Dockerfile
-      args:
-        WIS2DOWNLOADER_UID: ${WIS2DOWNLOADER_UID:-10001}
-        WIS2DOWNLOADER_GID: ${WIS2DOWNLOADER_GID:-988}
+    image: wis2downloader-backend
+    build: *backend-build
     env_file: *default-env
     environment:
       GLOBAL_BROKER_HOST: gb.wis.cma.cn
@@ -575,6 +581,7 @@ celery-workers-small-files:
     networks:
       - valkey-net
     logging: *loki-logging
+    command: ["subscriber_start"]
     healthcheck:
       test: ["CMD", "pgrep", "-f", "subscriber_start"]
       interval: 30s

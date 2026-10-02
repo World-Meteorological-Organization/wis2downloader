@@ -14,7 +14,7 @@ jobs:
         run: sudo gem install asciidoctor
 
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
 
@@ -27,7 +27,7 @@ jobs:
         run: find /tmp/site -name "*.html" | sort
 
       - name: Checkout pages branch
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: gh-pages
           token: ${{secrets.GH_PAT}}

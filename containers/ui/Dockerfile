@@ -23,8 +23,19 @@ COPY --from=docs-builder /repo/site /app/site
 RUN uv pip install /app/shared
 RUN uv pip install shapely==2.1.2
 
+# Create a non root user; it owns /app as NiceGUI writes .nicegui/ storage there
+ARG WIS2DOWNLOADER_GID=988
+ARG WIS2DOWNLOADER_UID=10001
+RUN groupadd -g ${WIS2DOWNLOADER_GID} wis2 && \
+    useradd -u ${WIS2DOWNLOADER_UID} -g wis2 -m -s /bin/bash wis2 && \
+    chown -R wis2:wis2 /app
+
+USER wis2
+
 # Expose the port your NiceGUI app runs on (default is 8080)
 EXPOSE 8080
 
 # Set the default command to run the NiceGUI app
+# The base entrypoint needs root to drop privileges; not needed with USER set
+ENTRYPOINT []
 CMD ["/opt/venv/bin/python", "main.py"]

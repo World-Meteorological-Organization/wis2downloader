@@ -86,7 +86,7 @@ services:
         max-size: "10M"
         max-file: "2"
     healthcheck:
-      test: ["CMD-SHELL", ". .venv/bin/activate && CELERY_BROKER_URL=redis://:ci_test_password@valkey:6379/0 celery inspect ping -t 5 | grep -q pong"]
+      test: ["CMD-SHELL", "CELERY_BROKER_URL=redis://:ci_test_password@valkey:6379/0 celery inspect ping -t 5 | grep -q pong"]
       interval: 10s
       timeout: 15s
       retries: 12

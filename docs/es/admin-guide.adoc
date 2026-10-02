@@ -293,6 +293,11 @@ docker-compose logs -f subscriber
 |`988`
 |ID de grupo utilizado al construir las imágenes. Debe coincidir con el grupo del directorio host para las escrituras de volumen.
 
+|`WIS2DOWNLOADER_BIND_ADDRESS`
+|string
+|`127.0.0.1`
+|Dirección del host en la que escuchan los puertos publicados (API, UI, Grafana, Prometheus, Loki). Use `0.0.0.0` para permitir el acceso desde otras máquinas.
+
 |`HOST_DATA_PATH`
 |path
 |`./downloads`
@@ -398,6 +403,11 @@ docker-compose logs -f subscriber
 |integer
 |`1800`
 |Tiempo máximo de una descarga; las descargas más largas fallan con `DownloadTimeoutError`
+
+|`DOWNLOAD_ALLOW_PRIVATE_ADDRESSES`
+|boolean
+|`false`
+|Permite descargas desde direcciones privadas, de loopback y link-local (p. ej. una caché en una red local). Las descargas bloqueadas fallan con `BlockedAddressError`.
 |===
 
 [[container-memory-limits]]
@@ -550,12 +560,8 @@ Cada servicio suscriptor se conecta a un único bróker global WIS2. Para recibi
       resources:
         limits:
           memory: "${SUBSCRIBER_MEMORY_LIMIT:-256m}"
-    build:
-      context: .
-      dockerfile: ./containers/subscriber/Dockerfile
-      args:
-        WIS2DOWNLOADER_UID: ${WIS2DOWNLOADER_UID:-10001}
-        WIS2DOWNLOADER_GID: ${WIS2DOWNLOADER_GID:-988}
+    image: wis2downloader-backend
+    build: *backend-build
     env_file: *default-env
     environment:
       GLOBAL_BROKER_HOST: gb.wis.cma.cn
@@ -568,6 +574,7 @@ Cada servicio suscriptor se conecta a un único bróker global WIS2. Para recibi
     networks:
       - valkey-net
     logging: *loki-logging
+    command: ["subscriber_start"]
     healthcheck:
       test: ["CMD", "pgrep", "-f", "subscriber_start"]
       interval: 30s

@@ -4,6 +4,7 @@ from celery.utils.log import get_task_logger
 import datetime as dt
 from functools import wraps
 import importlib
+import ipaddress
 import magic
 import mimetypes
 import os
@@ -11,6 +12,8 @@ from pathlib import Path
 import tempfile
 import time
 import urllib3
+from urllib3.connection import HTTPConnection, HTTPSConnection
+from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
 from urllib.parse import urlsplit
 import zlib
 
@@ -43,7 +46,52 @@ ALLOWED_HASH_METHODS = ("sha256", "sha384", "sha512", "sha3_256",
 
 RETRYABLE_HTTP_CODES = frozenset({429, 500, 502, 503, 504})
 
+# Opt-in for deployments that download from caches on private networks
+DOWNLOAD_ALLOW_PRIVATE_ADDRESSES = os.getenv("DOWNLOAD_ALLOW_PRIVATE_ADDRESSES", "false").lower() == "true"
+
+
+class BlockedAddressError(Exception):
+    """Download host is not a public address (SSRF guard)."""
+
+
+def _check_public_peer(sock) -> None:
+    """Close *sock* and raise BlockedAddressError unless its peer is a public address."""
+    ip = ipaddress.ip_address(sock.getpeername()[0])
+    if ip.version == 6 and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    if not ip.is_global or ip.is_multicast:
+        sock.close()
+        raise BlockedAddressError(f"{ip} is not a public address")
+
+
+class _PublicPeerMixin:
+    """Check the peer after connecting, so DNS names, rebinding and redirects are all covered."""
+
+    def _new_conn(self):
+        sock = super()._new_conn()
+        if not DOWNLOAD_ALLOW_PRIVATE_ADDRESSES:
+            _check_public_peer(sock)
+        return sock
+
+
+class _PublicHTTPConnection(_PublicPeerMixin, HTTPConnection):
+    pass
+
+
+class _PublicHTTPSConnection(_PublicPeerMixin, HTTPSConnection):
+    pass
+
+
+class _PublicHTTPConnectionPool(HTTPConnectionPool):
+    ConnectionCls = _PublicHTTPConnection
+
+
+class _PublicHTTPSConnectionPool(HTTPSConnectionPool):
+    ConnectionCls = _PublicHTTPSConnection
+
+
 _pool = urllib3.PoolManager()
+_pool.pool_classes_by_scheme = {"http": _PublicHTTPConnectionPool, "https": _PublicHTTPSConnectionPool}
 hash_module = importlib.import_module("hashlib")
 
 
@@ -619,6 +667,12 @@ def download_from_wis2(self, job):
                     result['status'] = STATUS_FAILED
                     result['reason'] = f"Maximum retries downloading from {result['global_cache']} exceeded"
                     result['error_class'] = str(e.__class__.__name__)
+                    return result
+                except BlockedAddressError as e:
+                    result['status'] = STATUS_FAILED
+                    result['reason'] = f"Download blocked: {e}"
+                    result['error_class'] = "BlockedAddressError"
+                    LOGGER.warning("Blocked download of %s: %s", download_url, e)
                     return result
                 except Exception as e:
                     result['status'] = STATUS_FAILED

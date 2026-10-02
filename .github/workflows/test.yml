@@ -8,15 +8,19 @@ on:
 
 jobs:
   unit-test:
-    name: Unit tests
-    runs-on: ubuntu-latest
+    name: Unit tests (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-26.04]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           cache: pip
 
       - name: Install dependencies
@@ -36,18 +40,22 @@ jobs:
           [ $exit_code -eq 5 ] && echo "No unit tests collected yet" && exit 0 || exit $exit_code
 
   integration-test:
-    name: Integration tests
-    runs-on: ubuntu-latest
+    name: Integration tests (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-26.04]
     needs: unit-test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Fix Docker socket permissions
         run: sudo chmod 666 /var/run/docker.sock
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
 
       - name: Write test .env
         run: |
@@ -98,9 +106,9 @@ jobs:
           timeout 180 bash -c \
             'until docker compose --env-file .env -f docker-compose.yaml -f docker-compose.test.yml ps celery-workers-small-files | grep -q "healthy"; do echo "Waiting for celery..."; sleep 3; done'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install test dependencies
         run: pip install pytest requests paho-mqtt redis pywis-pubsub==0.13.0
