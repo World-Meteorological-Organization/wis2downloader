@@ -84,7 +84,7 @@ IMPORTANT: Перед развёртыванием в производствен
 2. **`FLASK_SECRET_KEY`** - Установите криптографически случайный секретный ключ (обязательно)
 3. **`SUBSCRIPTIONS_ENCRYPTION_KEY`** - Шифрует учётные данные подписок в файле подписок (обязательно, генерируется `setup.sh`). Сохраните резервную копию: без него сохранённые учётные данные восстановить нельзя.
 4. **`FLASK_DEBUG`** - Установите `false` для производственной среды
-4. **Пароль Grafana** - Измените значение по умолчанию `admin/admin` после первого входа
+5. **Пароль Grafana** - Измените значение по умолчанию `admin/admin` после первого входа
 
 Файл `.env` содержит конфиденциальные учётные данные. Убедитесь, что он:
 
@@ -138,7 +138,7 @@ location / {
 
 Воркер Celery записывает файлы в `/data` внутри контейнера, что соответствует `HOST_DATA_PATH` на хосте (по умолчанию: `./downloads/`).
 
-IMPORTANT: Если вы изменяете `WIS2DOWNLOADER_UID` или `WIS2DOWNLOADER_GID` в `.env`, пересоберите образы командой `docker compose build` перед перезапуском и используйте соответствующие значения в командах ниже.
+IMPORTANT: Если вы изменяете `WIS2DOWNLOADER_UID` или `WIS2DOWNLOADER_GID` в `.env`, выполните `docker compose up -d`, чтобы применить их, и используйте соответствующие значения в командах ниже.
 
 ==== Вариант 1: Создание совпадающего пользователя/группы (Рекомендуется)
 
@@ -192,7 +192,7 @@ chmod 777 downloads
 [source,bash]
 ----
 # Запустить контейнер celery
-docker-compose up -d celery
+docker compose up -d celery
 
 # Проверить доступ на запись изнутри контейнера
 docker exec celery touch /data/test-write && echo "Write OK" || echo "Write FAILED"
@@ -233,7 +233,7 @@ NOTE: В приведённых ниже примерах используетс
 [source,bash]
 ----
 # Проверить, что все сервисы запущены
-docker-compose ps
+docker compose ps
 
 # Проверить конечную точку health (диспетчер подписок)
 curl http://localhost:5002/health
@@ -242,7 +242,7 @@ curl http://localhost:5002/health
 curl -o /dev/null -s -w "%{http_code}" http://localhost:8080
 
 # Просмотреть журналы
-docker-compose logs -f subscriber
+docker compose logs -f subscriber
 ----
 
 == Конфигурация
@@ -293,12 +293,12 @@ docker-compose logs -f subscriber
 |`WIS2DOWNLOADER_UID`
 |integer
 |`10001`
-|Идентификатор пользователя, используемый при сборке образов. Должен совпадать с владельцем каталога на хосте для записи в том.
+|Идентификатор пользователя, от имени которого работают контейнеры. Должен совпадать с владельцем каталога на хосте для записи в том.
 
 |`WIS2DOWNLOADER_GID`
 |integer
 |`988`
-|Идентификатор группы, используемый при сборке образов. Должен совпадать с группой каталога на хосте для записи в том.
+|Идентификатор группы, от имени которой работают контейнеры. Должен совпадать с группой каталога на хосте для записи в том.
 
 |`WIS2DOWNLOADER_BIND_ADDRESS`
 |string
@@ -469,11 +469,6 @@ docker-compose logs -f subscriber
 |string
 |`${WIS2DOWNLOADER_BASE_URL}:3000`
 |Публичный URL для встраивания панелей Grafana в вид Панели управления
-
-|`STORAGE_SECRET`
-|string
-|`wis2box-rx-secret`
-|Секретный ключ хранилища сессии NiceGUI — установите уникальное значение в производственной среде
 
 |`GDC_CACHE_TTL_SECONDS`
 |integer
@@ -701,13 +696,13 @@ IMPORTANT: Измените пароль Grafana по умолчанию пос�
 [source,bash]
 ----
 # Все сервисы
-docker-compose logs -f
+docker compose logs -f
 
 # Конкретный сервис
-docker-compose logs -f celery-workers-small-files
+docker compose logs -f celery-workers-small-files
 
 # С временными метками
-docker-compose logs -f -t subscriber
+docker compose logs -f -t subscriber
 ----
 
 Логи также собираются Loki и доступны для запроса в Grafana.
@@ -764,14 +759,25 @@ rm -rf downloads/*
 [source,bash]
 ----
 # Перезапустить один сервис
-docker-compose restart subscriber
+docker compose restart subscriber
 
 # Перезапустить все сервисы
-docker-compose restart
+docker compose restart
 
-# Полная пересборка (после изменений кода)
-docker-compose build && docker-compose up -d
+# Рабочая копия исходников: пересборка после изменений кода
+docker compose build && docker compose up -d
 ----
+
+=== Обновление
+
+Установки из релиза обновляются до последнего патч-релиза своей ветки версий (например, 1.0.x) командой:
+
+[source,bash]
+----
+bash update.sh
+----
+
+Команда загружает файл `docker-compose.images.yml` этого релиза, скачивает образы и предлагает перезапустить сервисы. Предыдущий файл образов сохраняется как `docker-compose.images.yml.<version>.bak`; чтобы откатиться, восстановите его и выполните `docker compose up -d`. Предварительные релизы и новые минорные или мажорные версии устанавливаются из нового пакета релиза.
 
 == Устранение неполадок
 
@@ -780,13 +786,13 @@ docker-compose build && docker-compose up -d
 [source,bash]
 ----
 # Проверить журналы
-docker-compose logs <service-name>
+docker compose logs <service-name>
 
 # Проверить статус контейнера
-docker-compose ps
+docker compose ps
 
 # Проверить среду
-docker-compose config
+docker compose config
 ----
 
 === Нет загрузок
@@ -795,7 +801,7 @@ docker-compose config
 +
 [source,bash]
 ----
-docker-compose logs subscriber | grep -i connect
+docker compose logs subscriber | grep -i connect
 ----
 
 2. Убедитесь, что подписка существует:
@@ -809,7 +815,7 @@ curl http://localhost:5002/subscriptions
 +
 [source,bash]
 ----
-docker-compose logs celery-workers-small-files | tail -50
+docker compose logs celery-workers-small-files | tail -50
 ----
 
 4. Проверьте глубину очереди:
@@ -855,7 +861,7 @@ docker network inspect wis2downloader_valkey-net
 +
 [source,bash]
 ----
-docker-compose logs wis2downloader-ui | tail -30
+docker compose logs wis2downloader-ui | tail -30
 ----
 
 2. Убедитесь, что ключи кэша GDC существуют в Valkey:
@@ -871,7 +877,7 @@ docker exec valkey valkey-cli -a $VALKEY_PASSWORD KEYS "gdc:cache:*"
 +
 [source,bash]
 ----
-docker-compose restart wis2downloader-ui
+docker compose restart wis2downloader-ui
 ----
 
 4. Если выборка GDC постоянно завершается с ошибкой, проверьте сетевое подключение от контейнера UI к публичным конечным точкам GDC:

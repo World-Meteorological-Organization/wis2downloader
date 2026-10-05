@@ -303,13 +303,11 @@ services:
       retries: 3
 
   wis2downloader-ui:
-      <<: [*hardening, *run-as]
+      <<: [*hardening, *read-only, *run-as]
       image: wis2downloader-ui
       build:
         context: .
         dockerfile: ./containers/ui/Dockerfile
-      tmpfs:
-        - /app/.nicegui:uid=${WIS2DOWNLOADER_UID:-10001},gid=${WIS2DOWNLOADER_GID:-988},mode=0700  # NiceGUI storage (UI preferences only)
       ports:
         - "${WIS2DOWNLOADER_BIND_ADDRESS:-127.0.0.1}:8080:8080"
       deploy:

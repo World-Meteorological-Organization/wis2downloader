@@ -88,9 +88,9 @@ Le tiroir de navigation à gauche (à droite en mode arabe RTL) donne accès à 
 |*Paramètres*
 |Affiche le nombre d'enregistrements GDC par catalogue et permet de déclencher une actualisation manuelle des données
 
-|kbd:[Alt+7]
+|
 |*Documentation*
-|Affiche la documentation du projet
+|Ouvre la documentation en ligne de cette version dans un nouvel onglet
 |===
 
 === Vue Catalogue

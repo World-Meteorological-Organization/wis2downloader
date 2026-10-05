@@ -83,9 +83,9 @@ The navigation drawer on the left (right in Arabic RTL mode) gives access to sev
 |*Settings*
 |View GDC record counts per catalogue and trigger a manual data refresh
 
-|kbd:[Alt+7]
+|
 |*Documentation*
-|Shows the project documentation
+|Opens the online documentation for this version in a new tab
 |===
 
 === Catalogue View

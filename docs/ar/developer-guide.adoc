@@ -807,7 +807,7 @@ RTL_LANGUAGES: frozenset[str] = frozenset({'ar', 'he'})
 .الخطوة 4 — إعادة تشغيل واجهة المستخدم
 [source,bash]
 ----
-docker-compose restart wis2downloader-ui
+docker compose restart wis2downloader-ui
 ----
 
 ستظهر اللغة الجديدة فوراً في محدد اللغة في الرأس.
@@ -1028,7 +1028,7 @@ pytest --cov=modules modules/
 [source,bash]
 ----
 # تشغيل الخدمات
-docker-compose up -d
+docker compose up -d
 
 # إنشاء اشتراك تجريبي
 curl -X POST http://localhost:5002/subscriptions \
@@ -1036,7 +1036,7 @@ curl -X POST http://localhost:5002/subscriptions \
   -d '{"topic": "cache/a/wis2/de-dwd/data/#", "target": "test"}'
 
 # مراقبة السجلات
-docker-compose logs -f subscriber celery
+docker compose logs -f subscriber celery
 
 # فحص التنزيلات
 ls -la downloads/test/
@@ -1084,13 +1084,13 @@ celery -A task_manager.worker worker --loglevel=DEBUG
 [source,bash]
 ----
 # بناء جميع الصور
-docker-compose build
+docker compose build
 
 # بناء خدمة محددة
-docker-compose build celery
+docker compose build celery
 
 # إعادة البناء دون ذاكرة مؤقتة
-docker-compose build --no-cache
+docker compose build --no-cache
 ----
 
 == التنقيح (Debugging)

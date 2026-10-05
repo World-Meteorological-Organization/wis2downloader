@@ -804,7 +804,7 @@ RTL_LANGUAGES: frozenset[str] = frozenset({'ar', 'he'})
 .第 4 步——重启界面
 [source,bash]
 ----
-docker-compose restart wis2downloader-ui
+docker compose restart wis2downloader-ui
 ----
 
 新语言将立即出现在标题语言选择器中。
@@ -1025,7 +1025,7 @@ pytest --cov=modules modules/
 [source,bash]
 ----
 # 启动服务
-docker-compose up -d
+docker compose up -d
 
 # 创建测试订阅
 curl -X POST http://localhost:5002/subscriptions \
@@ -1033,7 +1033,7 @@ curl -X POST http://localhost:5002/subscriptions \
   -d '{"topic": "cache/a/wis2/de-dwd/data/#", "target": "test"}'
 
 # 监控日志
-docker-compose logs -f subscriber celery
+docker compose logs -f subscriber celery
 
 # 检查下载
 ls -la downloads/test/
@@ -1081,13 +1081,13 @@ celery -A task_manager.worker worker --loglevel=DEBUG
 [source,bash]
 ----
 # 构建所有镜像
-docker-compose build
+docker compose build
 
 # 构建特定服务
-docker-compose build celery
+docker compose build celery
 
 # 不使用缓存重新构建
-docker-compose build --no-cache
+docker compose build --no-cache
 ----
 
 == 调试

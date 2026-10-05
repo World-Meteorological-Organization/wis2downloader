@@ -17,12 +17,12 @@ Mettez WIS2 Downloader en service et téléchargez vos premières données en qu
 == Prérequis
 
 * https://docs.docker.com/get-docker/[Docker] 20.10+
-* https://docs.docker.com/compose/install/[Docker Compose] 2.0+
+* https://docs.docker.com/compose/install/[Docker Compose] 2.24+
 * Accès réseau à un Global Broker WIS2 (port 443)
 
 == 1. Téléchargement et extraction
 
-Téléchargez l'archive de la https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[dernière version] et extrayez-la :
+Téléchargez `wis2downloader-<version>.tar.gz` depuis la https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[dernière version] (et non l'archive « Source code ») et extrayez-le. Ce paquet utilise les images publiées ; rien n'est construit localement.
 
 [source,bash]
 ----
@@ -30,7 +30,7 @@ tar -xzf wis2downloader-*.tar.gz
 cd wis2downloader-*
 ----
 
-TIP: Pour suivre la dernière version de développement, clonez le dépôt : `git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`
+TIP: Pour suivre la dernière version de développement, clonez le dépôt (`git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`) et construisez les images avec `docker compose build`.
 
 == 2. Configuration
 
@@ -78,7 +78,7 @@ mkdir -p downloads
 sudo chown wis2:wis2 downloads
 ----
 
-NOTE: Si UID 10001 ou GID 988 entrent en conflit avec des utilisateurs existants sur votre système, surchargez-les en définissant `WIS2DOWNLOADER_UID` et `WIS2DOWNLOADER_GID` dans votre `.env` avant d'exécuter `docker compose up`. Utilisez les valeurs correspondantes dans les commandes ci-dessus. Si vous modifiez `WIS2DOWNLOADER_UID` ou `WIS2DOWNLOADER_GID` après avoir déjà construit les images, reconstruisez-les avec `docker compose build` avant de redémarrer.
+NOTE: Si UID 10001 ou GID 988 entrent en conflit avec des utilisateurs existants sur votre système, surchargez-les en définissant `WIS2DOWNLOADER_UID` et `WIS2DOWNLOADER_GID` dans votre `.env` avant d'exécuter `docker compose up`. Utilisez les valeurs correspondantes dans les commandes ci-dessus. Les conteneurs prennent en compte les nouvelles valeurs lors de `docker compose up -d`.
 
 NOTE: Sur macOS et Windows (Docker Desktop), cette étape n'est pas nécessaire — Docker Desktop gère automatiquement les permissions des volumes.
 

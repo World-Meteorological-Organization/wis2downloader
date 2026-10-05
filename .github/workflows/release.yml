@@ -28,11 +28,14 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
+      latest: ${{ steps.version.outputs.latest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Tag must match __version__
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' modules/shared/shared/__init__.py)
           if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
@@ -45,8 +48,21 @@ jobs:
           fi
           prerelease=false
           [[ "$version" =~ [a-z] ]] && prerelease=true
+          # Docs "latest" follows the newest final release; pre-releases only until the first final
+          newest_final=$(gh release list -R "$GITHUB_REPOSITORY" --exclude-pre-releases --exclude-drafts \
+            --limit 100 --json tagName -q '.[].tagName' | sed 's/^v//' | sort -V | tail -n 1)
+          if [ -z "$newest_final" ]; then
+            latest=true
+          elif [ "$prerelease" = true ]; then
+            latest=false
+          elif [ "$(printf '%s\n' "$newest_final" "$version" | sort -V | tail -n 1)" = "$version" ]; then
+            latest=true
+          else
+            latest=false
+          fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+          echo "latest=${latest}" >> "$GITHUB_OUTPUT"
 
   lint:
     needs: version
@@ -101,6 +117,7 @@ jobs:
           context: ${{ matrix.context }}
           file: containers/${{ matrix.service }}/Dockerfile
           platforms: linux/amd64
+          build-args: DOCS_VERSION=${{ env.VERSION }}  # UI Help link; ignored by backend
           load: true
           push: false
           tags: ${{ env.IMAGE }}:scan
@@ -132,6 +149,7 @@ jobs:
           context: ${{ matrix.context }}
           file: containers/${{ matrix.service }}/Dockerfile
           platforms: linux/amd64,linux/arm64
+          build-args: DOCS_VERSION=${{ env.VERSION }}
           push: true
           provenance: mode=max
           sbom: true
@@ -216,6 +234,10 @@ jobs:
             "dist/wis2downloader-${VERSION}.tar.gz" dist/docker-compose.images.yml dist/SHA256SUMS
 
   docs:
-    needs: release
+    needs: [version, release]
     uses: ./.github/workflows/docs.yml
-    secrets: inherit
+    permissions:
+      contents: write
+    with:
+      version: ${{ needs.version.outputs.version }}
+      latest: ${{ needs.version.outputs.latest == 'true' }}

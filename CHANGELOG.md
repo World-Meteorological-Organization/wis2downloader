@@ -1,5 +1,38 @@
 # WIS2 Downloader Refactor - Progress Log
 
+## 2026-10-05
+
+### Release Process
+
+- One version for all packages and images: `__version__` in `modules/shared/shared/__init__.py` (PEP 440, now `1.0.0b2`); tags are `v<version>`.
+- `release.yml` runs on a version tag: checks the tag matches, runs lint/test/security, scans and pushes amd64/arm64 images to GHCR (with SBOM and provenance attestations), and publishes a GitHub Release with `docker-compose.images.yml` (digest-pinned images) and the install bundle `wis2downloader-<version>.tar.gz`. Replaces `publish.yml`.
+- Weekly scan of the latest release's published images (`security.yml`, `trivy-release`): fixable HIGH/CRITICAL findings are tracked in one issue (label `release-vulnerabilities`), closed when clean. Not a gate; fixes ship as patch releases.
+- Release bundles run the published images (`COMPOSE_FILE` set by `setup.sh`); `update.sh` moves to the newest patch release of the same version line.
+- Valkey runs the upstream `valkey/valkey:9.1.2-alpine` image directly (`user: valkey`); `containers/valkey` and the unused `config/redis/redis.conf` removed. Dependabot tracks compose image tags.
+- `WIS2DOWNLOADER_UID`/`GID` now set the container user at run time (`user:`) instead of being built into the images.
+
+### UI Preferences
+
+- Language, last view and collapsed sidebar are kept in browser cookies (`wis2_lang`, `wis2_view`, `wis2_nav_mini`), checked against the allowed values on each page load; they survive restarts and updates.
+- Cookie pop-up (all six languages): cookies are only stored after Accept (`wis2_consent`). Decline stores nothing, not even the refusal, so the pop-up returns on the next visit; within the visit, a language change carries the preferences in the URL. Nothing is stored server-side, so `STORAGE_SECRET` is removed and the UI container now runs read-only like the backend.
+
+### Build Context
+
+- `.dockerignore` allowlists only what the Dockerfiles copy (keeps `.env`, data and virtualenvs out of the build context; tests and build artifacts excluded).
+
+### Documentation
+
+- Docs are no longer built into the UI: the Help item opens the online docs for the UI's version and language in a new tab (`WIS2DOWNLOADER_DOCS_VERSION`, set at release build; `latest` for local builds).
+- Versioned docs on GitHub Pages: `/<version>/` and `/latest/` (newest final release; pre-releases until the first final); the root redirects to `latest/`. Published by `release.yml` with `GITHUB_TOKEN` (no `GH_PAT`); built on PRs that change `docs/`.
+- Docs build image `containers/docs/Dockerfile` (`make docs`); fixed `build.sh` placing assets differently when the output directory already existed.
+- Release-process changes (Compose 2.24+, release bundle download, run-time UID/GID, `update.sh` Updating section) translated into fr/es/ar/zh/ru.
+- Fixed: the root docs index page was unstyled (wrong stylesheet path); misnumbered security checklist in the translated admin guides; translated admin and developer guides now use `docker compose` like English.
+
+### Fixes
+
+- API error responses no longer include exception text (CodeQL); details are logged instead.
+- UI image: NiceGUI 3.17.1, Debian upgrades and pinned `anyio`/`lxml_html_clean` for CVE fixes; pip removed.
+
 ## 2026-09-29
 
 ### Subscriptions Saved to File (#15) - COMPLETE

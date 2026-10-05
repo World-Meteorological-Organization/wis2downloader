@@ -84,7 +84,7 @@ IMPORTANT: Avant de déployer en production, vous devez configurer ces paramètr
 2. **`FLASK_SECRET_KEY`** - Définissez une clé secrète cryptographiquement aléatoire (obligatoire)
 3. **`SUBSCRIPTIONS_ENCRYPTION_KEY`** - Chiffre les identifiants des abonnements dans le fichier d'abonnements (obligatoire, générée par `setup.sh`). Sauvegardez-la : sans elle, les identifiants enregistrés ne peuvent pas être restaurés.
 4. **`FLASK_DEBUG`** - Définissez à `false` en production
-4. **Mot de passe Grafana** - Changez le mot de passe par défaut `admin/admin` après la première connexion
+5. **Mot de passe Grafana** - Changez le mot de passe par défaut `admin/admin` après la première connexion
 
 Le fichier `.env` contient des identifiants sensibles. Assurez-vous qu'il est :
 
@@ -138,7 +138,7 @@ Les conteneurs de l'application s'exécutent en tant qu'utilisateur non-root (`w
 
 Le worker Celery écrit les fichiers dans `/data` à l'intérieur du conteneur, ce qui correspond à `HOST_DATA_PATH` sur l'hôte (par défaut : `./downloads/`).
 
-IMPORTANT: Si vous modifiez `WIS2DOWNLOADER_UID` ou `WIS2DOWNLOADER_GID` dans `.env`, reconstruisez les images avec `docker compose build` avant de redémarrer, et utilisez les valeurs correspondantes dans les commandes ci-dessous.
+IMPORTANT: Si vous modifiez `WIS2DOWNLOADER_UID` ou `WIS2DOWNLOADER_GID` dans `.env`, exécutez `docker compose up -d` pour les appliquer, et utilisez les valeurs correspondantes dans les commandes ci-dessous.
 
 ==== Option 1 : Créer un utilisateur/groupe correspondant (Recommandé)
 
@@ -192,7 +192,7 @@ Testez que le conteneur peut écrire dans le volume :
 [source,bash]
 ----
 # Démarrer le conteneur celery
-docker-compose up -d celery
+docker compose up -d celery
 
 # Tester l'accès en écriture depuis l'intérieur du conteneur
 docker exec celery touch /data/test-write && echo "Write OK" || echo "Write FAILED"
@@ -233,7 +233,7 @@ NOTE: Les exemples ci-dessous utilisent `localhost`. Si le système est déploy�
 [source,bash]
 ----
 # Vérifier que tous les services sont en cours d'exécution
-docker-compose ps
+docker compose ps
 
 # Vérifier le point de terminaison de santé (gestionnaire d'abonnements)
 curl http://localhost:5002/health
@@ -242,7 +242,7 @@ curl http://localhost:5002/health
 curl -o /dev/null -s -w "%{http_code}" http://localhost:8080
 
 # Afficher les journaux
-docker-compose logs -f subscriber
+docker compose logs -f subscriber
 ----
 
 == Configuration
@@ -293,12 +293,12 @@ docker-compose logs -f subscriber
 |`WIS2DOWNLOADER_UID`
 |integer
 |`10001`
-|Identifiant utilisateur utilisé lors de la construction des images. Doit correspondre au propriétaire du répertoire hôte pour les écritures de volume.
+|Identifiant utilisateur sous lequel s'exécutent les conteneurs. Doit correspondre au propriétaire du répertoire hôte pour les écritures de volume.
 
 |`WIS2DOWNLOADER_GID`
 |integer
 |`988`
-|Identifiant de groupe utilisé lors de la construction des images. Doit correspondre au groupe du répertoire hôte pour les écritures de volume.
+|Identifiant de groupe sous lequel s'exécutent les conteneurs. Doit correspondre au groupe du répertoire hôte pour les écritures de volume.
 
 |`WIS2DOWNLOADER_BIND_ADDRESS`
 |string
@@ -469,11 +469,6 @@ Les limites de mémoire sont définies par service dans `docker-compose.yaml` et
 |string
 |`${WIS2DOWNLOADER_BASE_URL}:3000`
 |URL publique utilisée pour intégrer les panneaux Grafana dans la vue Tableau de bord
-
-|`STORAGE_SECRET`
-|string
-|`wis2box-rx-secret`
-|Clé secrète de stockage de session NiceGUI — définissez une valeur unique en production
 
 |`GDC_CACHE_TTL_SECONDS`
 |integer
@@ -701,13 +696,13 @@ Consultez les journaux via Docker :
 [source,bash]
 ----
 # Tous les services
-docker-compose logs -f
+docker compose logs -f
 
 # Service spécifique
-docker-compose logs -f celery-workers-small-files
+docker compose logs -f celery-workers-small-files
 
 # Avec les horodatages
-docker-compose logs -f -t subscriber
+docker compose logs -f -t subscriber
 ----
 
 Les journaux sont également collectés par Loki et interrogeables dans Grafana.
@@ -764,14 +759,25 @@ rm -rf downloads/*
 [source,bash]
 ----
 # Redémarrer un service unique
-docker-compose restart subscriber
+docker compose restart subscriber
 
 # Redémarrer tous les services
-docker-compose restart
+docker compose restart
 
-# Reconstruction complète (après des modifications du code)
-docker-compose build && docker-compose up -d
+# Copie des sources : reconstruire après des modifications du code
+docker compose build && docker compose up -d
 ----
+
+=== Mise à jour
+
+Les installations issues d'une version publiée se mettent à jour vers la dernière version corrective de leur branche (par ex. 1.0.x) avec :
+
+[source,bash]
+----
+bash update.sh
+----
+
+Cette commande télécharge le fichier `docker-compose.images.yml` de la version, récupère les images et propose de redémarrer les services. L'ancien fichier d'images est conservé sous le nom `docker-compose.images.yml.<version>.bak` ; restaurez-le et exécutez `docker compose up -d` pour revenir en arrière. Les préversions et les nouvelles versions mineures ou majeures s'installent à partir d'un nouveau paquet de version.
 
 == Dépannage
 
@@ -780,13 +786,13 @@ docker-compose build && docker-compose up -d
 [source,bash]
 ----
 # Vérifier les journaux
-docker-compose logs <service-name>
+docker compose logs <service-name>
 
 # Vérifier le statut du conteneur
-docker-compose ps
+docker compose ps
 
 # Vérifier l'environnement
-docker-compose config
+docker compose config
 ----
 
 === Aucun téléchargement
@@ -795,7 +801,7 @@ docker-compose config
 +
 [source,bash]
 ----
-docker-compose logs subscriber | grep -i connect
+docker compose logs subscriber | grep -i connect
 ----
 
 2. Vérifiez que l'abonnement existe :
@@ -809,7 +815,7 @@ curl http://localhost:5002/subscriptions
 +
 [source,bash]
 ----
-docker-compose logs celery-workers-small-files | tail -50
+docker compose logs celery-workers-small-files | tail -50
 ----
 
 4. Vérifiez la profondeur de la file d'attente :
@@ -855,7 +861,7 @@ Si les vues Catalogue ou Arborescence affichent « Catalogue data not loaded » 
 +
 [source,bash]
 ----
-docker-compose logs wis2downloader-ui | tail -30
+docker compose logs wis2downloader-ui | tail -30
 ----
 
 2. Confirmez que les clés de cache GDC existent dans Valkey :
@@ -871,7 +877,7 @@ Si aucune clé n'est présente, la récupération initiale a échoué ou est tou
 +
 [source,bash]
 ----
-docker-compose restart wis2downloader-ui
+docker compose restart wis2downloader-ui
 ----
 
 4. Si la récupération GDC échoue systématiquement, vérifiez la connectivité réseau depuis le conteneur de l'interface vers les points de terminaison GDC publics :

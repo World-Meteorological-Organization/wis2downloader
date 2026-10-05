@@ -86,7 +86,7 @@ IMPORTANT: قبل النشر في بيئة الإنتاج، يجب عليك ته
 2. **`FLASK_SECRET_KEY`** - عيِّن مفتاح سري عشوائي من الناحية التشفيرية (مطلوب)
 3. **`SUBSCRIPTIONS_ENCRYPTION_KEY`** - يشفّر بيانات اعتماد الاشتراكات في ملف الاشتراكات (مطلوب، يُولَّد بواسطة `setup.sh`). احتفظ بنسخة احتياطية منه: بدونه لا يمكن استعادة بيانات الاعتماد المحفوظة.
 4. **`FLASK_DEBUG`** - عيِّن القيمة `false` في الإنتاج
-4. **كلمة مرور Grafana** - غيِّر القيمة الافتراضية `admin/admin` بعد تسجيل الدخول الأول
+5. **كلمة مرور Grafana** - غيِّر القيمة الافتراضية `admin/admin` بعد تسجيل الدخول الأول
 
 يحتوي ملف `.env` على بيانات اعتماد حساسة. تأكد من أنه:
 
@@ -140,7 +140,7 @@ location / {
 
 يكتب عامل Celery الملفات في `/data` داخل الحاوية، والذي يُخصَّص للمسار `HOST_DATA_PATH` على المضيف (الافتراضي: `./downloads/`).
 
-IMPORTANT: إذا غيّرت `WIS2DOWNLOADER_UID` أو `WIS2DOWNLOADER_GID` في `.env`، أعد بناء الصور بـ `docker compose build` قبل إعادة التشغيل، واستخدم القيم المطابقة في الأوامر أدناه.
+IMPORTANT: إذا غيّرت `WIS2DOWNLOADER_UID` أو `WIS2DOWNLOADER_GID` في `.env`، شغّل `docker compose up -d` لتطبيقها، واستخدم القيم المطابقة في الأوامر أدناه.
 
 ==== الخيار 1: إنشاء مستخدم/مجموعة مطابقَيْن (موصى به)
 
@@ -194,7 +194,7 @@ chmod 777 downloads
 [source,bash]
 ----
 # تشغيل حاوية celery
-docker-compose up -d celery
+docker compose up -d celery
 
 # اختبار صلاحية الكتابة من داخل الحاوية
 docker exec celery touch /data/test-write && echo "Write OK" || echo "Write FAILED"
@@ -235,7 +235,7 @@ NOTE: تستخدم الأمثلة التالية `localhost`. إذا كان ال
 [source,bash]
 ----
 # التحقق من تشغيل جميع الخدمات
-docker-compose ps
+docker compose ps
 
 # التحقق من نقطة نهاية الصحة (مدير الاشتراكات)
 curl http://localhost:5002/health
@@ -244,7 +244,7 @@ curl http://localhost:5002/health
 curl -o /dev/null -s -w "%{http_code}" http://localhost:8080
 
 # عرض السجلات
-docker-compose logs -f subscriber
+docker compose logs -f subscriber
 ----
 
 == التهيئة
@@ -295,12 +295,12 @@ docker-compose logs -f subscriber
 |`WIS2DOWNLOADER_UID`
 |integer
 |`10001`
-|معرّف المستخدم المستخدم عند بناء صور الحاويات. يجب أن يتطابق مع مالك مجلد المضيف لعمليات الكتابة على وحدة التخزين.
+|معرّف المستخدم الذي تعمل به الحاويات. يجب أن يتطابق مع مالك مجلد المضيف لعمليات الكتابة على وحدة التخزين.
 
 |`WIS2DOWNLOADER_GID`
 |integer
 |`988`
-|معرّف المجموعة المستخدم عند بناء صور الحاويات. يجب أن يتطابق مع مجموعة مجلد المضيف لعمليات الكتابة على وحدة التخزين.
+|معرّف المجموعة الذي تعمل به الحاويات. يجب أن يتطابق مع مجموعة مجلد المضيف لعمليات الكتابة على وحدة التخزين.
 
 |`WIS2DOWNLOADER_BIND_ADDRESS`
 |string
@@ -471,11 +471,6 @@ docker-compose logs -f subscriber
 |string
 |`${WIS2DOWNLOADER_BASE_URL}:3000`
 |عنوان URL المستخدم لتضمين لوحات Grafana في عرض لوحة التحكم
-
-|`STORAGE_SECRET`
-|string
-|`wis2box-rx-secret`
-|مفتاح سري لتخزين جلسة NiceGUI — عيِّن قيمة فريدة في الإنتاج
 
 |`GDC_CACHE_TTL_SECONDS`
 |integer
@@ -703,13 +698,13 @@ IMPORTANT: غيِّر كلمة مرور Grafana الافتراضية بعد تس
 [source,bash]
 ----
 # جميع الخدمات
-docker-compose logs -f
+docker compose logs -f
 
 # خدمة محددة
-docker-compose logs -f celery-workers-small-files
+docker compose logs -f celery-workers-small-files
 
 # مع الطوابع الزمنية
-docker-compose logs -f -t subscriber
+docker compose logs -f -t subscriber
 ----
 
 تُجمِّع Loki السجلات أيضًا ويمكن الاستعلام عنها في Grafana.
@@ -766,14 +761,25 @@ rm -rf downloads/*
 [source,bash]
 ----
 # إعادة تشغيل خدمة واحدة
-docker-compose restart subscriber
+docker compose restart subscriber
 
 # إعادة تشغيل جميع الخدمات
-docker-compose restart
+docker compose restart
 
-# إعادة بناء كاملة (بعد تغييرات الكود)
-docker-compose build && docker-compose up -d
+# نسخة من الشيفرة المصدرية: أعد البناء بعد تغييرات الكود
+docker compose build && docker compose up -d
 ----
+
+=== التحديث
+
+تُحدَّث التثبيتات المأخوذة من إصدار منشور إلى أحدث إصدار تصحيحي ضمن سلسلة إصدارها (مثل 1.0.x) باستخدام:
+
+[source,bash]
+----
+bash update.sh
+----
+
+يقوم هذا الأمر بتنزيل ملف `docker-compose.images.yml` الخاص بالإصدار وسحب الصور، ثم يعرض إعادة تشغيل الخدمات. يُحتفظ بملف الصور السابق باسم `docker-compose.images.yml.<version>.bak`؛ استعده وشغّل `docker compose up -d` للرجوع إلى الإصدار السابق. تُثبَّت الإصدارات التجريبية والإصدارات الثانوية أو الرئيسية الجديدة من حزمة إصدار جديدة.
 
 == استكشاف الأخطاء وإصلاحها
 
@@ -782,13 +788,13 @@ docker-compose build && docker-compose up -d
 [source,bash]
 ----
 # فحص السجلات
-docker-compose logs <service-name>
+docker compose logs <service-name>
 
 # فحص حالة الحاوية
-docker-compose ps
+docker compose ps
 
 # التحقق من البيئة
-docker-compose config
+docker compose config
 ----
 
 === لا توجد تنزيلات
@@ -797,7 +803,7 @@ docker-compose config
 +
 [source,bash]
 ----
-docker-compose logs subscriber | grep -i connect
+docker compose logs subscriber | grep -i connect
 ----
 
 2. تحقق من وجود الاشتراك:
@@ -811,7 +817,7 @@ curl http://localhost:5002/subscriptions
 +
 [source,bash]
 ----
-docker-compose logs celery-workers-small-files | tail -50
+docker compose logs celery-workers-small-files | tail -50
 ----
 
 4. تحقق من عمق قائمة الانتظار:
@@ -857,7 +863,7 @@ docker network inspect wis2downloader_valkey-net
 +
 [source,bash]
 ----
-docker-compose logs wis2downloader-ui | tail -30
+docker compose logs wis2downloader-ui | tail -30
 ----
 
 2. تأكد من وجود مفاتيح ذاكرة التخزين المؤقت GDC في Valkey:
@@ -873,7 +879,7 @@ docker exec valkey valkey-cli -a $VALKEY_PASSWORD KEYS "gdc:cache:*"
 +
 [source,bash]
 ----
-docker-compose restart wis2downloader-ui
+docker compose restart wis2downloader-ui
 ----
 
 4. إذا كان جلب GDC يفشل باستمرار، تحقق من اتصالية الشبكة من حاوية الواجهة إلى نقاط نهاية GDC العامة:

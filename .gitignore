@@ -28,7 +28,6 @@ __pycache__/
 ## Docker/Compose Files and Folders ##
 # Build cache and temporary data
 /tmp/
-.dockerignore
 
 # Environment files with secrets
 # **CRITICAL**: Never commit files containing secrets!
@@ -39,7 +38,6 @@ __pycache__/
 
 ## Generated docs output ##
 /site/
-/modules/ui/site/
 
 ---
 

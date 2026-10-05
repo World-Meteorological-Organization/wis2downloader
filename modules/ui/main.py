@@ -1,5 +1,4 @@
 import asyncio
-import os
 from nicegui import app, ui, Client
 from nicegui.events import KeyEventArguments
 
@@ -8,22 +7,21 @@ from shared.config_check import Setting, require_settings
 from layout import build_layout
 import data as data_module
 from data import scrape_all
-from views import dashboard, catalogue, tree, subscriptions, settings, manual_subscription, help
+from views import dashboard, catalogue, tree, subscriptions, settings, manual_subscription
 from components.navigation_drawer import NAV_ITEMS
 from i18n import current_lang, is_rtl
+from prefs import declined, get_pref, has_consent, prefs_url, set_pref
+from components.cookie_dialog import show_cookie_dialog
 
 setup_logging()
 
 # Valkey is optional for the UI (GDC cache), so its password is not required here
 require_settings('ui', (
-    Setting('STORAGE_SECRET', required=True, secret=True),
     Setting('VALKEY_PORT', integer=True),
     Setting('GDC_CACHE_TTL_SECONDS', integer=True),
 ))
 
 app.add_static_files('/assets', 'assets')
-if os.path.isdir('site'):
-    app.add_static_files('/docs', 'site')
 ui.add_head_html('<link rel="stylesheet" type="text/css" href="/assets/base.css">', shared=True)
 
 _startup_done = False
@@ -90,14 +88,20 @@ def main_page(client: Client):
                 subscriptions.render(layout.content)
             elif name == 'settings':
                 settings.render(layout.content)
-            elif name == 'docs':
-                help.render(layout.content)
+
+    def current_prefs(lang: str | None = None) -> dict[str, str]:
+        return {'lang': lang or current_lang(),
+                'nav_mini': '1' if 'mini' in layout.nav_drawer.props else '0'}
 
     async def on_language_change(lang: str):
-        app.storage.user['lang'] = lang
-        app.storage.user['current_view'] = state.current_view
-        await on_connect()  # update lang and dir attributes
-        ui.navigate.reload()
+        # reopen the same view after the reload
+        prefs = dict(current_prefs(lang), view=state.current_view)
+        if has_consent():
+            for name, value in prefs.items():
+                set_pref(name, value)
+            ui.navigate.reload()
+        else:
+            ui.navigate.to(prefs_url(prefs))  # nothing stored: carry them in the URL
 
     async def on_connect():
         lang = current_lang()
@@ -124,9 +128,12 @@ def main_page(client: Client):
     ui.keyboard(on_key=handle_key)
 
     layout = build_layout(show_view, on_language_change)
-    show_view(app.storage.user.get('current_view', 'dashboard'))
+    view = get_pref('view')
+    show_view(view if view in _view_ids else 'dashboard')
+
+    if not has_consent() and not declined():
+        show_cookie_dialog(current_prefs)
 
 
-ui.run(storage_secret=os.environ['STORAGE_SECRET'],
-       reload=False,
+ui.run(reload=False,
        favicon='assets/logo.png')

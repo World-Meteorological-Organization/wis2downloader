@@ -77,7 +77,7 @@ IMPORTANT: Antes de desplegar en producción, debe configurar estos ajustes de s
 2. **`FLASK_SECRET_KEY`** - Establezca una clave secreta criptográficamente aleatoria (obligatorio)
 3. **`SUBSCRIPTIONS_ENCRYPTION_KEY`** - Cifra las credenciales de las suscripciones en el archivo de suscripciones (obligatoria, generada por `setup.sh`). Haga una copia de seguridad: sin ella, las credenciales guardadas no se pueden restaurar.
 4. **`FLASK_DEBUG`** - Establezca en `false` para producción
-4. **Contraseña de Grafana** - Cambie el valor predeterminado `admin/admin` tras el primer inicio de sesión
+5. **Contraseña de Grafana** - Cambie el valor predeterminado `admin/admin` tras el primer inicio de sesión
 
 El archivo `.env` contiene credenciales sensibles. Asegúrese de que:
 
@@ -131,7 +131,7 @@ Los contenedores de la aplicación se ejecutan como usuario no root (`wis2`) por
 
 El worker Celery escribe archivos en `/data` dentro del contenedor, que se mapea a `HOST_DATA_PATH` en el host (por defecto: `./downloads/`).
 
-IMPORTANT: Si cambia `WIS2DOWNLOADER_UID` o `WIS2DOWNLOADER_GID` en `.env`, reconstruya las imágenes con `docker compose build` antes de reiniciar, y use los valores correspondientes en los comandos a continuación.
+IMPORTANT: Si cambia `WIS2DOWNLOADER_UID` o `WIS2DOWNLOADER_GID` en `.env`, ejecute `docker compose up -d` para aplicarlos, y use los valores correspondientes en los comandos a continuación.
 
 ==== Opción 1: Crear usuario/grupo coincidente (Recomendado)
 
@@ -185,7 +185,7 @@ Pruebe que el contenedor puede escribir en el volumen:
 [source,bash]
 ----
 # Iniciar el contenedor celery
-docker-compose up -d celery
+docker compose up -d celery
 
 # Probar el acceso de escritura desde dentro del contenedor
 docker exec celery touch /data/test-write && echo "Write OK" || echo "Write FAILED"
@@ -226,7 +226,7 @@ NOTE: Los ejemplos a continuación usan `localhost`. Si el sistema está despleg
 [source,bash]
 ----
 # Verificar que todos los servicios están en ejecución
-docker-compose ps
+docker compose ps
 
 # Verificar el punto de control de salud (gestor de suscripciones)
 curl http://localhost:5002/health
@@ -235,7 +235,7 @@ curl http://localhost:5002/health
 curl -o /dev/null -s -w "%{http_code}" http://localhost:8080
 
 # Ver registros
-docker-compose logs -f subscriber
+docker compose logs -f subscriber
 ----
 
 == Configuración
@@ -286,12 +286,12 @@ docker-compose logs -f subscriber
 |`WIS2DOWNLOADER_UID`
 |integer
 |`10001`
-|ID de usuario utilizado al construir las imágenes. Debe coincidir con el propietario del directorio host para las escrituras de volumen.
+|ID de usuario con el que se ejecutan los contenedores. Debe coincidir con el propietario del directorio host para las escrituras de volumen.
 
 |`WIS2DOWNLOADER_GID`
 |integer
 |`988`
-|ID de grupo utilizado al construir las imágenes. Debe coincidir con el grupo del directorio host para las escrituras de volumen.
+|ID de grupo con el que se ejecutan los contenedores. Debe coincidir con el grupo del directorio host para las escrituras de volumen.
 
 |`WIS2DOWNLOADER_BIND_ADDRESS`
 |string
@@ -462,11 +462,6 @@ Los límites de memoria se definen por servicio en `docker-compose.yaml` y puede
 |string
 |`${WIS2DOWNLOADER_BASE_URL}:3000`
 |URL pública utilizada para incrustar paneles de Grafana en la vista Panel de control
-
-|`STORAGE_SECRET`
-|string
-|`wis2box-rx-secret`
-|Clave secreta de almacenamiento de sesión NiceGUI — establezca un valor único en producción
 
 |`GDC_CACHE_TTL_SECONDS`
 |integer
@@ -694,13 +689,13 @@ Consulte los registros mediante Docker:
 [source,bash]
 ----
 # Todos los servicios
-docker-compose logs -f
+docker compose logs -f
 
 # Servicio específico
-docker-compose logs -f celery-workers-small-files
+docker compose logs -f celery-workers-small-files
 
 # Con marcas de tiempo
-docker-compose logs -f -t subscriber
+docker compose logs -f -t subscriber
 ----
 
 Los registros también son recopilados por Loki y consultables en Grafana.
@@ -757,14 +752,25 @@ rm -rf downloads/*
 [source,bash]
 ----
 # Reiniciar un servicio individual
-docker-compose restart subscriber
+docker compose restart subscriber
 
 # Reiniciar todos los servicios
-docker-compose restart
+docker compose restart
 
-# Reconstrucción completa (después de cambios de código)
-docker-compose build && docker-compose up -d
+# Copia del código fuente: reconstruir tras cambios de código
+docker compose build && docker compose up -d
 ----
+
+=== Actualización
+
+Las instalaciones a partir de una versión publicada se actualizan a la versión de corrección más reciente de su rama (p. ej., 1.0.x) con:
+
+[source,bash]
+----
+bash update.sh
+----
+
+Esto descarga el archivo `docker-compose.images.yml` de la versión, obtiene las imágenes y ofrece reiniciar los servicios. El archivo de imágenes anterior se conserva como `docker-compose.images.yml.<version>.bak`; restáurelo y ejecute `docker compose up -d` para volver atrás. Las versiones preliminares y las nuevas versiones menores o mayores se instalan a partir de un nuevo paquete de versión.
 
 == Solución de problemas
 
@@ -773,13 +779,13 @@ docker-compose build && docker-compose up -d
 [source,bash]
 ----
 # Verificar registros
-docker-compose logs <service-name>
+docker compose logs <service-name>
 
 # Verificar estado del contenedor
-docker-compose ps
+docker compose ps
 
 # Verificar entorno
-docker-compose config
+docker compose config
 ----
 
 === Sin descargas
@@ -788,7 +794,7 @@ docker-compose config
 +
 [source,bash]
 ----
-docker-compose logs subscriber | grep -i connect
+docker compose logs subscriber | grep -i connect
 ----
 
 2. Verifique que existe la suscripción:
@@ -802,7 +808,7 @@ curl http://localhost:5002/subscriptions
 +
 [source,bash]
 ----
-docker-compose logs celery-workers-small-files | tail -50
+docker compose logs celery-workers-small-files | tail -50
 ----
 
 4. Verifique la profundidad de la cola:
@@ -848,7 +854,7 @@ Si las vistas de catálogo o árbol muestran "Catalogue data not loaded":
 +
 [source,bash]
 ----
-docker-compose logs wis2downloader-ui | tail -30
+docker compose logs wis2downloader-ui | tail -30
 ----
 
 2. Confirme que las claves de caché GDC existen en Valkey:
@@ -864,7 +870,7 @@ Si no hay claves presentes, la obtención inicial falló o aún está en progres
 +
 [source,bash]
 ----
-docker-compose restart wis2downloader-ui
+docker compose restart wis2downloader-ui
 ----
 
 4. Si la obtención de GDC falla constantemente, verifique la conectividad de red desde el contenedor de la interfaz hacia los puntos de acceso GDC públicos:

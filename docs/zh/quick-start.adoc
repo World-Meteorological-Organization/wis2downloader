@@ -17,12 +17,12 @@ WMO/气象领域术语在正式使用前应由母语人士审阅。
 == 前提条件
 
 * https://docs.docker.com/get-docker/[Docker] 20.10+
-* https://docs.docker.com/compose/install/[Docker Compose] 2.0+
+* https://docs.docker.com/compose/install/[Docker Compose] 2.24+
 * 能够访问 WIS2 Global Broker 的网络连接（端口 443）
 
 == 1. 下载并解压
 
-下载 https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[最新版本] 的压缩包并解压：
+从 https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[最新版本] 下载 `wis2downloader-<version>.tar.gz`（不是“Source code”压缩包）并解压。该安装包使用已发布的镜像，无需在本地构建。
 
 [source,bash]
 ----
@@ -30,7 +30,7 @@ tar -xzf wis2downloader-*.tar.gz
 cd wis2downloader-*
 ----
 
-TIP: 若要使用最新开发版本，请克隆代码仓库：`git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`
+TIP: 若要使用最新开发版本，请克隆代码仓库（`git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`），并使用 `docker compose build` 构建镜像。
 
 == 2. 配置
 
@@ -78,7 +78,7 @@ mkdir -p downloads
 sudo chown wis2:wis2 downloads
 ----
 
-NOTE: 如果 UID 10001 或 GID 988 与系统中已有用户冲突，可在运行 `docker compose up` 前，在 `.env` 中设置 `WIS2DOWNLOADER_UID` 和 `WIS2DOWNLOADER_GID` 来覆盖默认值，并在上述命令中使用对应的值。如果在已构建镜像之后修改了 `WIS2DOWNLOADER_UID` 或 `WIS2DOWNLOADER_GID`，请先执行 `docker compose build` 重新构建镜像，再重启服务。
+NOTE: 如果 UID 10001 或 GID 988 与系统中已有用户冲突，可在运行 `docker compose up` 前，在 `.env` 中设置 `WIS2DOWNLOADER_UID` 和 `WIS2DOWNLOADER_GID` 来覆盖默认值，并在上述命令中使用对应的值。修改后的值会在执行 `docker compose up -d` 时生效。
 
 NOTE: 在 macOS 和 Windows（Docker Desktop）上无需此步骤——Docker Desktop 会自动处理卷权限。
 

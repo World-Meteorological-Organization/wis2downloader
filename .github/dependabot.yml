@@ -19,6 +19,7 @@ updates:
   - package-ecosystem: docker
     directories:
       - /containers/backend
+      - /containers/docs
       - /containers/ui
     schedule:
       interval: weekly

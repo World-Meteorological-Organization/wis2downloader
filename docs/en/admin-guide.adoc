@@ -131,7 +131,7 @@ The application containers run as a non-root user (`wis2`) for security. To allo
 
 The Celery worker writes files to `/data` inside the container, which maps to `HOST_DATA_PATH` on the host (default: `./downloads/`).
 
-IMPORTANT: If you change `WIS2DOWNLOADER_UID` or `WIS2DOWNLOADER_GID` in `.env`, rebuild the images with `docker compose build` before restarting, and update the host user/group commands below to match.
+IMPORTANT: If you change `WIS2DOWNLOADER_UID` or `WIS2DOWNLOADER_GID` in `.env`, run `docker compose up -d` to apply them, and update the host user/group commands below to match.
 
 ==== Option 1: Create Matching User/Group (Recommended)
 
@@ -286,12 +286,12 @@ docker compose logs -f subscriber
 |`WIS2DOWNLOADER_UID`
 |integer
 |`10001`
-|User ID used when building container images. Must match the host directory owner for volume writes.
+|User ID the containers run as. Must match the host directory owner for volume writes.
 
 |`WIS2DOWNLOADER_GID`
 |integer
 |`988`
-|Group ID used when building container images. Must match the host directory group for volume writes.
+|Group ID the containers run as. Must match the host directory group for volume writes.
 
 |`WIS2DOWNLOADER_BIND_ADDRESS`
 |string
@@ -462,11 +462,6 @@ Memory limits are set per service in `docker-compose.yaml` and can be overridden
 |string
 |`${WIS2DOWNLOADER_BASE_URL}:3000`
 |Browser-facing URL used to embed Grafana panels in the Dashboard view
-
-|`STORAGE_SECRET`
-|string
-|`wis2box-rx-secret`
-|NiceGUI session storage secret key — set a unique value in production
 
 |`GDC_CACHE_TTL_SECONDS`
 |integer
@@ -762,9 +757,20 @@ docker compose restart subscriber
 # Restart all services
 docker compose restart
 
-# Full rebuild (after code changes)
+# Source checkout: rebuild after code changes
 docker compose build && docker compose up -d
 ----
+
+=== Updating
+
+Release installs update to the newest patch release of their version line (e.g. 1.0.x) with:
+
+[source,bash]
+----
+bash update.sh
+----
+
+This downloads the release's `docker-compose.images.yml`, pulls the images and offers to restart. The previous images file is kept as `docker-compose.images.yml.<version>.bak`; restore it and run `docker compose up -d` to roll back. Pre-releases and new minor or major versions are installed from a new release bundle.
 
 == Troubleshooting
 

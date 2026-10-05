@@ -73,7 +73,7 @@ docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --gr
 
 [source,bash]
 ----
-docker-compose up -d
+docker compose up -d
 ----
 
 === 安全配置
@@ -84,7 +84,7 @@ IMPORTANT: 在部署到生产环境之前，必须在 `.env` 文件中配置以�
 2. **`FLASK_SECRET_KEY`** - 设置一个加密随机密钥（必填）
 3. **`SUBSCRIPTIONS_ENCRYPTION_KEY`** - 用于加密订阅文件中的订阅凭据（必填，由 `setup.sh` 生成）。请备份：没有它将无法恢复已保存的凭据。
 4. **`FLASK_DEBUG`** - 生产环境中设置为 `false`
-4. **Grafana 密码** - 首次登录后从默认的 `admin/admin` 更改
+5. **Grafana 密码** - 首次登录后从默认的 `admin/admin` 更改
 
 `.env` 文件包含敏感凭据。请确保：
 
@@ -138,7 +138,7 @@ location / {
 
 Celery worker 在容器内将文件写入 `/data`，对应主机上的 `HOST_DATA_PATH`（默认：`./downloads/`）。
 
-IMPORTANT: 如果在 `.env` 中更改了 `WIS2DOWNLOADER_UID` 或 `WIS2DOWNLOADER_GID`，请在重启前执行 `docker compose build` 重新构建镜像，并在下方命令中使用对应的值。
+IMPORTANT: 如果在 `.env` 中更改了 `WIS2DOWNLOADER_UID` 或 `WIS2DOWNLOADER_GID`，请执行 `docker compose up -d` 使其生效，并在下方命令中使用对应的值。
 
 ==== 选项 1：创建匹配的用户/组（推荐）
 
@@ -192,7 +192,7 @@ chmod 777 downloads
 [source,bash]
 ----
 # 启动 celery 容器
-docker-compose up -d celery
+docker compose up -d celery
 
 # 从容器内部测试写入权限
 docker exec celery touch /data/test-write && echo "Write OK" || echo "Write FAILED"
@@ -233,7 +233,7 @@ NOTE: 以下示例使用 `localhost`。如果系统部署在远程服务器上�
 [source,bash]
 ----
 # 检查所有服务是否正在运行
-docker-compose ps
+docker compose ps
 
 # 检查健康检查端点（订阅管理器）
 curl http://localhost:5002/health
@@ -242,7 +242,7 @@ curl http://localhost:5002/health
 curl -o /dev/null -s -w "%{http_code}" http://localhost:8080
 
 # 查看日志
-docker-compose logs -f subscriber
+docker compose logs -f subscriber
 ----
 
 == 配置
@@ -293,12 +293,12 @@ docker-compose logs -f subscriber
 |`WIS2DOWNLOADER_UID`
 |integer
 |`10001`
-|构建容器镜像时使用的用户 ID。必须与卷写入所需的主机目录所有者匹配。
+|容器运行时使用的用户 ID。必须与卷写入所需的主机目录所有者匹配。
 
 |`WIS2DOWNLOADER_GID`
 |integer
 |`988`
-|构建容器镜像时使用的组 ID。必须与卷写入所需的主机目录所属组匹配。
+|容器运行时使用的组 ID。必须与卷写入所需的主机目录所属组匹配。
 
 |`WIS2DOWNLOADER_BIND_ADDRESS`
 |string
@@ -469,11 +469,6 @@ docker-compose logs -f subscriber
 |string
 |`${WIS2DOWNLOADER_BASE_URL}:3000`
 |用于在仪表板视图中嵌入 Grafana 面板的 URL
-
-|`STORAGE_SECRET`
-|string
-|`wis2box-rx-secret`
-|NiceGUI 会话存储密钥 — 生产环境中设置唯一值
 
 |`GDC_CACHE_TTL_SECONDS`
 |integer
@@ -701,13 +696,13 @@ IMPORTANT: 首次登录后更改默认 Grafana 密码，或在生产部署中通
 [source,bash]
 ----
 # 所有服务
-docker-compose logs -f
+docker compose logs -f
 
 # 特定服务
-docker-compose logs -f celery-workers-small-files
+docker compose logs -f celery-workers-small-files
 
 # 带时间戳
-docker-compose logs -f -t subscriber
+docker compose logs -f -t subscriber
 ----
 
 日志也由 Loki 收集，可在 Grafana 中查询。
@@ -764,14 +759,25 @@ rm -rf downloads/*
 [source,bash]
 ----
 # 重启单个服务
-docker-compose restart subscriber
+docker compose restart subscriber
 
 # 重启所有服务
-docker-compose restart
+docker compose restart
 
-# 完全重建（代码更改后）
-docker-compose build && docker-compose up -d
+# 源码检出：代码更改后重新构建
+docker compose build && docker compose up -d
 ----
+
+=== 更新
+
+通过发布包安装的系统可使用以下命令更新到同一版本系列（例如 1.0.x）中的最新补丁版本：
+
+[source,bash]
+----
+bash update.sh
+----
+
+该命令会下载该版本的 `docker-compose.images.yml`，拉取镜像，并提示是否重启服务。原镜像文件会保留为 `docker-compose.images.yml.<version>.bak`；如需回滚，请恢复该文件并执行 `docker compose up -d`。预发布版本以及新的次版本或主版本需通过新的发布包安装。
 
 == 故障排除
 
@@ -780,13 +786,13 @@ docker-compose build && docker-compose up -d
 [source,bash]
 ----
 # 检查日志
-docker-compose logs <service-name>
+docker compose logs <service-name>
 
 # 检查容器状态
-docker-compose ps
+docker compose ps
 
 # 验证环境
-docker-compose config
+docker compose config
 ----
 
 === 无下载
@@ -795,7 +801,7 @@ docker-compose config
 +
 [source,bash]
 ----
-docker-compose logs subscriber | grep -i connect
+docker compose logs subscriber | grep -i connect
 ----
 
 2. 验证订阅是否存在：
@@ -809,7 +815,7 @@ curl http://localhost:5002/subscriptions
 +
 [source,bash]
 ----
-docker-compose logs celery-workers-small-files | tail -50
+docker compose logs celery-workers-small-files | tail -50
 ----
 
 4. 检查队列深度：
@@ -855,7 +861,7 @@ docker network inspect wis2downloader_valkey-net
 +
 [source,bash]
 ----
-docker-compose logs wis2downloader-ui | tail -30
+docker compose logs wis2downloader-ui | tail -30
 ----
 
 2. 确认 Valkey 中存在 GDC 缓存键：
@@ -871,7 +877,7 @@ docker exec valkey valkey-cli -a $VALKEY_PASSWORD KEYS "gdc:cache:*"
 +
 [source,bash]
 ----
-docker-compose restart wis2downloader-ui
+docker compose restart wis2downloader-ui
 ----
 
 4. 如果 GDC 抓取持续失败，检查从 UI 容器到公共 GDC 端点的网络连接：

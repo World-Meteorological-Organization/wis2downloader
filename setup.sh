@@ -30,7 +30,6 @@ fill_secrets() {
     fill_secret FLASK_SECRET_KEY "$(openssl rand -hex 32)"
     fill_secret VALKEY_PASSWORD "$(openssl rand -hex 16)"
     fill_secret SUBSCRIPTIONS_ENCRYPTION_KEY "$(generate_encryption_key)"
-    fill_secret STORAGE_SECRET "$(openssl rand -hex 32)"
 }
 
 # Release bundles run the published images (docker-compose.images.yml) instead of building

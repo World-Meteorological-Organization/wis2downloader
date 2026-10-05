@@ -81,9 +81,9 @@ El cajón de navegación a la izquierda (a la derecha en modo RTL árabe) da acc
 |*Configuración*
 |Ver recuentos de registros GDC por catálogo y activar una actualización manual de datos
 
-|kbd:[Alt+7]
+|
 |*Documentación*
-|Muestra la documentación del proyecto
+|Abre la documentación en línea de esta versión en una pestaña nueva
 |===
 
 === Vista de catálogo
