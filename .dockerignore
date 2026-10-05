@@ -1,0 +1,22 @@
+# Allowlist: only what the Dockerfiles copy is sent to the builder (keeps .env, data and venvs out)
+*
+!containers/requirements-frozen.txt
+!docs/
+!modules/shared/
+!modules/subscriber/
+!modules/subscription_manager/
+!modules/task_manager/
+!modules/ui/
+
+# Never sent, even from allowed directories
+**/.env
+**/.env.*
+**/__pycache__/
+**/*.pyc
+**/*.egg-info/
+**/build/
+**/dist/
+**/.pytest_cache/
+**/tests/
+modules/ui/.nicegui/
+docs/translate.py
