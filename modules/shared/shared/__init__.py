@@ -1,7 +1,7 @@
 """Shared utilities for wis2downloader modules."""
 
-# Version of the shared utilities. This can be used by other modules to ensure compatibility.
-__version__ = "1.0.0b1+rc4"
+# Single version for all packages and images; setup.py files and releases read it from here.
+__version__ = "1.0.0b2"
 
 from .valkey_client import get_valkey_client
 from .logging import setup_logging

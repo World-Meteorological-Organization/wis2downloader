@@ -40,7 +40,8 @@ RUN apt-get update && \
 ARG WIS2DOWNLOADER_GID=988
 ARG WIS2DOWNLOADER_UID=10001
 RUN groupadd -g ${WIS2DOWNLOADER_GID} wis2 && \
-    useradd -u ${WIS2DOWNLOADER_UID} -g wis2 -m -s /usr/sbin/nologin wis2
+    useradd -u ${WIS2DOWNLOADER_UID} -g wis2 -m -s /usr/sbin/nologin wis2 && \
+    chmod 755 /home/wis2
 
 COPY --from=builder /opt/venv /opt/venv
 

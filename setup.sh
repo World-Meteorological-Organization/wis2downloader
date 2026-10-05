@@ -14,13 +14,15 @@ generate_encryption_key() {
     openssl rand -base64 32 | tr '+/' '-_'
 }
 
+ADDED=()  # settings added to .env by this run
+
 # Set NAME to VALUE in .env if NAME is missing or empty; existing values are kept
 fill_secret() {
     local name="$1" value="$2"
     if ! grep -q "^${name}=.." .env; then
         sed -i "/^${name}=/d" .env
         echo "${name}=\"${value}\"" >> .env
-        echo "${name} generated."
+        ADDED+=("$name")
     fi
 }
 
@@ -31,14 +33,28 @@ fill_secrets() {
     fill_secret STORAGE_SECRET "$(openssl rand -hex 32)"
 }
 
+# Release bundles run the published images (docker-compose.images.yml) instead of building
+use_release_images() {
+    if [ -f docker-compose.images.yml ] && ! grep -q "^COMPOSE_FILE=" .env; then
+        echo "COMPOSE_FILE=docker-compose.yaml:docker-compose.images.yml" >> .env
+        ADDED+=(COMPOSE_FILE)
+    fi
+}
+
 if [ -f .env ]; then
     fill_secrets
-    echo ".env already exists — remove it first if you want to regenerate secrets."
-    exit 1
+    use_release_images
+    if [ ${#ADDED[@]} -eq 0 ]; then
+        echo ".env exists and is complete; nothing changed."
+    else
+        echo ".env exists; added: ${ADDED[*]}. Existing values kept."
+    fi
+    exit 0
 fi
 
 cp default.env .env
 fill_secrets
+use_release_images
 
 echo ".env created with generated secrets."
 echo "Back up SUBSCRIPTIONS_ENCRYPTION_KEY: without it saved credentials cannot be restored."

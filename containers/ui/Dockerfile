@@ -1,5 +1,5 @@
 # Stage 1: build docs
-FROM asciidoctor/docker-asciidoctor:1.103.0 AS docs-builder
+FROM --platform=$BUILDPLATFORM asciidoctor/docker-asciidoctor:1.103.0 AS docs-builder
 WORKDIR /repo
 COPY docs/ ./docs/
 RUN chmod +x docs/build.sh && docs/build.sh site

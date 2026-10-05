@@ -32,9 +32,10 @@ x-read-only: &read-only
 x-backend-build: &backend-build
   context: .
   dockerfile: ./containers/backend/Dockerfile
-  args:
-    WIS2DOWNLOADER_UID: ${WIS2DOWNLOADER_UID:-10001}
-    WIS2DOWNLOADER_GID: ${WIS2DOWNLOADER_GID:-988}
+
+# Run our images as the host owner of the data directories (set by setup.sh)
+x-run-as: &run-as
+  user: "${WIS2DOWNLOADER_UID:-10001}:${WIS2DOWNLOADER_GID:-988}"
 
 services:
   loki:
@@ -120,9 +121,8 @@ services:
 
   valkey:
     container_name: valkey
-    build:
-      context: ./containers/valkey/
-      dockerfile: Dockerfile
+    image: valkey/valkey:9.1.2-alpine
+    user: valkey  # upstream non-root user; skips the entrypoint's root chown step
     <<: [*hardening, *read-only]
     restart: always
     env_file: *default-env
@@ -147,7 +147,7 @@ services:
           memory: "${WORKER_MEMORY_LIMIT:-1g}"
     image: wis2downloader-backend
     build: *backend-build
-    <<: [*hardening, *read-only]
+    <<: [*hardening, *read-only, *run-as]
     volumes:
       - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
     env_file: *default-env
@@ -173,7 +173,7 @@ services:
           memory: "${WORKER_MEMORY_LIMIT:-1g}"
     image: wis2downloader-backend
     build: *backend-build
-    <<: [*hardening, *read-only]
+    <<: [*hardening, *read-only, *run-as]
     volumes:
       - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
     env_file: *default-env
@@ -199,7 +199,7 @@ services:
           memory: "${WORKER_MEMORY_LIMIT:-1g}"
     image: wis2downloader-backend
     build: *backend-build
-    <<: [*hardening, *read-only]
+    <<: [*hardening, *read-only, *run-as]
     volumes:
       - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
     env_file: *default-env
@@ -226,7 +226,7 @@ services:
           memory: "${SCHEDULER_MEMORY_LIMIT:-512m}"
     image: wis2downloader-backend
     build: *backend-build
-    <<: [*hardening, *read-only]
+    <<: [*hardening, *read-only, *run-as]
     volumes:
       - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
     env_file: *default-env
@@ -252,7 +252,7 @@ services:
           memory: "${BEAT_MEMORY_LIMIT:-256m}"
     image: wis2downloader-backend
     build: *backend-build
-    <<: [*hardening, *read-only]
+    <<: [*hardening, *read-only, *run-as]
     volumes:
       - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
     env_file: *default-env
@@ -280,7 +280,7 @@ services:
           memory: "${SUBSCRIPTION_MANAGER_MEMORY_LIMIT:-256m}"
     image: wis2downloader-backend
     build: *backend-build
-    <<: [*hardening, *read-only]
+    <<: [*hardening, *read-only, *run-as]
     env_file: *default-env
     ports:
       - "${WIS2DOWNLOADER_BIND_ADDRESS:-127.0.0.1}:5002:5001"
@@ -303,13 +303,13 @@ services:
       retries: 3
 
   wis2downloader-ui:
-      <<: *hardening
+      <<: [*hardening, *run-as]
+      image: wis2downloader-ui
       build:
         context: .
         dockerfile: ./containers/ui/Dockerfile
-        args:
-          WIS2DOWNLOADER_UID: ${WIS2DOWNLOADER_UID:-10001}
-          WIS2DOWNLOADER_GID: ${WIS2DOWNLOADER_GID:-988}
+      tmpfs:
+        - /app/.nicegui:uid=${WIS2DOWNLOADER_UID:-10001},gid=${WIS2DOWNLOADER_GID:-988},mode=0700  # NiceGUI storage (UI preferences only)
       ports:
         - "${WIS2DOWNLOADER_BIND_ADDRESS:-127.0.0.1}:8080:8080"
       deploy:
@@ -334,7 +334,7 @@ services:
           memory: "${SUBSCRIBER_MEMORY_LIMIT:-256m}"
     image: wis2downloader-backend
     build: *backend-build
-    <<: [*hardening, *read-only]
+    <<: [*hardening, *read-only, *run-as]
     env_file: *default-env
     environment:
       GLOBAL_BROKER_HOST: globalbroker.meteo.fr
@@ -363,7 +363,7 @@ services:
           memory: "${SUBSCRIBER_MEMORY_LIMIT:-256m}"
     image: wis2downloader-backend
     build: *backend-build
-    <<: [*hardening, *read-only]
+    <<: [*hardening, *read-only, *run-as]
     env_file: *default-env
     environment:
       GLOBAL_BROKER_HOST: globalbroker.inmet.gov.br

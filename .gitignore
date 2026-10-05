@@ -85,3 +85,4 @@ dump.rdb
 /modules/wis2downloader/
 
 *.pptx
+docker-compose-dev.yaml

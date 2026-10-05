@@ -20,6 +20,11 @@ updates:
     directories:
       - /containers/backend
       - /containers/ui
-      - /containers/valkey
+    schedule:
+      interval: weekly
+
+  # Upstream images in docker-compose.yaml (valkey, loki, prometheus, grafana)
+  - package-ecosystem: docker-compose
+    directory: /
     schedule:
       interval: weekly
