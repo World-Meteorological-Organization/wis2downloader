@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_call:
 
 jobs:
   unit-test:
@@ -80,7 +81,7 @@ jobs:
 
       - name: Build images
         run: |
-          docker compose --env-file .env build valkey subscription-manager subscriber-france celery-workers-small-files
+          docker compose --env-file .env build subscription-manager subscriber-france celery-workers-small-files
         env:
           DOCKER_BUILDKIT: 1
 
