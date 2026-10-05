@@ -5,7 +5,12 @@ COPY docs/ ./docs/
 RUN chmod +x docs/build.sh && docs/build.sh site
 
 # Stage 2: runtime image
-FROM zauberzeug/nicegui:3.8.0
+FROM zauberzeug/nicegui:3.17.1
+
+# Pick up Debian security fixes not yet in the base image
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -19,9 +24,10 @@ COPY ./modules/shared /app/shared
 # Bake in the built docs (after COPY ./modules/ui so it is not overwritten)
 COPY --from=docs-builder /repo/site /app/site
 
-# Install any additional dependencies if needed
-RUN uv pip install /app/shared
-RUN uv pip install shapely==2.1.2
+# Install extra dependencies; anyio/lxml_html_clean pinned above NiceGUI's minimums for CVE fixes.
+# System pip (vendors old urllib3/msgpack/setuptools) is unused at runtime, so remove it.
+RUN uv pip install --no-cache /app/shared shapely==2.1.2 anyio==4.14.2 lxml_html_clean==0.4.5 && \
+    /usr/local/bin/python3 -m pip uninstall -y pip
 
 # Create a non root user; it owns /app as NiceGUI writes .nicegui/ storage there
 ARG WIS2DOWNLOADER_GID=988

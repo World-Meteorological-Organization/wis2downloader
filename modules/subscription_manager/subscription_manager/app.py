@@ -48,18 +48,19 @@ FLASK_PORT = int(os.getenv("FLASK_PORT", 5001))
 VALID_CRED_TYPES = {"basic", "bearer"}
 
 
-def _validate_credentials(creds: dict | None) -> dict | None:
+def _credentials_error(creds: dict | None) -> str | None:
+    """Validation message for *creds*, or None if valid (absent credentials are valid)."""
     if creds is None:
         return None
     if not isinstance(creds, dict):
-        raise ValueError("credentials must be an object")
+        return "credentials must be an object"
     if creds.get("type") not in VALID_CRED_TYPES:
-        raise ValueError("credentials.type must be 'basic' or 'bearer'")
+        return "credentials.type must be 'basic' or 'bearer'"
     if creds["type"] == "basic" and not (creds.get("username") and creds.get("password")):
-        raise ValueError("basic auth requires username and password")
+        return "basic auth requires username and password"
     if creds["type"] == "bearer" and not creds.get("token"):
-        raise ValueError("bearer auth requires token")
-    return creds
+        return "bearer auth requires token"
+    return None
 
 
 def _redact_credentials(sub_data: dict) -> dict:
@@ -303,9 +304,11 @@ def list_subscriptions():
     try:
         return jsonify(_group_by_topic(_get_all_subscriptions())), 200
     except ConnectionError as e:
-        return jsonify({"error": f"Failed to connect to Valkey: {e}"}), 503
-    except Exception as e:
-        return jsonify({"error": f"Unexpected error: {e}"}), 500
+        LOGGER.error(f"Failed to connect to Valkey: {e}")
+        return jsonify({"error": "Failed to connect to Valkey"}), 503
+    except Exception:
+        LOGGER.exception("Unexpected error listing subscriptions")
+        return jsonify({"error": "Unexpected error, see server logs"}), 500
 
 
 @app.post('/subscriptions')
@@ -321,10 +324,9 @@ def add_subscription():
     # accept both 'filter' (new) and 'filters' (legacy) in the request body
     filter_config = data.get('filter') or data.get('filters') or {}
 
-    try:
-        credentials = _validate_credentials(data.get('credentials'))
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+    credentials = data.get('credentials')
+    if error := _credentials_error(credentials):
+        return jsonify({"error": error}), 400
 
     queue = data.get('queue', DEFAULT_QUEUE)
     if queue not in VALID_QUEUES:
@@ -345,7 +347,8 @@ def add_subscription():
     try:
         all_subs = _get_all_subscriptions()
     except ConnectionError as e:
-        return jsonify({"error": f"Failed to connect to Valkey: {e}"}), 503
+        LOGGER.error(f"Failed to connect to Valkey: {e}")
+        return jsonify({"error": "Failed to connect to Valkey"}), 503
 
     existing_for_topic = _subs_for_topic(topic, all_subs)
     is_new_topic = len(existing_for_topic) == 0
@@ -411,11 +414,9 @@ def update_subscription(sub_id):
     if 'filter' in data:
         sub_data['filter'] = data['filter']
     if 'credentials' in data:
-        try:
-            sub_data['credentials'] = _validate_credentials(
-                data['credentials'])
-        except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+        if error := _credentials_error(data['credentials']):
+            return jsonify({"error": error}), 400
+        sub_data['credentials'] = data['credentials']
     if 'queue' in data:
         if data['queue'] not in VALID_QUEUES:
             return jsonify({
@@ -459,7 +460,8 @@ def delete_subscription(sub_id):
     try:
         remaining = _subs_for_topic(topic, _get_all_subscriptions())
     except ConnectionError as e:
-        return jsonify({"error": f"Failed to connect to Valkey: {e}"}), 503
+        LOGGER.error(f"Failed to connect to Valkey: {e}")
+        return jsonify({"error": "Failed to connect to Valkey"}), 503
 
     if len(remaining) == 0:
         # Last subscription for this topic — close the MQTT subscription
