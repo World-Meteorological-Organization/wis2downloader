@@ -34,6 +34,10 @@ ENV WIS2DOWNLOADER_DOCS_VERSION=${DOCS_VERSION}
 # Expose the port your NiceGUI app runs on (default is 8080)
 EXPOSE 8080
 
+# Static asset, not '/': each page request builds a NiceGUI client
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ["/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/assets/base.css', timeout=4)"]
+
 # Set the default command to run the NiceGUI app
 # The base entrypoint needs root to drop privileges; not needed with USER set
 ENTRYPOINT []

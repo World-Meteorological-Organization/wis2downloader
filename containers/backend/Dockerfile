@@ -48,5 +48,8 @@ COPY --from=builder /opt/venv /opt/venv
 USER wis2
 WORKDIR /home/wis2
 
+# One image, many services: each service's healthcheck is set in docker-compose.yaml
+HEALTHCHECK NONE
+
 # Default: subscription-manager API
 CMD ["gunicorn", "--config", "python:subscription_manager.gunicorn_conf", "--no-control-socket", "--bind", "0.0.0.0:5001", "--workers", "1", "--threads", "2", "subscription_manager.app:app"]
