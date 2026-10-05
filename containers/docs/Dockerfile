@@ -8,4 +8,5 @@ RUN bash docs/build.sh site
 FROM scratch
 COPY --from=build /repo/site /
 USER 65534:65534
-HEALTHCHECK NONE  # output-only image, never run
+# Output-only image, never run
+HEALTHCHECK NONE

@@ -19,6 +19,7 @@
 ### Build Context
 
 - `.dockerignore` allowlists only what the Dockerfiles copy (keeps `.env`, data and virtualenvs out of the build context; tests and build artifacts excluded).
+- UI image has a HEALTHCHECK (static asset); backend and docs images declare `HEALTHCHECK NONE` (backend checks are per service in compose; docs image never runs).
 
 ### Documentation
 
