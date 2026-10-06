@@ -30,6 +30,7 @@ STRINGS: dict[str, str] = {
     'btn.show_metadata':    '显示元数据',
     'btn.view_license':     '查看许可证',
     'btn.accept':           '接受',
+    'btn.decline':          '拒绝',
     'btn.select':           '选择',
     'btn.unselect':         '取消选择',
     'btn.select_all':       '全选 / 全不选',
@@ -144,7 +145,7 @@ STRINGS: dict[str, str] = {
     'settings.gdc_section': '全球发现目录',
     'settings.gdc_desc': (
         '启动时从所有三个 GDC 获取记录并合并。'
-        '结果在 Redis 中缓存 6 小时。'
+        '结果在 Valkey 中缓存 6 小时。'
     ),
     'settings.records':     '{name}：{count} 条记录',
     'settings.not_loaded':  '{name}：未加载',
@@ -195,4 +196,10 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     'aria.toggle_nav': '切换导航',
     'aria.discrepancy': '记录内容在各目录间存在差异',
+
+    # ------------------------------------------------------------------ #
+    # Cookie consent                                                     #
+    # ------------------------------------------------------------------ #
+    'cookies.title': 'Cookie',
+    'cookies.text': '本网站可以在您的浏览器中保存三个 Cookie，用于记住您的语言、上次打开的视图以及菜单是否折叠。它们不用于跟踪，也不会被共享。如果您拒绝，将不会保存任何内容，下次访问时会再次询问您。',
 }

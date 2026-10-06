@@ -3,21 +3,27 @@ import os
 import sys
 
 from shared.logging import setup_logging
-from shared.redis_client import (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD)
+from shared.valkey_client import (VALKEY_HOST, VALKEY_PORT, VALKEY_PASSWORD)
 from shared.queues import DEFAULT_QUEUE
+from shared.config_check import Setting, VALKEY_SETTINGS, require_settings
 
 # Set up logging
 setup_logging()  # Configure root logger
 LOGGER = setup_logging(__name__)
 
-if not REDIS_PASSWORD:
-    raise ValueError("REDIS_PASSWORD must be set")
+require_settings('celery-worker', (
+    *VALKEY_SETTINGS,
+    *(Setting(name, integer=True) for name in (
+        'CELERY_BACKEND_DB', 'CELERY_RESULT_DB', 'VALKEY_TTL_SECONDS', 'VALKEY_MESSAGE_LOCK',
+        'DOWNLOAD_MAX_SECONDS', 'DOWNLOAD_CHUNK_SIZE')),
+))
 
 CELERY_BACKEND_DB = int(os.getenv("CELERY_BACKEND_DB", "0"))
 CELERY_RESULT_DB = int(os.getenv("CELERY_RESULT_DB", "1"))
 
-CELERY_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{CELERY_BACKEND_DB}"
-CELERY_RESULT_BACKEND = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{CELERY_RESULT_DB}"
+# kombu has no valkey:// transport yet (celery/kombu#2246)
+CELERY_BROKER_URL = f"redis://:{VALKEY_PASSWORD}@{VALKEY_HOST}:{VALKEY_PORT}/{CELERY_BACKEND_DB}"
+CELERY_RESULT_BACKEND = f"redis://:{VALKEY_PASSWORD}@{VALKEY_HOST}:{VALKEY_PORT}/{CELERY_RESULT_DB}"
 
 # --- Celery App Setup ---
 app = Celery('tasks',

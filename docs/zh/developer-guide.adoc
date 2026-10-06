@@ -23,22 +23,22 @@ WIS2 Downloader 是一个由四个主要组件构成的分布式系统：
   ┌──────────────────────────────────────────────────────────┐
   │                                                           │
   │  Web UI (NiceGUI :8080)                                   │
-  │    - reads GDC catalogue data from Redis cache            │
+  │    - reads GDC catalogue data from Valkey cache            │
   │    - posts subscriptions to Subscription Manager API      │
   │                          │                                │
   │                          ▼                                │
   │  Subscription Manager (Flask API :5001)                   │
-  │    - persists subscriptions in Redis                      │
+  │    - persists subscriptions in Valkey                      │
   │    - publishes subscribe/unsubscribe commands via PubSub  │
   │                          │                                │
-  │              Redis PubSub (commands)                      │
+  │              Valkey PubSub (commands)                      │
   │                          │                                │
   │                          ▼                                │
   │  Subscriber (MQTT Client)                                 │
   │    - connects to WIS2 Global Broker                       │
   │    - on notification: queues Celery download task         │
   │                          │                                │
-  │              Redis (Celery queue + dedup state)           │
+  │              Valkey (Celery queue + dedup state)           │
   │                          │                                │
   │                          ▼                                │
   │  Celery Workers                                           │
@@ -49,10 +49,10 @@ WIS2 Downloader 是一个由四个主要组件构成的分布式系统：
 
 === 数据流
 
-1. 启动时，Web 界面从三个 GDC 端点（或 Redis 缓存）获取 WCMP2 记录，并在内存中构建主题层次结构
+1. 启动时，Web 界面从三个 GDC 端点（或 Valkey 缓存）获取 WCMP2 记录，并在内存中构建主题层次结构
 2. 用户在 Web 界面浏览目录或树状视图并选择主题
 3. 用户点击 *订阅* → Web 界面向 Subscription Manager REST API 发送 POST 请求
-4. Subscription Manager 将订阅持久化到 Redis，并向 Redis PubSub 频道发布订阅命令
+4. Subscription Manager 将订阅持久化到 Valkey，并向 Valkey PubSub 频道发布订阅命令
 5. Subscriber 接收命令并在 WIS2 Global Broker 上订阅 MQTT 主题
 6. 当 WIS2 通知到达时，Subscriber 将 Celery 下载任务加入队列
 7. Celery 工作器下载文件、验证哈希、应用过滤器并保存到磁盘
@@ -66,14 +66,14 @@ modules/
 │   └── shared/
 │       ├── __init__.py
 │       ├── logging.py      # Centralized logging
-│       └── redis_client.py # Redis client singleton
+│       └── valkey_client.py # Valkey client singleton
 │
 ├── subscriber/             # MQTT subscriber service
 │   └── subscriber/
 │       ├── __init__.py
 │       ├── manager.py      # Entry point, thread management
 │       ├── subscriber.py   # MQTT client wrapper
-│       └── command_listener.py  # Redis PubSub listener
+│       └── command_listener.py  # Valkey PubSub listener
 │
 ├── subscription_manager/   # REST API service
 │   └── subscription_manager/
@@ -118,24 +118,24 @@ modules/
 
 提供所有服务使用的公共实用工具。
 
-==== Redis 客户端
+==== Valkey 客户端
 
-.modules/shared/shared/redis_client.py
+.modules/shared/shared/valkey_client.py
 [source,python]
 ----
-from shared import get_redis_client
+from shared import get_valkey_client
 
-# 获取 Redis 客户端（单例模式）
-redis = get_redis_client()
+# 获取 Valkey 客户端（单例模式）
+valkey = get_valkey_client()
 
-# 像普通 Redis 客户端一样使用
-redis.set('key', 'value')
-redis.get('key')
+# 像普通 Valkey 客户端一样使用
+valkey.set('key', 'value')
+valkey.get('key')
 ----
 
 客户端特性：
 
-* 直接连接到 Redis 服务器
+* 直接连接到 Valkey 服务器
 * 缓存连接（单例模式）
 * 包含针对瞬时故障的重试逻辑
 
@@ -174,8 +174,8 @@ def run_manager():
     # 1. Create MQTT subscriber
     mqtt_subscriber = Subscriber(**broker_config)
 
-    # 2. Create Redis command listener
-    redis_listener = CommandListener(
+    # 2. Create Valkey command listener
+    valkey_listener = CommandListener(
         subscriber=mqtt_subscriber,
         channel=COMMAND_CHANNEL
     )
@@ -184,8 +184,8 @@ def run_manager():
     mqtt_thread = threading.Thread(target=mqtt_subscriber.start, daemon=True)
     mqtt_thread.start()
 
-    # 4. Start Redis listener (blocks)
-    redis_listener.start()
+    # 4. Start Valkey listener (blocks)
+    valkey_listener.start()
 ----
 
 ==== MQTT 订阅者
@@ -227,7 +227,7 @@ class Subscriber:
 class CommandListener(threading.Thread):
     def __init__(self, subscriber, channel):
         self.subscriber = subscriber
-        self.pubsub = get_redis_client().pubsub()
+        self.pubsub = get_valkey_client().pubsub()
 
     def run(self):
         self.pubsub.subscribe(self.channel)
@@ -264,7 +264,7 @@ def add_subscription():
     target = normalise_path(data.get('target', ''))
     filters = data.get('filters', {})
 
-    # Publish command to subscriber via Redis PubSub
+    # Publish command to subscriber via Valkey PubSub
     command = {
         "action": "subscribe",
         "topic": topic,
@@ -273,7 +273,7 @@ def add_subscription():
     }
     publish_command(command, COMMAND_CHANNEL)
 
-    # Persist to Redis for durability
+    # Persist to Valkey for durability
     persist_subscription(topic, target, filters)
 
     return jsonify({"status": "accepted", ...}), 202
@@ -281,13 +281,13 @@ def add_subscription():
 
 ==== 指标端点
 
-指标使用原子 `HINCRBYFLOAT` 操作存储在 Redis 中，可在多个 Celery worker 容器之间安全使用。端点从 Redis 读取数据并以 Prometheus 文本格式呈现：
+指标使用原子 `HINCRBYFLOAT` 操作存储在 Valkey 中，可在多个 Celery worker 容器之间安全使用。端点从 Valkey 读取数据并以 Prometheus 文本格式呈现：
 
 [source,python]
 ----
 @app.route('/metrics')
 def expose_metrics():
-    from shared.redis_metrics import generate_prometheus_text, set_gauge
+    from shared.valkey_metrics import generate_prometheus_text, set_gauge
     set_gauge('celery_queue_length', {}, get_queue_length())
     return Response(generate_prometheus_text(), mimetype='text/plain')
 ----
@@ -339,7 +339,7 @@ def download_from_wis2(self, job):
             return result
 
     # 3. Acquire lock
-    lock_acquired = redis_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
+    lock_acquired = valkey_client.set(lock_key, 1, nx=True, ex=LOCK_EXPIRE)
     if not lock_acquired:
         raise self.retry(countdown=10, max_retries=10)
 
@@ -375,7 +375,7 @@ def wis2_download(args):
 
 ==== 调度器（定期任务）
 
-一个独立的 Celery 应用（`scheduler.py`）使用 Celery Beat 处理日常维护任务。它使用 Redis 数据库 2/3，以避免干扰下载 worker 队列（数据库 0/1）。定期任务在 `tasks/scheduled_tasks.py` 中定义：
+一个独立的 Celery 应用（`scheduler.py`）使用 Celery Beat 处理日常维护任务。它使用 Valkey 数据库 2/3，以避免干扰下载 worker 队列（数据库 0/1）。定期任务在 `tasks/scheduled_tasks.py` 中定义：
 
 [cols="2,1,3"]
 |===
@@ -386,8 +386,8 @@ def wis2_download(args):
 |设置 `disk_total_bytes`、`disk_used_bytes`、`disk_free_bytes` 指标
 
 |`clean_directory`
-|每 10 分钟
-|删除超过 `DOWNLOAD_RETENTION_PERIOD` 天的文件；每删除一个文件则减少 `disk_downloads_bytes`
+|每日 00:15 UTC
+|当 `{target}/YYYY/MM/DD` 日目录中的所有文件都超过 `DOWNLOAD_RETENTION_PERIOD` 天（UTC）时删除整个目录，然后删除空的月/年目录。只列出目录，因此开销不随文件数量增长。不处理日期结构之外的文件。按释放的字节数减少 `disk_downloads_bytes`
 
 |`recalibrate_downloads_size`
 |每天
@@ -457,7 +457,7 @@ modules/ui/
 |`https://wis2-gdc.weather.gc.ca`
 |===
 
-原始 JSON 响应以 `gdc:cache:CMA`、`gdc:cache:DWD` 和 `gdc:cache:ECCC` 为键缓存在 Redis 中，TTL 由 `GDC_CACHE_TTL_SECONDS` 控制（默认 6 小时）。Redis 是可选的——如果不可用，每次启动时通过 HTTP 获取数据。
+原始 JSON 响应以 `gdc:cache:CMA`、`gdc:cache:DWD` 和 `gdc:cache:ECCC` 为键缓存在 Valkey 中，TTL 由 `GDC_CACHE_TTL_SECONDS` 控制（默认 6 小时）。Valkey 是可选的——如果不可用，每次启动时通过 HTTP 获取数据。
 
 ==== 合并记录
 
@@ -520,7 +520,7 @@ modules/ui/
 |去除末尾的 `/#`，导航层次结构，递归收集该节点及其子节点的所有数据集
 
 |`scrape_all(force=False)`
-|获取 GDC 数据（优先 Redis 缓存，然后 HTTP），重建 `_merged_records` 和 `_topic_hierarchy`
+|获取 GDC 数据（优先 Valkey 缓存，然后 HTTP），重建 `_merged_records` 和 `_topic_hierarchy`
 |===
 
 === WCMP2 模型 (models/wcmp2.py)
@@ -804,7 +804,7 @@ RTL_LANGUAGES: frozenset[str] = frozenset({'ar', 'he'})
 .第 4 步——重启界面
 [source,bash]
 ----
-docker-compose restart wis2downloader-ui
+docker compose restart wis2downloader-ui
 ----
 
 新语言将立即出现在标题语言选择器中。
@@ -846,9 +846,9 @@ def render(container):
 
 == 服务间通信
 
-=== Redis PubSub（命令）
+=== Valkey PubSub（命令）
 
-Subscription Manager 与 Subscriber 之间的通信使用 Redis PubSub，频道为 `subscription_commands`：
+Subscription Manager 与 Subscriber 之间的通信使用 Valkey PubSub，频道为 `subscription_commands`：
 
 [source,json]
 ----
@@ -896,7 +896,7 @@ job = {
 }
 ----
 
-=== Redis 键
+=== Valkey 键
 
 [cols="2,3"]
 |===
@@ -975,9 +975,9 @@ def my_custom_task(data):
 
 === 添加新指标
 
-指标通过 `shared.redis_metrics` 存储在 Redis 中。要添加新指标：
+指标通过 `shared.valkey_metrics` 存储在 Valkey 中。要添加新指标：
 
-1. 在 `modules/shared/shared/redis_metrics.py` 的 `METRICS` 字典中注册：
+1. 在 `modules/shared/shared/valkey_metrics.py` 的 `METRICS` 字典中注册：
 +
 [source,python]
 ----
@@ -1025,7 +1025,7 @@ pytest --cov=modules modules/
 [source,bash]
 ----
 # 启动服务
-docker-compose up -d
+docker compose up -d
 
 # 创建测试订阅
 curl -X POST http://localhost:5002/subscriptions \
@@ -1033,7 +1033,7 @@ curl -X POST http://localhost:5002/subscriptions \
   -d '{"topic": "cache/a/wis2/de-dwd/data/#", "target": "test"}'
 
 # 监控日志
-docker-compose logs -f subscriber celery
+docker compose logs -f subscriber celery
 
 # 检查下载
 ls -la downloads/test/
@@ -1055,13 +1055,13 @@ pip install -e modules/task_manager
 pip install -e modules/subscriber
 pip install -e modules/subscription_manager
 
-# 启动 Redis（开发用单实例）
-docker run -d -p 6379:6379 redis:7.2-alpine redis-server --requirepass devpassword
+# 启动 Valkey（开发用单实例）
+docker run -d -p 6379:6379 valkey/valkey:9.1.2 valkey-server --requirepass devpassword
 
 # 设置环境变量
-export REDIS_HOST=localhost
-export REDIS_PORT=6379
-export REDIS_PASSWORD=devpassword
+export VALKEY_HOST=localhost
+export VALKEY_PORT=6379
+export VALKEY_PASSWORD=devpassword
 export FLASK_SECRET_KEY=dev-secret-key
 export LOG_LEVEL=DEBUG
 
@@ -1081,13 +1081,13 @@ celery -A task_manager.worker worker --loglevel=DEBUG
 [source,bash]
 ----
 # 构建所有镜像
-docker-compose build
+docker compose build
 
 # 构建特定服务
-docker-compose build celery
+docker compose build celery
 
 # 不使用缓存重新构建
-docker-compose build --no-cache
+docker compose build --no-cache
 ----
 
 == 调试
@@ -1105,12 +1105,12 @@ docker exec -it wis2downloader-celery-1 \
   celery -A task_manager.worker inspect reserved
 ----
 
-=== Redis 检查
+=== Valkey 检查
 
 [source,bash]
 ----
-# 连接到 Redis（使用环境变量中的密码）
-docker exec -it redis redis-cli -a $REDIS_PASSWORD
+# 连接到 Valkey（使用环境变量中的密码）
+docker exec -it valkey valkey-cli -a $VALKEY_PASSWORD
 
 # 列出订阅
 HGETALL global:subscriptions
@@ -1126,7 +1126,7 @@ KEYS gdc:cache:*
 TTL gdc:cache:CMA
 ----
 
-NOTE: 所有 Redis 命令都需要身份验证。`-a $REDIS_PASSWORD` 标志从您的环境中传递密码。
+NOTE: 所有 Valkey 命令都需要身份验证。`-a $VALKEY_PASSWORD` 标志从您的环境中传递密码。
 
 === MQTT 调试
 

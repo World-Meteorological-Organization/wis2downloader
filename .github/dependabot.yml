@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: pip
+    directories:
+      - /containers
+      - /modules/subscription_manager
+      - /modules/task_manager
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories:
+      - /containers/backend
+      - /containers/docs
+      - /containers/ui
+    schedule:
+      interval: weekly
+
+  # Upstream images in docker-compose.yaml (valkey, loki, prometheus, grafana)
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly

@@ -10,12 +10,12 @@ Get WIS2 Downloader running and downloading data in a few minutes.
 == Prerequisites
 
 * https://docs.docker.com/get-docker/[Docker] 20.10+
-* https://docs.docker.com/compose/install/[Docker Compose] 2.0+
+* https://docs.docker.com/compose/install/[Docker Compose] 2.24+
 * Network access to a WIS2 Global Broker (port 443)
 
 == 1. Download and Extract
 
-Download the https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[latest release] tarball and extract it:
+Download `wis2downloader-<version>.tar.gz` from the https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[latest release] (not the "Source code" archive) and extract it. The bundle runs the published images; nothing is built locally.
 
 [source,bash]
 ----
@@ -23,7 +23,7 @@ tar -xzf wis2downloader-*.tar.gz
 cd wis2downloader-*
 ----
 
-TIP: To follow the latest development version instead, clone the repository: `git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`
+TIP: To follow the latest development version instead, clone the repository (`git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`) and build the images with `docker compose build`.
 
 == 2. Configure
 
@@ -34,7 +34,7 @@ Run the setup script to create a `.env` file with randomised secrets:
 bash setup.sh
 ----
 
-This copies `default.env` to `.env` and generates random values for `FLASK_SECRET_KEY` and `REDIS_PASSWORD`. Review `.env` and adjust any settings if needed — the defaults are suitable for a single-machine deployment.
+This copies `default.env` to `.env` and generates random values for `FLASK_SECRET_KEY` and `VALKEY_PASSWORD`. Review `.env` and adjust any settings if needed — the defaults are suitable for a single-machine deployment.
 
 IMPORTANT: Keep `.env` secure. It contains credentials and should not be committed to version control.
 
@@ -71,7 +71,7 @@ mkdir -p downloads
 sudo chown wis2:wis2 downloads
 ----
 
-NOTE: If UID 10001 or GID 988 conflict with existing users on your system, override them by setting `WIS2DOWNLOADER_UID` and `WIS2DOWNLOADER_GID` in your `.env` before running `docker compose up`. Use the matching values in the commands above. If you change `WIS2DOWNLOADER_UID` or `WIS2DOWNLOADER_GID` after having already built the images, rebuild them with `docker compose build` before restarting.
+NOTE: If UID 10001 or GID 988 conflict with existing users on your system, override them by setting `WIS2DOWNLOADER_UID` and `WIS2DOWNLOADER_GID` in your `.env` before running `docker compose up`. Use the matching values in the commands above. The containers pick up changed values on `docker compose up -d`.
 
 NOTE: On macOS and Windows (Docker Desktop) this step is not required — Docker Desktop handles volume permissions automatically.
 
@@ -84,7 +84,7 @@ If you cannot create a matching user, see the link:admin-guide.html#_volume_perm
 docker compose up -d
 ----
 
-This starts all services: subscription manager, MQTT subscribers (France and Brazil Global Brokers), Celery workers (high-priority, small-files, and large-files queues), Redis, Prometheus, Grafana, and Loki.
+This starts all services: subscription manager, MQTT subscribers (France and Brazil Global Brokers), Celery workers (high-priority, small-files, and large-files queues), Valkey, Prometheus, Grafana, and Loki.
 
 Check everything is running:
 

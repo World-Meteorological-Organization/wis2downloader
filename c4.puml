@@ -13,7 +13,7 @@ System_Boundary(core_system, "WIS2 Downloader System") {
     Container(frontend_app, "Frontend Web Application", "Web Browser (HTML, CSS, JavaScript)", "Provides a user interface to search WIS2 Global Catalogues and manage subscriptions via the API.")
     Container(subscription_manager, "Subscription Manager", "Python (Flask)", "Manages subscriptions, exposes API, and provides a web UI for configuration. Exposes Prometheus metrics.")
     Container(celery_worker, "Celery Worker", "Python (Celery)", "Asynchronously downloads data based on subscriptions. Writes Prometheus metrics to shared volume.")
-    Container(redis, "Redis", "Data Store", "Message broker for Celery tasks, stores task results, and used for distributed locks/tracking.")
+    Container(valkey, "Valkey", "Data Store", "Message broker for Celery tasks, stores task results, and used for distributed locks/tracking.")
 
     Container(prometheus, "Prometheus", "Monitoring System (Go)", "Collects metrics from the Subscription Manager and Celery workers.")
     Container(loki, "Loki", "Log Aggregation System (Go)", "Collects logs from all Docker containers.")
@@ -32,15 +32,15 @@ Rel(frontend_app, external_wis2_catalogue, "Searches and retrieves metadata from
 Rel(frontend_app, loki, "Sends logs to", "Docker Logging Driver")
 
 
-Rel(subscription_manager, celery_worker, "Dispatches tasks to", "Redis (Celery)")
-Rel(subscription_manager, redis, "Stores/Retrieves configuration and dispatches tasks", "Redis")
+Rel(subscription_manager, celery_worker, "Dispatches tasks to", "Valkey (Celery)")
+Rel(subscription_manager, valkey, "Stores/Retrieves configuration and dispatches tasks", "Valkey")
 Rel(subscription_manager, prometheus, "Exposes metrics to", "HTTP /metrics endpoint")
 Rel(subscription_manager, loki, "Sends logs to", "Docker Logging Driver")
 
 Rel(subscription_manager, external_wis2_broker, "Subscribes to WIS2 topics", "MQTT(S)")
 Rel(external_wis2_broker, subscription_manager, "Sends notifications on data availability", "MQTT(S)")
 
-Rel(celery_worker, redis, "Retrieves tasks and stores results", "Redis")
+Rel(celery_worker, valkey, "Retrieves tasks and stores results", "Valkey")
 Rel(celery_worker, external_wis2_cache, "Downloads data from", "HTTP/S")
 Rel(celery_worker, subscription_manager, "Writes Prometheus metrics to shared volume for", "Filesystem Mount")
 Rel(celery_worker, loki, "Sends logs to", "Docker Logging Driver")

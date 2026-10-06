@@ -1,0 +1,261 @@
+# Action to perform Trivy scans etc.
+# Use actions hashes, not tags. E.g. https://blog.rafaelgss.dev/why-you-should-pin-actions-by-commit-hash
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * 1"  # weekly (Mon. 3am)
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# All actions are pinned to commit SHAs (trivy-action tags were hijacked in 2026).
+# Scans always gate the build; only the code scanning upload is best-effort on fork PRs,
+# where GITHUB_TOKEN is read-only. Reports are always kept as artifacts.
+env:
+  TRIVY_SEVERITY: CRITICAL,HIGH
+  TRIVY_SKIP_DIRS: # placeholder, include all dirs at the moment
+  TRIVY_FILE_PATTERNS: pip:requirements-.*\.txt  # also scan containers/requirements-frozen.txt
+  TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2  # avoids GHCR rate limits
+  TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db:1
+  IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+
+jobs:
+  trivy-fs:
+    name: Trivy repo scan (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-26.04] # Github actions migrating to u.26 as of 16-Oct-26.
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Scan dependencies, IaC and secrets (SARIF)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig,secret
+          skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
+          format: sarif
+          output: trivy-fs.sarif
+          exit-code: "0"
+
+      - name: Save SARIF report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always()
+        with:
+          name: trivy-fs-${{ matrix.runner }}
+          path: trivy-fs.sarif
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
+        if: always()
+        continue-on-error: ${{ env.IS_FORK_PR == 'true' }}
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs-${{ matrix.runner }}
+
+      - name: Fail on fixable high/critical findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig,secret
+          skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
+          severity: ${{ env.TRIVY_SEVERITY }}
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+          skip-setup-trivy: true
+
+  trivy-image:
+    name: Trivy image scan (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            context: .
+          - service: ui
+            context: .
+          - service: valkey
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Resolve image
+        id: image
+        env:
+          SERVICE: ${{ matrix.service }}
+          BUILT: ${{ matrix.context != '' }}
+        run: |
+          if [ "$BUILT" = true ]; then
+            echo "ref=wis2downloader-${SERVICE}:scan" >> "$GITHUB_OUTPUT"
+          else
+            touch .env  # compose config needs the env_file to exist
+            ref=$(docker compose config --no-interpolate --format json | jq -r --arg s "$SERVICE" '.services[$s].image')
+            echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
+        if: matrix.context
+
+      - name: Build image
+        if: matrix.context
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: containers/${{ matrix.service }}/Dockerfile
+          load: true
+          push: false
+          tags: wis2downloader-${{ matrix.service }}:scan
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Scan image (SARIF)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}
+          scanners: vuln,secret
+          vuln-type: os,library  # Trivy default, made explicit
+          format: sarif
+          output: trivy-image.sarif
+          exit-code: "0"
+
+      - name: Save SARIF report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always()
+        with:
+          name: trivy-image-${{ matrix.service }}
+          path: trivy-image.sarif
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
+        if: always()
+        continue-on-error: ${{ env.IS_FORK_PR == 'true' }}
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image-${{ matrix.service }}
+
+      - name: Fail on fixable high/critical findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}
+          scanners: vuln,secret
+          vuln-type: os,library  # Trivy default, made explicit
+          severity: ${{ env.TRIVY_SEVERITY }}
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+          skip-setup-trivy: true
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
+        with:
+          languages: python, actions
+
+      - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
+
+  # Weekly: scan the images of the latest release (what users run) and track findings in one issue.
+  # Not a gate: fixing them needs a patch release (bump __version__, tag), which rebuilds the images.
+  trivy-release:
+    name: Trivy scan of latest release
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      LABEL: release-vulnerabilities
+
+    steps:
+      - name: Set up Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567  # v0.3.1
+        with:
+          version: v0.70.0  # same as trivy-action v0.36.0
+
+      - name: Scan release images
+        id: scan
+        run: |
+          tag=$(gh release list --exclude-drafts --limit 1 --json tagName -q '.[0].tagName')
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if [ -z "$tag" ]; then
+            echo "No releases yet; nothing to scan."
+            exit 0
+          fi
+          gh release download "$tag" -p docker-compose.images.yml
+          images=$(sed -n 's|^ *image: *\(.*/wis2downloader-[^ ]*\)$|\1|p' docker-compose.images.yml | sort -u)
+          [ -n "$images" ] || { echo "::error::No wis2downloader images in the ${tag} images file"; exit 1; }
+          : > findings.md
+          for ref in $images; do
+            trivy image --quiet --scanners vuln --severity "$TRIVY_SEVERITY" --ignore-unfixed \
+              --format json --output scan.json "$ref"
+            jq -r --arg ref "${ref%@*}" '[.Results[]?.Vulnerabilities[]?] | unique_by(.VulnerabilityID + .PkgName)
+              | select(length > 0)
+              | "### `\($ref)`\n\n| CVE | Severity | Package | Installed | Fixed |\n|---|---|---|---|---|\n"
+                + (map("| \(.VulnerabilityID) | \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \(.FixedVersion) |")
+                   | join("\n")) + "\n"' scan.json >> findings.md
+          done
+          cat findings.md
+
+      - name: Update tracking issue
+        if: steps.scan.outputs.tag != ''
+        env:
+          TAG: ${{ steps.scan.outputs.tag }}
+        run: |
+          issue=$(gh issue list --label "$LABEL" --state open --json number -q '.[0].number' 2>/dev/null || true)
+          title="Fixable vulnerabilities in release ${TAG} images"
+          if [ -s findings.md ]; then
+            gh label create "$LABEL" --color B60205 --force \
+              --description "Fixable HIGH/CRITICAL CVEs in the latest release images"
+            {
+              echo "The weekly Trivy scan of the **${TAG}** release images found fixable HIGH/CRITICAL vulnerabilities."
+              echo "A patch release rebuilds the images with OS fixes; library fixes need a dependency bump first."
+              echo
+              cat findings.md
+              echo
+              echo "_Updated by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}_"
+            } > body.md
+            if [ "$(wc -c < body.md)" -gt 64000 ]; then  # issue bodies are limited to 65536 characters
+              head -c 64000 body.md > body.tmp
+              printf '\n\n_Truncated; the full list is in the run log._\n' >> body.tmp
+              mv body.tmp body.md
+            fi
+            if [ -n "$issue" ]; then
+              gh issue edit "$issue" --title "$title" --body-file body.md
+            else
+              gh issue create --title "$title" --label "$LABEL" --body-file body.md
+            fi
+          elif [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "The weekly scan of ${TAG} found no fixable HIGH/CRITICAL vulnerabilities."
+          fi

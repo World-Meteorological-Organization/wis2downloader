@@ -6,7 +6,7 @@ MQTT client for connecting to WIS2 Global Brokers and receiving notifications.
 
 This module provides:
 - MQTT client with TLS/WebSocket support
-- Redis PubSub listener for subscription commands
+- Valkey PubSub listener for subscription commands
 - Automatic reconnection on connection failures
 - Integration with Celery for task dispatch
 
@@ -25,12 +25,12 @@ This module provides:
 |------|-------------|
 | `manager.py` | Entry point, thread management |
 | `subscriber.py` | MQTT client wrapper |
-| `command_listener.py` | Redis PubSub listener for commands |
+| `command_listener.py` | Valkey PubSub listener for commands |
 
 ## Architecture
 
 ```
-┌─────────────────┐     Redis PubSub      ┌──────────────────┐
+┌─────────────────┐     Valkey PubSub      ┌──────────────────┐
 │  Subscription   │ ──────────────────────▶│ CommandListener  │
 │    Manager      │    (commands)         │    (Thread)      │
 └─────────────────┘                       └────────┬─────────┘

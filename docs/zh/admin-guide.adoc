@@ -19,8 +19,36 @@ WMO/气象领域术语在正式使用前应由母语人士审阅。
 
 * Docker 20.10+
 * Docker Compose 2.0+
-* 最少 4GB 内存（生产环境建议 8GB）
 * 能访问 WIS2 全球代理的网络（端口 443）
+
+=== 系统要求
+
+[cols="1,1,1,3"]
+|===
+| |最低 |推荐 |说明
+
+|RAM
+|4 GB
+|8 GB
+|容器内存限制合计约 7 GB（参见 <<container-memory-limits>>）
+
+|CPU
+|2 vCPU
+|4 vCPU
+|下载主要受网络限制
+
+|系统磁盘
+|20 GB
+|30 GB
+|镜像（约 3 GB）、构建缓存、Loki 和 Prometheus 数据
+
+|数据磁盘
+|每日数据量 × 保留天数 + 25%
+|独立卷
+|大量小文件可能在空间用尽前耗尽 inode：请使用 XFS 或 `mkfs.ext4 -i 4096`
+|===
+
+以上数值基于空闲状态的服务栈估算。请根据您的订阅测量峰值内存（`docker stats`）和每日数据量（`wis2downloader_downloads_bytes_total`）。
 
 === 安装
 
@@ -45,17 +73,18 @@ docker plugin install grafana/loki-docker-driver:3.6.7-${ARCH} --alias loki --gr
 
 [source,bash]
 ----
-docker-compose up -d
+docker compose up -d
 ----
 
 === 安全配置
 
 IMPORTANT: 在部署到生产环境之前，必须在 `.env` 文件中配置以下安全设置：
 
-1. **`REDIS_PASSWORD`** - 设置一个强大的唯一密码（必填）
+1. **`VALKEY_PASSWORD`** - 设置一个强大的唯一密码（必填）
 2. **`FLASK_SECRET_KEY`** - 设置一个加密随机密钥（必填）
-3. **`FLASK_DEBUG`** - 生产环境中设置为 `false`
-4. **Grafana 密码** - 首次登录后从默认的 `admin/admin` 更改
+3. **`SUBSCRIPTIONS_ENCRYPTION_KEY`** - 用于加密订阅文件中的订阅凭据（必填，由 `setup.sh` 生成）。请备份：没有它将无法恢复已保存的凭据。
+4. **`FLASK_DEBUG`** - 生产环境中设置为 `false`
+5. **Grafana 密码** - 首次登录后从默认的 `admin/admin` 更改
 
 `.env` 文件包含敏感凭据。请确保：
 
@@ -109,7 +138,7 @@ location / {
 
 Celery worker 在容器内将文件写入 `/data`，对应主机上的 `HOST_DATA_PATH`（默认：`./downloads/`）。
 
-IMPORTANT: 如果在 `.env` 中更改了 `WIS2DOWNLOADER_UID` 或 `WIS2DOWNLOADER_GID`，请在重启前执行 `docker compose build` 重新构建镜像，并在下方命令中使用对应的值。
+IMPORTANT: 如果在 `.env` 中更改了 `WIS2DOWNLOADER_UID` 或 `WIS2DOWNLOADER_GID`，请执行 `docker compose up -d` 使其生效，并在下方命令中使用对应的值。
 
 ==== 选项 1：创建匹配的用户/组（推荐）
 
@@ -163,7 +192,7 @@ chmod 777 downloads
 [source,bash]
 ----
 # 启动 celery 容器
-docker-compose up -d celery
+docker compose up -d celery
 
 # 从容器内部测试写入权限
 docker exec celery touch /data/test-write && echo "Write OK" || echo "Write FAILED"
@@ -204,7 +233,7 @@ NOTE: 以下示例使用 `localhost`。如果系统部署在远程服务器上�
 [source,bash]
 ----
 # 检查所有服务是否正在运行
-docker-compose ps
+docker compose ps
 
 # 检查健康检查端点（订阅管理器）
 curl http://localhost:5002/health
@@ -213,7 +242,7 @@ curl http://localhost:5002/health
 curl -o /dev/null -s -w "%{http_code}" http://localhost:8080
 
 # 查看日志
-docker-compose logs -f subscriber
+docker compose logs -f subscriber
 ----
 
 == 配置
@@ -236,6 +265,16 @@ docker-compose logs -f subscriber
 |_必填_
 |Flask 会话密钥（未设置时应用将失败）
 
+|`SUBSCRIPTIONS_ENCRYPTION_KEY`
+|string
+|_必填_
+|用于加密订阅文件中凭据的 Fernet 密钥（缺失或无效时订阅管理器将无法启动）
+
+|`HOST_SUBSCRIPTIONS_PATH`
+|path
+|`./subscriptions`
+|存放 `subscriptions.json` 的主机目录
+
 |`FLASK_DEBUG`
 |boolean
 |`false`
@@ -254,12 +293,17 @@ docker-compose logs -f subscriber
 |`WIS2DOWNLOADER_UID`
 |integer
 |`10001`
-|构建容器镜像时使用的用户 ID。必须与卷写入所需的主机目录所有者匹配。
+|容器运行时使用的用户 ID。必须与卷写入所需的主机目录所有者匹配。
 
 |`WIS2DOWNLOADER_GID`
 |integer
 |`988`
-|构建容器镜像时使用的组 ID。必须与卷写入所需的主机目录所属组匹配。
+|容器运行时使用的组 ID。必须与卷写入所需的主机目录所属组匹配。
+
+|`WIS2DOWNLOADER_BIND_ADDRESS`
+|string
+|`127.0.0.1`
+|已发布端口（API、UI、Grafana、Prometheus、Loki）监听的主机地址。设为 `0.0.0.0` 以允许其他机器访问。
 
 |`HOST_DATA_PATH`
 |path
@@ -309,38 +353,38 @@ docker-compose logs -f subscriber
 |用于重启后恢复的持久会话 ID
 |===
 
-==== Redis 设置
+==== Valkey 设置
 
 [cols="2,1,1,4"]
 |===
 |变量 |类型 |默认值 |说明
 
-|`REDIS_HOST`
+|`VALKEY_HOST`
 |string
-|`redis`
-|Redis 服务器主机名
+|`valkey`
+|Valkey 服务器主机名
 
-|`REDIS_PORT`
+|`VALKEY_PORT`
 |integer
 |`6379`
-|Redis 服务器端口
+|Valkey 服务器端口
 
-|`REDIS_DATABASE`
+|`VALKEY_DATABASE`
 |integer
 |`0`
-|Redis 数据库编号
+|Valkey 数据库编号
 
-|`REDIS_PASSWORD`
+|`VALKEY_PASSWORD`
 |string
 |_必填_
-|Redis 认证密码（未设置时应用将失败）
+|Valkey 认证密码（未设置时应用将失败）
 
-|`REDIS_TTL_SECONDS`
+|`VALKEY_TTL_SECONDS`
 |integer
 |`3600`
 |去重键的 TTL
 
-|`REDIS_MESSAGE_LOCK`
+|`VALKEY_MESSAGE_LOCK`
 |integer
 |`300`
 |防止并发下载的锁过期时间
@@ -354,13 +398,43 @@ docker-compose logs -f subscriber
 
 |`CELERY_BROKER_URL`
 |string
-|`redis://:${REDIS_PASSWORD}@redis:6379/0`
+|`redis://:${VALKEY_PASSWORD}@valkey:6379/0`
 |Celery 代理连接字符串（注意密码格式）
 
 |`CELERY_RESULT_BACKEND`
 |string
-|`redis://:${REDIS_PASSWORD}@redis:6379/1`
+|`redis://:${VALKEY_PASSWORD}@valkey:6379/1`
 |结果后端连接字符串（注意密码格式）
+
+|`DOWNLOAD_MAX_SECONDS`
+|integer
+|`1800`
+|单次下载的最长时间；超时的下载以 `DownloadTimeoutError` 失败
+
+|`DOWNLOAD_ALLOW_PRIVATE_ADDRESSES`
+|boolean
+|`false`
+|允许从私有、回环和链路本地地址下载（例如本地网络上的缓存）。被阻止的下载以 `BlockedAddressError` 失败。
+|===
+
+[[container-memory-limits]]
+==== 容器内存限制
+
+内存限制在 `docker-compose.yaml` 中按服务设置，可在 `.env` 中覆盖。Valkey 不设限制。
+
+[cols="2,1,3"]
+|===
+|变量 |默认值 |服务
+
+|`WORKER_MEMORY_LIMIT` |`1g` |下载 worker（每个）
+|`SCHEDULER_MEMORY_LIMIT` |`512m` |调度器 worker
+|`BEAT_MEMORY_LIMIT` |`256m` |Celery beat
+|`SUBSCRIBER_MEMORY_LIMIT` |`256m` |订阅者（每个）
+|`SUBSCRIPTION_MANAGER_MEMORY_LIMIT` |`256m` |订阅管理器
+|`UI_MEMORY_LIMIT` |`512m` |Web 界面
+|`GRAFANA_MEMORY_LIMIT` |`512m` |Grafana
+|`PROMETHEUS_MEMORY_LIMIT` |`512m` |Prometheus
+|`LOKI_MEMORY_LIMIT` |`1g` |Loki
 |===
 
 ==== 下载过滤
@@ -396,15 +470,10 @@ docker-compose logs -f subscriber
 |`${WIS2DOWNLOADER_BASE_URL}:3000`
 |用于在仪表板视图中嵌入 Grafana 面板的 URL
 
-|`STORAGE_SECRET`
-|string
-|`wis2box-rx-secret`
-|NiceGUI 会话存储密钥 — 生产环境中设置唯一值
-
 |`GDC_CACHE_TTL_SECONDS`
 |integer
 |`21600`
-|在 Redis 中缓存 GDC 目录数据的秒数（默认 6 小时）；设置为 `0` 始终获取实时数据
+|在 Valkey 中缓存 GDC 目录数据的秒数（默认 6 小时）；设置为 `0` 始终获取实时数据
 |===
 
 === 文件结构
@@ -418,6 +487,7 @@ wis2downloader/
 │   └── prometheus/              # Prometheus scrape config
 ├── containers/                  # Dockerfiles
 ├── downloads/                   # Downloaded data (mounted volume)
+├── subscriptions/               # subscriptions.json (mounted volume)
 ├── modules/                     # Python modules
 │   ├── shared/                  # Shared utilities
 │   ├── subscriber/              # MQTT subscriber
@@ -431,19 +501,19 @@ wis2downloader/
 
 == 扩展
 
-=== Redis
+=== Valkey
 
-系统使用单个 Redis 实例用于：
+系统使用单个 Valkey 实例用于：
 
 * 服务间的发布/订阅消息传递
 * 订阅状态存储
 * 去重跟踪
 * Celery 任务队列和结果
 
-系统使用单个 Redis 实例，不提供高可用性。无论规模大小，确保 Redis 数据持久化：
+系统使用单个 Valkey 实例，不提供高可用性。无论规模大小，确保 Valkey 数据持久化：
 
-* 启用 Redis 持久化（AOF + RDB）
-* 实施定期的 Redis dump 备份
+* 启用 Valkey 持久化（AOF + RDB）
+* 实施定期的 Valkey dump 备份
 
 === 扩展 Worker
 
@@ -485,31 +555,15 @@ celery-workers-small-files:
 
 [source,yaml]
 ----
-  subscriber-france:
-    container_name: subscriber-france
-    restart: always
-    build:
-      context: .
-      dockerfile: ./containers/subscriber/Dockerfile
-    env_file: *default-env
-    environment:
-      GLOBAL_BROKER_HOST: globalbroker.meteo.fr
-      GLOBAL_BROKER_PORT: 443
-      GLOBAL_BROKER_USERNAME: everyone
-      GLOBAL_BROKER_PASSWORD: everyone
-      MQTT_PROTOCOL: websockets
-    depends_on:
-      - redis
-    networks:
-      - redis-net
-    logging: *default-logging
-
   subscriber-china:
     container_name: subscriber-china
     restart: always
-    build:
-      context: .
-      dockerfile: ./containers/subscriber/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: "${SUBSCRIBER_MEMORY_LIMIT:-256m}"
+    image: wis2downloader-backend
+    build: *backend-build
     env_file: *default-env
     environment:
       GLOBAL_BROKER_HOST: gb.wis.cma.cn
@@ -518,15 +572,21 @@ celery-workers-small-files:
       GLOBAL_BROKER_PASSWORD: everyone
       MQTT_PROTOCOL: websockets
     depends_on:
-      - redis
+      - valkey
     networks:
-      - redis-net
-    logging: *default-logging
+      - valkey-net
+    logging: *loki-logging
+    command: ["subscriber_start"]
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "subscriber_start"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 ----
 
 IMPORTANT: 每个订阅者必须有唯一的 `container_name`。
 
-所有订阅者共享相同的 Redis 后端，因此通过 API 创建的订阅会被所有订阅者实例接收。下载会进行去重，因此即使通知来自多个代理，同一文件也不会被下载两次。
+所有订阅者共享相同的 Valkey 后端，因此通过 API 创建的订阅会被所有订阅者实例接收。下载会进行去重，因此即使通知来自多个代理，同一文件也不会被下载两次。
 
 == 监控
 
@@ -534,7 +594,7 @@ IMPORTANT: 每个订阅者必须有唯一的 `container_name`。
 
 指标端点：`http://localhost:5002/metrics`
 
-NOTE: 指标使用 `HINCRBYFLOAT` 原子操作存储在 Redis 中，并以 Prometheus 文本格式在 `/metrics` 端点公开。这种方式在多个 Celery worker 容器之间是安全的，无需共享文件系统或 `prometheus_client` 多进程目录。
+NOTE: 指标使用 `HINCRBYFLOAT` 原子操作存储在 Valkey 中，并以 Prometheus 文本格式在 `/metrics` 端点公开。这种方式在多个 Celery worker 容器之间是安全的，无需共享文件系统或 `prometheus_client` 多进程目录。
 
 ==== 可用指标
 
@@ -636,13 +696,13 @@ IMPORTANT: 首次登录后更改默认 Grafana 密码，或在生产部署中通
 [source,bash]
 ----
 # 所有服务
-docker-compose logs -f
+docker compose logs -f
 
 # 特定服务
-docker-compose logs -f celery-workers-small-files
+docker compose logs -f celery-workers-small-files
 
 # 带时间戳
-docker-compose logs -f -t subscriber
+docker compose logs -f -t subscriber
 ----
 
 日志也由 Loki 收集，可在 Grafana 中查询。
@@ -651,16 +711,24 @@ docker-compose logs -f -t subscriber
 
 === 备份
 
-==== Redis 数据
+==== Valkey 数据
 
 [source,bash]
 ----
 # 触发 RDB 快照
-docker exec redis redis-cli -a $REDIS_PASSWORD BGSAVE
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD BGSAVE
 
 # 复制快照
-docker cp redis:/data/dump.rdb ./backup/
+docker cp valkey:/data/dump.rdb ./backup/
 ----
+
+==== 订阅
+
+订阅管理器在每次更改后及启动时将所有订阅写入 `subscriptions/subscriptions.json`。文件中的凭据使用 `SUBSCRIPTIONS_ENCRYPTION_KEY` 加密；该文件仅容器用户可读。
+
+如果启动时 Valkey 中没有订阅，将从该文件恢复并通知订阅者。要在新主机上恢复或克隆部署，请在首次启动前复制 `subscriptions.json` 和 `SUBSCRIPTIONS_ENCRYPTION_KEY`。使用不同的密钥时，订阅将在不含凭据的情况下恢复。
+
+请将该文件与密钥一起备份，密钥需单独存放。
 
 ==== 下载的文件
 
@@ -677,10 +745,10 @@ WARNING: 这些操作是破坏性的。
 [source,bash]
 ----
 # 清除所有订阅
-docker exec redis redis-cli -a $REDIS_PASSWORD DEL global:subscriptions
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD DEL global:subscriptions
 
 # 清除去重缓存（允许重新下载所有数据）
-docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i redis redis-cli -a $REDIS_PASSWORD DEL
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD KEYS "wis2:notifications:*" | xargs -r docker exec -i valkey valkey-cli -a $VALKEY_PASSWORD DEL
 
 # 清除已下载的文件
 rm -rf downloads/*
@@ -691,14 +759,25 @@ rm -rf downloads/*
 [source,bash]
 ----
 # 重启单个服务
-docker-compose restart subscriber
+docker compose restart subscriber
 
 # 重启所有服务
-docker-compose restart
+docker compose restart
 
-# 完全重建（代码更改后）
-docker-compose build && docker-compose up -d
+# 源码检出：代码更改后重新构建
+docker compose build && docker compose up -d
 ----
+
+=== 更新
+
+通过发布包安装的系统可使用以下命令更新到同一版本系列（例如 1.0.x）中的最新补丁版本：
+
+[source,bash]
+----
+bash update.sh
+----
+
+该命令会下载该版本的 `docker-compose.images.yml`，拉取镜像，并提示是否重启服务。原镜像文件会保留为 `docker-compose.images.yml.<version>.bak`；如需回滚，请恢复该文件并执行 `docker compose up -d`。预发布版本以及新的次版本或主版本需通过新的发布包安装。
 
 == 故障排除
 
@@ -707,13 +786,13 @@ docker-compose build && docker-compose up -d
 [source,bash]
 ----
 # 检查日志
-docker-compose logs <service-name>
+docker compose logs <service-name>
 
 # 检查容器状态
-docker-compose ps
+docker compose ps
 
 # 验证环境
-docker-compose config
+docker compose config
 ----
 
 === 无下载
@@ -722,7 +801,7 @@ docker-compose config
 +
 [source,bash]
 ----
-docker-compose logs subscriber | grep -i connect
+docker compose logs subscriber | grep -i connect
 ----
 
 2. 验证订阅是否存在：
@@ -736,7 +815,7 @@ curl http://localhost:5002/subscriptions
 +
 [source,bash]
 ----
-docker-compose logs celery-workers-small-files | tail -50
+docker compose logs celery-workers-small-files | tail -50
 ----
 
 4. 检查队列深度：
@@ -746,20 +825,20 @@ docker-compose logs celery-workers-small-files | tail -50
 curl -s http://localhost:5002/metrics | grep queue_length
 ----
 
-=== Redis 连接错误
+=== Valkey 连接错误
 
-1. 检查 Redis 是否在运行：
+1. 检查 Valkey 是否在运行：
 +
 [source,bash]
 ----
-docker exec redis redis-cli -a $REDIS_PASSWORD PING
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD PING
 ----
 
 2. 验证网络连接：
 +
 [source,bash]
 ----
-docker network inspect wis2downloader_redis-net
+docker network inspect wis2downloader_valkey-net
 ----
 
 === 内存使用率高
@@ -782,14 +861,14 @@ docker network inspect wis2downloader_redis-net
 +
 [source,bash]
 ----
-docker-compose logs wis2downloader-ui | tail -30
+docker compose logs wis2downloader-ui | tail -30
 ----
 
-2. 确认 Redis 中存在 GDC 缓存键：
+2. 确认 Valkey 中存在 GDC 缓存键：
 +
 [source,bash]
 ----
-docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "gdc:cache:*"
+docker exec valkey valkey-cli -a $VALKEY_PASSWORD KEYS "gdc:cache:*"
 ----
 +
 如果没有键，初始抓取失败或仍在进行中。等待片刻后重新加载页面。
@@ -798,7 +877,7 @@ docker exec redis redis-cli -a $REDIS_PASSWORD KEYS "gdc:cache:*"
 +
 [source,bash]
 ----
-docker-compose restart wis2downloader-ui
+docker compose restart wis2downloader-ui
 ----
 
 4. 如果 GDC 抓取持续失败，检查从 UI 容器到公共 GDC 端点的网络连接：

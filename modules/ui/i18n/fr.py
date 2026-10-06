@@ -30,6 +30,7 @@ STRINGS: dict[str, str] = {
     'btn.show_metadata':    'Afficher les métadonnées',
     'btn.view_license':     'Voir la licence',
     'btn.accept':           'Accepter',
+    'btn.decline':          'Refuser',
     'btn.select':           'Sélectionner',
     'btn.unselect':         'Désélectionner',
     'btn.select_all':       'Tout sélectionner / désélectionner',
@@ -146,7 +147,7 @@ STRINGS: dict[str, str] = {
     'settings.gdc_desc': (
         'Les enregistrements sont récupérés depuis les trois GDC au '
         'démarrage et fusionnés. Les résultats sont mis en cache dans '
-        'Redis pendant 6 heures.'
+        'Valkey pendant 6 heures.'
     ),
     'settings.records':     '{name}\u00a0: {count} enregistrements',
     'settings.not_loaded':  '{name}\u00a0: non chargé',
@@ -197,4 +198,10 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     'aria.toggle_nav': 'Basculer la navigation',
     'aria.discrepancy': 'Le contenu diffère entre les catalogues',
+
+    # ------------------------------------------------------------------ #
+    # Cookie consent                                                     #
+    # ------------------------------------------------------------------ #
+    'cookies.title': 'Cookies',
+    'cookies.text': "Ce site peut enregistrer trois cookies dans votre navigateur pour mémoriser votre langue, votre dernière vue et l'état du menu (réduit ou non). Ils ne servent pas au suivi et ne sont pas partagés. Si vous refusez, rien n'est enregistré et la question vous sera reposée lors de votre prochaine visite.",
 }

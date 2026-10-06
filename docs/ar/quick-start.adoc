@@ -19,12 +19,12 @@
 == المتطلبات الأساسية
 
 * https://docs.docker.com/get-docker/[Docker] 20.10+
-* https://docs.docker.com/compose/install/[Docker Compose] 2.0+
+* https://docs.docker.com/compose/install/[Docker Compose] 2.24+
 * اتصال شبكي بـ Global Broker الخاص بـ WIS2 (المنفذ 443)
 
 == 1. التنزيل والاستخراج
 
-نزّل أرشيف https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[أحدث إصدار] واستخرج محتوياته:
+نزّل `wis2downloader-<version>.tar.gz` من https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[أحدث إصدار] (وليس أرشيف «Source code») واستخرج محتوياته. تستخدم هذه الحزمة الصور المنشورة، ولا يُبنى أي شيء محليًا.
 
 [source,bash]
 ----
@@ -32,7 +32,7 @@ tar -xzf wis2downloader-*.tar.gz
 cd wis2downloader-*
 ----
 
-TIP: للمتابعة مع أحدث إصدار تطويري، استنسخ المستودع: `git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`
+TIP: للمتابعة مع أحدث إصدار تطويري، استنسخ المستودع (`git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`) وابنِ الصور باستخدام `docker compose build`.
 
 == 2. التهيئة
 
@@ -43,7 +43,7 @@ TIP: للمتابعة مع أحدث إصدار تطويري، استنسخ ال�
 bash setup.sh
 ----
 
-يقوم هذا السكريبت بنسخ `default.env` إلى `.env` وتوليد قيم عشوائية لـ `FLASK_SECRET_KEY` و`REDIS_PASSWORD`. راجع ملف `.env` وعدّل الإعدادات إذا لزم الأمر — القيم الافتراضية مناسبة للنشر على جهاز واحد.
+يقوم هذا السكريبت بنسخ `default.env` إلى `.env` وتوليد قيم عشوائية لـ `FLASK_SECRET_KEY` و`VALKEY_PASSWORD`. راجع ملف `.env` وعدّل الإعدادات إذا لزم الأمر — القيم الافتراضية مناسبة للنشر على جهاز واحد.
 
 IMPORTANT: احتفظ بملف `.env` في مكان آمن. يحتوي على بيانات اعتماد حساسة ويجب عدم إدراجه في نظام إدارة الإصدارات.
 
@@ -80,7 +80,7 @@ mkdir -p downloads
 sudo chown wis2:wis2 downloads
 ----
 
-NOTE: إذا تعارض UID 10001 أو GID 988 مع مستخدمين موجودين في نظامك، يمكنك تجاوز هذه القيم بتعيين `WIS2DOWNLOADER_UID` و`WIS2DOWNLOADER_GID` في ملف `.env` قبل تشغيل `docker compose up`. استخدم القيم المقابلة في الأوامر أعلاه. إذا غيّرت `WIS2DOWNLOADER_UID` أو `WIS2DOWNLOADER_GID` بعد بناء الصور، أعد بناءها باستخدام `docker compose build` قبل إعادة التشغيل.
+NOTE: إذا تعارض UID 10001 أو GID 988 مع مستخدمين موجودين في نظامك، يمكنك تجاوز هذه القيم بتعيين `WIS2DOWNLOADER_UID` و`WIS2DOWNLOADER_GID` في ملف `.env` قبل تشغيل `docker compose up`. استخدم القيم المقابلة في الأوامر أعلاه. تطبّق الحاويات القيم المعدّلة عند تشغيل `docker compose up -d`.
 
 NOTE: على نظامَي macOS وWindows (Docker Desktop)، هذه الخطوة غير مطلوبة — يتولى Docker Desktop إدارة صلاحيات الأحجام تلقائيًا.
 
@@ -93,7 +93,7 @@ NOTE: على نظامَي macOS وWindows (Docker Desktop)، هذه الخطوة
 docker compose up -d
 ----
 
-يُشغّل هذا الأمر جميع الخدمات: مدير الاشتراكات، مشتركو MQTT (Global Brokers لفرنسا والبرازيل)، عمّال Celery (طوابير الأولوية العالية والملفات الصغيرة والملفات الكبيرة)، Redis، Prometheus، Grafana، وLoki.
+يُشغّل هذا الأمر جميع الخدمات: مدير الاشتراكات، مشتركو MQTT (Global Brokers لفرنسا والبرازيل)، عمّال Celery (طوابير الأولوية العالية والملفات الصغيرة والملفات الكبيرة)، Valkey، Prometheus، Grafana، وLoki.
 
 تحقق من تشغيل جميع الخدمات:
 
