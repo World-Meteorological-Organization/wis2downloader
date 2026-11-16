@@ -1,4 +1,4 @@
-FROM zauberzeug/nicegui:3.17.1
+FROM zauberzeug/nicegui:4.0.0
 
 # Pick up Debian security fixes not yet in the base image
 RUN apt-get update && \
