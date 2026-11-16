@@ -1,6 +1,9 @@
-from celery import Celery
+from collections.abc import Mapping
+import logging
 import os
 import sys
+
+from celery import Celery
 
 from shared.logging import setup_logging
 from shared.valkey_client import (VALKEY_HOST, VALKEY_PORT, VALKEY_PASSWORD)
@@ -29,6 +32,23 @@ CELERY_RESULT_BACKEND = f"redis://:{VALKEY_PASSWORD}@{VALKEY_HOST}:{VALKEY_PORT}
 app = Celery('tasks',
              broker=CELERY_BROKER_URL,
              result_backend=CELERY_RESULT_BACKEND)
+
+QUIET_RESULT_TASKS = frozenset({'task_manager.tasks.wis2.download_from_wis2'})
+
+
+class OmitReturnValue(logging.Filter):
+    """Drop the return value from Celery's success line for QUIET_RESULT_TASKS."""
+
+    def filter(self, record):
+        args = record.args
+        if isinstance(args, Mapping) and 'return_value' in args and args.get('name') in QUIET_RESULT_TASKS:
+            record.args = {**args, 'return_value': '<omitted>'}
+        return True
+
+
+# The download task returns a ~1 KB record per notification, which floods Loki
+# Add filter to avoid this.
+logging.getLogger('celery.app.trace').addFilter(OmitReturnValue())
 
 app.conf.worker_log_level = os.getenv("LOG_LEVEL", "DEBUG").upper()
 app.conf.result_expires = 300

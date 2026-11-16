@@ -376,6 +376,14 @@ def metrics_collector(func):
     def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
 
+        # Celery's success line omits the result (worker.OmitReturnValue); keep failures visible
+        if result.get('status') == STATUS_FAILED:
+            LOGGER.warning(
+                "Download failed: %s: %s (id=%s, data_id=%s, cache=%s, url=%s)",
+                result.get('error_class'), result.get('reason'), result.get('id'),
+                result.get('data_id'), result.get('global_cache'), result.get('download_url'),
+            )
+
         status_code = result.get('status', '')
         global_cache = result.get('global_cache', '') or 'unknown'
         error_class = result.get('error_class', '') or 'unknown'
@@ -404,7 +412,8 @@ def metrics_collector(func):
     return wrapper
 
 
-@app.task(bind=True)
+# Results are reported via metrics and the tracker, nothing reads them from the result backend
+@app.task(bind=True, ignore_result=True)
 @metrics_collector
 def download_from_wis2(self, job):
     # set up return dict
@@ -516,7 +525,6 @@ def download_from_wis2(self, job):
         try:
             raise self.retry(countdown=10, max_retries=10)
         except MaxRetriesExceededError:
-            LOGGER.warning(f"Max retries exceeded waiting for lock on {lock_key_identifier}")
             result['status'] = STATUS_FAILED
             result['reason'] = f"Could not acquire lock for {lock_key_identifier} after max retries"
             result['error_class'] = "LockAcquisitionError"
@@ -653,32 +661,28 @@ def download_from_wis2(self, job):
                     )
                 except urllib3.exceptions.ConnectTimeoutError as e:
                     result['status'] = STATUS_FAILED
-                    result['reason'] = f"Connection timeout error for {result['global_cache']}, see logs"
+                    result['reason'] = f"Connection timeout from {result['global_cache']}: {e}"
                     result['error_class'] = str(e.__class__.__name__)
-                    LOGGER.warning("Connection timeout %s for %s", e, result['global_cache'])
                     return result
                 except urllib3.exceptions.ReadTimeoutError as e:
                     result['status'] = STATUS_FAILED
-                    result['reason'] = f"Download timeout error for {result['global_cache']}, see logs"
+                    result['reason'] = f"Read timeout from {result['global_cache']}: {e}"
                     result['error_class'] = str(e.__class__.__name__)
-                    LOGGER.warning("Read timeout %s for %s", e, result['global_cache'])
                     return result
                 except urllib3.exceptions.MaxRetryError as e:
                     result['status'] = STATUS_FAILED
-                    result['reason'] = f"Maximum retries downloading from {result['global_cache']} exceeded"
+                    result['reason'] = f"Maximum retries downloading from {result['global_cache']} exceeded: {e}"
                     result['error_class'] = str(e.__class__.__name__)
                     return result
                 except BlockedAddressError as e:
                     result['status'] = STATUS_FAILED
                     result['reason'] = f"Download blocked: {e}"
                     result['error_class'] = "BlockedAddressError"
-                    LOGGER.warning("Blocked download of %s: %s", download_url, e)
                     return result
                 except Exception as e:
                     result['status'] = STATUS_FAILED
-                    result['reason'] = f"Error while downloading from {result['global_cache']}, see logs"
+                    result['reason'] = f"Error while downloading from {result['global_cache']}: {e}"
                     result['error_class'] = str(e.__class__.__name__)
-                    LOGGER.warning("Error %s while downloading from %s", e, result['global_cache'])
                     return result
 
                 if response.status != 200:
@@ -693,7 +697,6 @@ def download_from_wis2(self, job):
                     result['status'] = STATUS_FAILED
                     result['reason'] = f"HTTP {response.status} response from {result['global_cache']}"
                     result['error_class'] = "HTTPError"
-                    LOGGER.warning("HTTP %d (non-retryable) downloading %s", response.status, download_url)
                     return result
 
                 # Stream response body to a temp file.
@@ -705,15 +708,13 @@ def download_from_wis2(self, job):
                     )
                 except DownloadTimeoutError as e:
                     result['status'] = STATUS_FAILED
-                    result['reason'] = f"Download from {result['global_cache']} exceeded {DOWNLOAD_MAX_SECONDS}s"
+                    result['reason'] = f"Download from {result['global_cache']} exceeded {DOWNLOAD_MAX_SECONDS}s: {e}"
                     result['error_class'] = "DownloadTimeoutError"
-                    LOGGER.warning("Download time limit exceeded for %s: %s", download_url, e)
                     return result
                 except urllib3.exceptions.ReadTimeoutError as e:
                     result['status'] = STATUS_FAILED
-                    result['reason'] = f"Read timeout during download from {result['global_cache']}, see logs"
+                    result['reason'] = f"Read timeout during download from {result['global_cache']}: {e}"
                     result['error_class'] = str(e.__class__.__name__)
-                    LOGGER.warning("Read timeout during streaming from %s: %s", result['global_cache'], e)
                     return result
                 except OSError as e:
                     result['status'] = STATUS_FAILED
@@ -723,9 +724,8 @@ def download_from_wis2(self, job):
                     return result
                 except Exception as e:
                     result['status'] = STATUS_FAILED
-                    result['reason'] = f"Error during download from {result['global_cache']}, see logs"
+                    result['reason'] = f"Error during download from {result['global_cache']}: {e}"
                     result['error_class'] = str(e.__class__.__name__)
-                    LOGGER.warning("Error streaming from %s: %s", result['global_cache'], e)
                     return result
 
             finally:
@@ -810,7 +810,6 @@ def download_from_wis2(self, job):
     except Retry:
         raise
     except MaxRetriesExceededError:
-        LOGGER.warning(f"Max retries exceeded for HTTP error downloading {download_url}")
         result['status'] = STATUS_FAILED
         result['reason'] = f"Max retries exceeded for HTTP error from {result['global_cache']}"
         result['error_class'] = "HTTPError"
@@ -830,16 +829,3 @@ def download_from_wis2(self, job):
         set_status(data_id, 'by-data-id', final_status,
                    pubtime=pubtime if final_status == STATUS_SUCCESS else None)
         set_status(filehash, 'by-hash', final_status)
-
-
-# @ prov_dm_wrapper
-@app.task
-def decode_and_ingest(result):
-    if result.get('status') != STATUS_SUCCESS:
-        LOGGER.debug(
-            f"Skipping decode for job {result.get('id')} due to previous status: {result.get('status')}")
-        return result
-
-    LOGGER.info(f"Starting decode and ingest for {result.get('filepath')}")
-    # Add your data decoding and ingestion logic here
-    return result
