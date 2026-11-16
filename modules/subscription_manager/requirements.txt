@@ -4,6 +4,6 @@ paho-mqtt
 redis
 urllib3
 pyyaml
-prometheus_client>=0.20.0
-certifi>=2024.2.2
+prometheus_client>=0.26.0
+certifi>=2026.10.23
 cryptography

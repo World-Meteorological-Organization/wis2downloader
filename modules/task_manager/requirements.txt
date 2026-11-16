@@ -3,7 +3,7 @@ paho-mqtt
 urllib3
 redis
 celery[redis,gevent]
-prometheus_client>=0.20.0
-certifi>=2024.2.2
+prometheus_client>=0.26.0
+certifi>=2026.10.23
 python-magic>=0.4.27
-shapely>=2.0.0
+shapely>=2.2.0
