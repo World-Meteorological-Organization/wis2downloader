@@ -10,9 +10,9 @@ Set the following environment variables before running:
   API_BASE_URL       - Flask API base URL (default: http://localhost:5001)
   MQTT_HOST          - Mosquitto host (default: localhost)
   MQTT_PORT          - Mosquitto port (default: 1883)
-  REDIS_TEST_HOST    - Redis host reachable from the test runner (default: localhost)
-  REDIS_TEST_PORT    - Redis port (default: 6379)
-  REDIS_PASSWORD     - Redis password (default: ci_test_password)
+  VALKEY_TEST_HOST    - Valkey host reachable from the test runner (default: localhost)
+  VALKEY_TEST_PORT    - Valkey port (default: 6379)
+  VALKEY_PASSWORD     - Valkey password (default: ci_test_password)
 """
 import json
 import os
@@ -23,15 +23,15 @@ import paho.mqtt.publish as mqtt_publish
 import pytest
 import redis
 import requests
-from pywis_pubsub.publish import create_message, get_url_info
+from pywis_pubsub.wnm.publish import create_message, get_url_info
 
 TEST_FILE_URL = os.getenv("TEST_FILE_URL", "")
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:5001")
 MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
-REDIS_TEST_HOST = os.getenv("REDIS_TEST_HOST", "localhost")
-REDIS_TEST_PORT = int(os.getenv("REDIS_TEST_PORT", "6379"))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "ci_test_password")
+VALKEY_TEST_HOST = os.getenv("VALKEY_TEST_HOST", "localhost")
+VALKEY_TEST_PORT = int(os.getenv("VALKEY_TEST_PORT", "6379"))
+VALKEY_PASSWORD = os.getenv("VALKEY_PASSWORD", "ci_test_password")
 
 TEST_TOPIC = "origin/a/wis2/test-centre/data/core/test"
 TRACKER_PREFIX = "wis2:notifications:data:tracker:by-msg-id"
@@ -40,23 +40,23 @@ POLL_TIMEOUT_S = 120
 
 
 @pytest.fixture(scope="module")
-def redis_client():
+def valkey_client():
     r = redis.Redis(
-        host=REDIS_TEST_HOST,
-        port=REDIS_TEST_PORT,
-        password=REDIS_PASSWORD,
+        host=VALKEY_TEST_HOST,
+        port=VALKEY_TEST_PORT,
+        password=VALKEY_PASSWORD,
         socket_connect_timeout=5,
     )
     r.ping()
     return r
 
 
-def _poll_tracker(redis_client, msg_id: str, timeout: int = POLL_TIMEOUT_S) -> str:
-    """Poll the Redis tracker until status is set, then return it."""
+def _poll_tracker(valkey_client, msg_id: str, timeout: int = POLL_TIMEOUT_S) -> str:
+    """Poll the Valkey tracker until status is set, then return it."""
     key = f"{TRACKER_PREFIX}:{msg_id}"
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        raw = redis_client.hget(key, "status")
+        raw = valkey_client.hget(key, "status")
         if raw is not None:
             return raw.decode()
         time.sleep(POLL_INTERVAL_S)
@@ -84,15 +84,15 @@ def _make_notification(msg_id: str, data_id: str) -> dict:
 class TestDownloadFlow:
 
     @pytest.fixture(autouse=True)
-    def subscription(self, redis_client):
+    def subscription(self, valkey_client):
         """Create a subscription for the test topic, remove it after the test."""
         # Clear tracker and lock keys so tests don't share dedup state.
         # Tests use the same file URL (same hash), so without this the second
         # test's first delivery would be deduplicated against the first test's result.
         for pattern in (b"wis2:notifications:data:tracker:*", b"wis2:notification:data:lock:*"):
-            keys = redis_client.keys(pattern)
+            keys = valkey_client.keys(pattern)
             if keys:
-                redis_client.delete(*keys)
+                valkey_client.delete(*keys)
 
         # The subscriber's CommandListener polls at 1-second intervals, so any
         # commands queued by earlier steps (e.g. API integration tests) must be
@@ -109,7 +109,7 @@ class TestDownloadFlow:
         assert r.status_code == 201, f"Failed to create subscription: {r.text}"
         sub = r.json()
 
-        # Give the subscriber's CommandListener time to process the Redis
+        # Give the subscriber's CommandListener time to process the Valkey
         # pub/sub event and issue the MQTT SUBSCRIBE to Mosquitto.
         # QoS 0 drops messages published before the subscription is confirmed,
         # so we need to wait long enough even in a slow CI environment.
@@ -119,7 +119,7 @@ class TestDownloadFlow:
 
         requests.delete(f"{API_BASE_URL}/subscriptions/{sub['id']}")
 
-    def test_notification_triggers_successful_download(self, redis_client, subscription):
+    def test_notification_triggers_successful_download(self, valkey_client, subscription):
         msg_id = str(uuid.uuid4())
         data_id = str(uuid.uuid4())
 
@@ -134,13 +134,13 @@ class TestDownloadFlow:
             qos=0,
         )
         time.sleep(POLL_INTERVAL_S * 3)
-        status = _poll_tracker(redis_client, msg_id)
+        status = _poll_tracker(valkey_client, msg_id)
         assert status == "SUCCESS", (
             f"Expected download status SUCCESS, got '{status}'. "
             f"Check celery-workers-small-files logs for msg_id={msg_id}."
         )
 
-    def test_duplicate_notification_is_skipped(self, redis_client, subscription):
+    def test_duplicate_notification_is_skipped(self, valkey_client, subscription):
         """Publishing the same message ID twice must result in SKIPPED on the second delivery."""
         msg_id = str(uuid.uuid4())
         data_id = str(uuid.uuid4())
@@ -153,7 +153,7 @@ class TestDownloadFlow:
             topic=TEST_TOPIC, payload=payload,
             hostname=MQTT_HOST, port=MQTT_PORT, qos=0,
         )
-        first_status = _poll_tracker(redis_client, msg_id)
+        first_status = _poll_tracker(valkey_client, msg_id)
         assert first_status == "SUCCESS", f"First download got '{first_status}'"
 
         msg_id = str(uuid.uuid4())
@@ -168,7 +168,7 @@ class TestDownloadFlow:
         )
         # Allow time for the second task to be processed.
         time.sleep(POLL_INTERVAL_S * 3)
-        second_status = _poll_tracker(redis_client, msg_id)
+        second_status = _poll_tracker(valkey_client, msg_id)
         assert second_status in ("SKIPPED"), (
             f"Second delivery got unexpected status '{second_status}'"
         )

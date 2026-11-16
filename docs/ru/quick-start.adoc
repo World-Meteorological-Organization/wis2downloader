@@ -17,12 +17,12 @@
 == Предварительные требования
 
 * https://docs.docker.com/get-docker/[Docker] 20.10+
-* https://docs.docker.com/compose/install/[Docker Compose] 2.0+
+* https://docs.docker.com/compose/install/[Docker Compose] 2.24+
 * Сетевой доступ к WIS2 Global Broker (порт 443)
 
 == 1. Загрузка и распаковка
 
-Загрузите архив https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[последнего релиза] и распакуйте его:
+Загрузите `wis2downloader-<version>.tar.gz` из https://github.com/World-Meteorological-Organization/wis2downloader/releases/latest[последнего релиза] (не архив «Source code») и распакуйте его. Этот пакет использует опубликованные образы; локально ничего не собирается.
 
 [source,bash]
 ----
@@ -30,7 +30,7 @@ tar -xzf wis2downloader-*.tar.gz
 cd wis2downloader-*
 ----
 
-TIP: Для работы с последней версией разработки склонируйте репозиторий: `git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`
+TIP: Для работы с последней версией разработки склонируйте репозиторий (`git clone https://github.com/World-Meteorological-Organization/wis2downloader.git`) и соберите образы командой `docker compose build`.
 
 == 2. Настройка
 
@@ -41,7 +41,7 @@ TIP: Для работы с последней версией разработк
 bash setup.sh
 ----
 
-Скрипт копирует `default.env` в `.env` и генерирует случайные значения для `FLASK_SECRET_KEY` и `REDIS_PASSWORD`. Проверьте файл `.env` и при необходимости скорректируйте параметры — значения по умолчанию подходят для развёртывания на одной машине.
+Скрипт копирует `default.env` в `.env` и генерирует случайные значения для `FLASK_SECRET_KEY` и `VALKEY_PASSWORD`. Проверьте файл `.env` и при необходимости скорректируйте параметры — значения по умолчанию подходят для развёртывания на одной машине.
 
 IMPORTANT: Храните файл `.env` в безопасном месте. Он содержит конфиденциальные учётные данные и не должен добавляться в систему контроля версий.
 
@@ -78,7 +78,7 @@ mkdir -p downloads
 sudo chown wis2:wis2 downloads
 ----
 
-NOTE: Если UID 10001 или GID 988 конфликтуют с существующими пользователями системы, переопределите их, задав `WIS2DOWNLOADER_UID` и `WIS2DOWNLOADER_GID` в файле `.env` перед запуском `docker compose up`. Используйте соответствующие значения в командах выше. Если вы изменяете `WIS2DOWNLOADER_UID` или `WIS2DOWNLOADER_GID` после того, как образы уже были собраны, пересоберите их командой `docker compose build` перед перезапуском.
+NOTE: Если UID 10001 или GID 988 конфликтуют с существующими пользователями системы, переопределите их, задав `WIS2DOWNLOADER_UID` и `WIS2DOWNLOADER_GID` в файле `.env` перед запуском `docker compose up`. Используйте соответствующие значения в командах выше. Контейнеры применяют изменённые значения при выполнении `docker compose up -d`.
 
 NOTE: На macOS и Windows (Docker Desktop) этот шаг не требуется — Docker Desktop автоматически управляет правами доступа к томам.
 
@@ -91,7 +91,7 @@ NOTE: На macOS и Windows (Docker Desktop) этот шаг не требует
 docker compose up -d
 ----
 
-Эта команда запускает все сервисы: менеджер подписок, MQTT-подписчики (Global Broker Франции и Бразилии), рабочие процессы Celery (очереди высокого приоритета, малых и больших файлов), Redis, Prometheus, Grafana и Loki.
+Эта команда запускает все сервисы: менеджер подписок, MQTT-подписчики (Global Broker Франции и Бразилии), рабочие процессы Celery (очереди высокого приоритета, малых и больших файлов), Valkey, Prometheus, Grafana и Loki.
 
 Проверьте, что все сервисы работают:
 

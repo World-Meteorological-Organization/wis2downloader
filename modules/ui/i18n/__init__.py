@@ -8,10 +8,10 @@ Usage::
     ui.input(label=t('sidebar.save_directory'))
     t('subscriptions.folder', path='/data/synop')
 
-The current language is stored per-browser-session in ``app.storage.user['lang']``
-and defaults to English.  Call ``t()`` during render time (inside a
-``@ui.page`` handler or a NiceGUI event callback) so that the correct
-session storage is available.
+The current language comes from the browser's ``lang`` preference cookie
+(see ``prefs``) and defaults to English.  Call ``t()`` during render time
+(inside a ``@ui.page`` handler or a NiceGUI event callback) so that the
+page request is available.
 
 All translations fall back to English if a key is missing in the chosen
 language file.  If the key is missing in English too, the key string itself
@@ -24,7 +24,7 @@ NOTE: Machine-generated translations are provided as a starting point.
       which have established translations in WMO official documents.
 """
 
-from nicegui import app
+from prefs import get_pref
 
 from . import ar, en, es, fr, ru, zh
 
@@ -51,8 +51,9 @@ _STRINGS: dict[str, dict[str, str]] = {
 
 
 def current_lang() -> str:
-    """Return the active language code for the current session."""
-    return app.storage.user.get('lang', 'en')
+    """Return the active language code: the ``lang`` cookie if it is a known language, else English."""
+    lang = get_pref('lang')
+    return lang if lang in LANGUAGES else 'en'
 
 
 def is_rtl() -> bool:

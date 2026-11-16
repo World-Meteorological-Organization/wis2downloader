@@ -1,2 +1,3 @@
 include LICENSE README.md requirements.txt
-recursive-include subscription_manager
+recursive-include subscription_manager/static *
+recursive-include subscription_manager/templates *

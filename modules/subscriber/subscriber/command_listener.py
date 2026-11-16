@@ -4,7 +4,7 @@ import time
 from typing import TYPE_CHECKING
 
 import redis
-from shared import get_redis_client, setup_logging, DEFAULT_QUEUE
+from shared import get_valkey_client, setup_logging, DEFAULT_QUEUE
 
 if TYPE_CHECKING:
     from .subscriber import Subscriber
@@ -18,11 +18,11 @@ class CommandListener(threading.Thread):
         # initialise thread as daemon
         super().__init__(daemon=True)
         self.subscriber = subscriber
-        self.redis = get_redis_client()
-        self.pubsub = self.redis.pubsub(ignore_subscribe_messages=True)
+        self.valkey = get_valkey_client()
+        self.pubsub = self.valkey.pubsub(ignore_subscribe_messages=True)
         self.channel = channel
         self.stop_event = threading.Event()
-        LOGGER.info(f"Redis listener initialised for channel: {channel}")
+        LOGGER.info(f"Valkey listener initialised for channel: {channel}")
 
     def _reconnect(self):
         """Recreate pubsub and resubscribe after connection failure."""
@@ -30,7 +30,7 @@ class CommandListener(threading.Thread):
             self.pubsub.close()
         except Exception:
             pass
-        self.pubsub = self.redis.pubsub(ignore_subscribe_messages=True)
+        self.pubsub = self.valkey.pubsub(ignore_subscribe_messages=True)
         self.pubsub.subscribe(self.channel)
         LOGGER.info(f"Reconnected and resubscribed to channel: {self.channel}")
 
@@ -49,7 +49,7 @@ class CommandListener(threading.Thread):
                     self._process_command(message)
                 time.sleep(1)
             except redis.exceptions.ConnectionError as e:
-                LOGGER.error(f'Redis connection error {e}. Reconnecting in 5 seconds')
+                LOGGER.error(f'Valkey connection error {e}. Reconnecting in 5 seconds')
                 time.sleep(5)
                 try:
                     self._reconnect()
@@ -65,7 +65,7 @@ class CommandListener(threading.Thread):
             topic = command.get('topic')
 
             if not all([action, topic]):
-                LOGGER.warning(f'Invalid command received: {command}')
+                LOGGER.warning(f'Invalid command received: action={action}, topic={topic}')
                 return
 
             if action == 'subscribe':
@@ -82,7 +82,7 @@ class CommandListener(threading.Thread):
             elif action == 'add_subscription':
                 sub_id = command.get('sub_id')
                 if not sub_id:
-                    LOGGER.warning(f'add_subscription missing sub_id: {command}')
+                    LOGGER.warning(f'add_subscription missing sub_id for topic {topic}')
                     return
                 self.subscriber.add_subscription(
                     topic,
@@ -97,7 +97,7 @@ class CommandListener(threading.Thread):
             elif action == 'remove_subscription':
                 sub_id = command.get('sub_id')
                 if not sub_id:
-                    LOGGER.warning(f'remove_subscription missing sub_id: {command}')
+                    LOGGER.warning(f'remove_subscription missing sub_id for topic {topic}')
                     return
                 self.subscriber.remove_subscription(topic, sub_id)
                 LOGGER.info(f'Removed subscription {sub_id} from topic {topic}')
@@ -105,7 +105,7 @@ class CommandListener(threading.Thread):
             elif action == 'update_subscription':
                 sub_id = command.get('sub_id')
                 if not sub_id:
-                    LOGGER.warning(f'update_subscription missing sub_id: {command}')
+                    LOGGER.warning(f'update_subscription missing sub_id for topic {topic}')
                     return
                 # update is an upsert
                 self.subscriber.add_subscription(
@@ -122,7 +122,7 @@ class CommandListener(threading.Thread):
                 LOGGER.warning(f'Unknown action: {action}')
 
         except json.JSONDecodeError:
-            LOGGER.error(f'Failed to decode command: {message}')
+            LOGGER.error('Failed to decode command')
         except Exception as e:
             LOGGER.error(f'Unexpected error: {e}')
 

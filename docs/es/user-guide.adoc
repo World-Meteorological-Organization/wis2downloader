@@ -81,9 +81,9 @@ El cajón de navegación a la izquierda (a la derecha en modo RTL árabe) da acc
 |*Configuración*
 |Ver recuentos de registros GDC por catálogo y activar una actualización manual de datos
 
-|kbd:[Alt+7]
+|
 |*Documentación*
-|Muestra la documentación del proyecto
+|Abre la documentación en línea de esta versión en una pestaña nueva
 |===
 
 === Vista de catálogo
@@ -184,7 +184,7 @@ La vista *Suscripción manual* (kbd:[Alt+4]) incluye una sección de autenticaci
 |Token (enviado como `Authorization: Bearer <token>`)
 |===
 
-NOTE: Las credenciales se almacenan en Redis y se envían con cada solicitud de descarga de la suscripción. La contraseña y el token se ocultan en las respuestas de la API.
+NOTE: Las credenciales se almacenan en Valkey y se envían con cada solicitud de descarga de la suscripción. La contraseña y el token se ocultan en las respuestas de la API.
 
 === Gestión de suscripciones
 
@@ -197,7 +197,7 @@ Use *Recargar suscripciones* para actualizar la lista tras cualquier cambio real
 
 === Configuración
 
-La vista Configuración muestra cuántos registros se cargaron desde cada GDC. Haga clic en *Actualizar datos GDC* para forzar una obtención nueva desde los tres catálogos, omitiendo la caché de Redis.
+La vista Configuración muestra cuántos registros se cargaron desde cada GDC. Haga clic en *Actualizar datos GDC* para forzar una obtención nueva desde los tres catálogos, omitiendo la caché de Valkey.
 
 == Entender los temas WIS2
 
@@ -392,7 +392,7 @@ Las suscripciones que descargan desde fuentes protegidas por contraseña o token
 }
 ----
 
-NOTE: La API oculta los secretos en las respuestas — `password` se omite y `token` se reemplaza por `***`. Las credenciales completas se almacenan en Redis y se usan solo durante la descarga.
+NOTE: La API oculta los secretos en las respuestas — `password` se omite y `token` se reemplaza por `***`. Las credenciales completas se almacenan en Valkey y se usan solo durante la descarga.
 
 [[Filtrado]]
 == Filtrado

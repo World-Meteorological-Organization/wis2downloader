@@ -242,7 +242,7 @@ paths:
       tags:
         - Monitoring
       summary: Health check
-      description: Returns service health status including Redis connectivity
+      description: Returns service health status including Valkey connectivity
       operationId: healthCheck
       responses:
         "200":
@@ -487,10 +487,10 @@ components:
             error: "Subscription not found"
 
     ServiceUnavailable:
-      description: Service unavailable (Redis connection failed)
+      description: Service unavailable (Valkey connection failed)
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: "Failed to connect to Redis: Connection refused"
+            error: "Failed to connect to Valkey: Connection refused"

@@ -52,7 +52,7 @@ GET /subscriptions
 |نجاح — خريطة موضوع → خريطة UUID اشتراك → تفاصيل الاشتراك
 
 |503
-|Redis غير متوفر
+|Valkey غير متوفر
 |===
 
 ==== مثال
@@ -140,7 +140,7 @@ Content-Type: application/json
 |طلب غير صالح — حقول مفقودة أو غير صحيحة
 
 |503
-|الخدمة غير متاحة — فشل الاتصال بـ Redis
+|الخدمة غير متاحة — فشل الاتصال بـ Valkey
 |===
 
 ==== ترويسات الاستجابة
@@ -325,7 +325,7 @@ Content-Type: application/json
 |الاشتراك غير موجود
 
 |503
-|Redis غير متوفر
+|Valkey غير متوفر
 |===
 
 ==== مثال
@@ -359,7 +359,7 @@ DELETE /subscriptions/{id}
 |الاشتراك غير موجود
 
 |503
-|Redis غير متوفر
+|Valkey غير متوفر
 |===
 
 ==== مثال
@@ -497,12 +497,12 @@ GET /swagger
 |UUID غير موجود
 
 |503
-|"Failed to connect to Redis: ..."
-|Redis غير متوفر
+|"Failed to connect to Valkey: ..."
+|Valkey غير متوفر
 
 |503
 |"Failed to queue subscription command..."
-|فشل Redis pub/sub
+|فشل Valkey pub/sub
 |===
 
 == مخططات البيانات

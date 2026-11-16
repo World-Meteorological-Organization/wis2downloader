@@ -1,10 +1,9 @@
 import certifi
-from datetime import datetime
+from datetime import datetime, timezone
 from fnmatch import fnmatch
 import json
 import paho.mqtt.client as mqtt
 import ssl
-import time
 
 from shared import setup_logging, incr_counter, DEFAULT_QUEUE
 from task_manager.workflows import wis2_download
@@ -17,7 +16,7 @@ class Subscriber():
     def __init__(self, host: str = "globalbroker.meteo.fr",
                  port: int = 443, uid: str = "everyone",
                  pwd: str = "everyone", protocol: str = "websockets",
-                 session: str = ''):
+                 session: str = '', queue_delay: int = 0):
 
         args = {
             'callback_api_version': mqtt.CallbackAPIVersion.VERSION2,
@@ -39,15 +38,18 @@ class Subscriber():
                                 ciphers=None)
         self.client.username_pw_set(uid, pwd)
         self.client.on_connect = self._on_connect
+        self.client.on_connect_fail = self._on_connect_fail
         self.client.on_disconnect = self._on_disconnect
+        self.client.reconnect_delay_set(min_delay=1, max_delay=120)
         self.client.on_message = self._on_message
         self.client.on_subscribe = self._on_subscribe
 
         # {topic: {'pattern': str, 'subscriptions': {sub_id: {'id', 'save_path', 'filter'}}}}
         self.active_subscriptions = {}
-        self.retry_sleep = 1
         self.host = host
         self.port = port
+        # Seconds to hold jobs from a non-preferred broker so the preferred copy wins dedup
+        self.queue_delay = queue_delay
 
         LOGGER.info(f"Connecting (Host: {host}, port: {port}, session: {session}) ...")
 
@@ -58,20 +60,26 @@ class Subscriber():
             LOGGER.error(f"Failed to connect to {host}: {e}")
 
     def _on_connect(self, client, userdata, flags, reason_code, properties):
-        if reason_code == 0:
-            LOGGER.info("Connected successfully")
-        elif reason_code > 0:
-            LOGGER.error(f"Connection failed with error code {reason_code}")
-        self.retry_sleep = 1
+        if reason_code.is_failure:
+            LOGGER.error(f"Connection to {self.host} failed: {reason_code}")
+            return
+        LOGGER.info(f"Connected to {self.host} (session present: {flags.session_present})")
+        # The broker may have dropped our session while we were disconnected
+        topics = list(self.active_subscriptions)
+        for topic in topics:
+            client.subscribe(topic, qos=0)
+        if topics:
+            LOGGER.info(f"Resubscribed to {len(topics)} topic(s) on {self.host}")
+
+    def _on_connect_fail(self, client, userdata):
+        LOGGER.warning(f"Reconnect to {self.host} failed, retrying")
 
     def _on_disconnect(self, client, userdata, disconnect_flags, reason_code,
                        properties):
         if reason_code == 0:
             LOGGER.info("Disconnected successfully")
         elif reason_code > 0:
-            LOGGER.error(f"Disconnection to {self.host} failed with error code {reason_code}")
-            time.sleep(self.retry_sleep)
-            self.retry_sleep = min(self.retry_sleep*2, 360)
+            LOGGER.error(f"Disconnected from {self.host}: {reason_code}")
 
     def _on_subscribe(self, client, userdata, mid, reason_codes, properties):
         for sub_result in reason_codes:
@@ -109,7 +117,7 @@ class Subscriber():
             LOGGER.error(f"Failed to decode message payload: {e}")
             return
 
-        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         incr_counter('notifications_received_total', {'broker': self.host})
         for sub_data in subscriptions.values():
             job = {
@@ -124,7 +132,7 @@ class Subscriber():
             }
             try:
                 queue = sub_data.get('queue', DEFAULT_QUEUE)
-                wis2_download(job, queue=queue).apply_async()
+                wis2_download(job, queue=queue).apply_async(countdown=self.queue_delay or None)
                 LOGGER.info(
                     f"Job queued for topic {msg.topic} "
                     f"on queue '{queue}'"

@@ -50,7 +50,7 @@ GET /subscriptions
 |Éxito — mapa de topic → mapa de UUID de suscripción → detalle de suscripción
 
 |503
-|Redis no disponible
+|Valkey no disponible
 |===
 
 ==== Ejemplo
@@ -138,7 +138,7 @@ Content-Type: application/json
 |Solicitud incorrecta — campos faltantes o inválidos
 
 |503
-|Servicio no disponible — fallo en la conexión a Redis
+|Servicio no disponible — fallo en la conexión a Valkey
 |===
 
 ==== Cabeceras de respuesta
@@ -323,7 +323,7 @@ Todos los campos son opcionales. Solo se actualizan los campos proporcionados.
 |Suscripción no encontrada
 
 |503
-|Redis no disponible
+|Valkey no disponible
 |===
 
 ==== Ejemplo
@@ -357,7 +357,7 @@ DELETE /subscriptions/{id}
 |Suscripción no encontrada
 
 |503
-|Redis no disponible
+|Valkey no disponible
 |===
 
 ==== Ejemplo
@@ -495,12 +495,12 @@ Todas las respuestas de error siguen este formato:
 |UUID inexistente
 
 |503
-|"Failed to connect to Redis: ..."
-|Redis no disponible
+|"Failed to connect to Valkey: ..."
+|Valkey no disponible
 
 |503
 |"Failed to queue subscription command..."
-|Redis pub/sub fallido
+|Valkey pub/sub fallido
 |===
 
 == Esquemas de datos

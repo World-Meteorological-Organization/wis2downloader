@@ -50,7 +50,7 @@ GET /subscriptions
 |成功 — 主题 → 订阅 UUID → 订阅详情的映射
 
 |503
-|Redis 不可用
+|Valkey 不可用
 |===
 
 ==== 示例
@@ -138,7 +138,7 @@ Content-Type: application/json
 |请求错误 — 字段缺失或无效
 
 |503
-|服务不可用 — Redis 连接失败
+|服务不可用 — Valkey 连接失败
 |===
 
 ==== 响应头
@@ -323,7 +323,7 @@ Content-Type: application/json
 |订阅不存在
 
 |503
-|Redis 不可用
+|Valkey 不可用
 |===
 
 ==== 示例
@@ -357,7 +357,7 @@ DELETE /subscriptions/{id}
 |订阅不存在
 
 |503
-|Redis 不可用
+|Valkey 不可用
 |===
 
 ==== 示例
@@ -495,12 +495,12 @@ GET /swagger
 |UUID 不存在
 
 |503
-|"Failed to connect to Redis: ..."
-|Redis 不可用
+|"Failed to connect to Valkey: ..."
+|Valkey 不可用
 
 |503
 |"Failed to queue subscription command..."
-|Redis pub/sub 失败
+|Valkey pub/sub 失败
 |===
 
 == 数据模式

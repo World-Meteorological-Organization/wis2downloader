@@ -50,7 +50,7 @@ GET /subscriptions
 |Succès — map topic → map UUID abonnement → détails de l'abonnement
 
 |503
-|Redis indisponible
+|Valkey indisponible
 |===
 
 ==== Exemple
@@ -138,7 +138,7 @@ Content-Type: application/json
 |Requête incorrecte — champs manquants ou invalides
 
 |503
-|Service indisponible — connexion Redis échouée
+|Service indisponible — connexion Valkey échouée
 |===
 
 ==== En-têtes de réponse
@@ -323,7 +323,7 @@ Tous les champs sont optionnels. Seuls les champs fournis sont mis à jour.
 |Abonnement introuvable
 
 |503
-|Redis indisponible
+|Valkey indisponible
 |===
 
 ==== Exemple
@@ -357,7 +357,7 @@ DELETE /subscriptions/{id}
 |Abonnement introuvable
 
 |503
-|Redis indisponible
+|Valkey indisponible
 |===
 
 ==== Exemple
@@ -495,12 +495,12 @@ Toutes les réponses d'erreur suivent ce format :
 |UUID inexistant
 
 |503
-|"Failed to connect to Redis: ..."
-|Redis indisponible
+|"Failed to connect to Valkey: ..."
+|Valkey indisponible
 
 |503
 |"Failed to queue subscription command..."
-|Redis pub/sub échoué
+|Valkey pub/sub échoué
 |===
 
 == Schémas de données

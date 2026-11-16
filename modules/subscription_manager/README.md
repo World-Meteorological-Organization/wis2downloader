@@ -8,7 +8,7 @@ This module provides:
 - REST API for creating, listing, and deleting subscriptions
 - Prometheus metrics endpoint
 - Swagger UI for API documentation
-- Redis PubSub integration for communicating with the subscriber service
+- Valkey PubSub integration for communicating with the subscriber service
 
 ## Documentation
 

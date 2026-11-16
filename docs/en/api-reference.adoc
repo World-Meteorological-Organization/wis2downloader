@@ -43,7 +43,7 @@ GET /subscriptions
 |Success — map of topic → map of subscription UUID → subscription detail
 
 |503
-|Redis unavailable
+|Valkey unavailable
 |===
 
 ==== Example
@@ -131,7 +131,7 @@ Content-Type: application/json
 |Bad request — missing or invalid fields
 
 |503
-|Service unavailable — Redis connection failed
+|Service unavailable — Valkey connection failed
 |===
 
 ==== Response Headers
@@ -316,7 +316,7 @@ All fields are optional. Only provided fields are updated.
 |Subscription not found
 
 |503
-|Redis unavailable
+|Valkey unavailable
 |===
 
 ==== Example
@@ -350,7 +350,7 @@ DELETE /subscriptions/{id}
 |Subscription not found
 
 |503
-|Redis unavailable
+|Valkey unavailable
 |===
 
 ==== Example
@@ -488,12 +488,12 @@ All error responses follow this format:
 |UUID does not exist
 
 |503
-|"Failed to connect to Redis: ..."
-|Redis unavailable
+|"Failed to connect to Valkey: ..."
+|Valkey unavailable
 
 |503
 |"Failed to queue subscription command..."
-|Redis pub/sub failed
+|Valkey pub/sub failed
 |===
 
 == Data Schemas

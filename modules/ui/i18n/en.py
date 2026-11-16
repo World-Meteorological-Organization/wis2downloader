@@ -26,6 +26,7 @@ STRINGS: dict[str, str] = {
     'btn.show_metadata':    'Show Metadata',
     'btn.view_license':     'View License',
     'btn.accept':           'Accept',
+    'btn.decline':          'Decline',
     'btn.select':           'Select',
     'btn.unselect':         'Unselect',
     'btn.select_all':       'Select / deselect all',
@@ -140,7 +141,7 @@ STRINGS: dict[str, str] = {
     'settings.gdc_section': 'Global Discovery Catalogues',
     'settings.gdc_desc': (
         'Records are fetched from all three GDCs at startup and merged. '
-        'Results are cached in Redis for 6 hours.'
+        'Results are cached in Valkey for 6 hours.'
     ),
     'settings.records':     '{name}: {count} records',
     'settings.not_loaded':  '{name}: not loaded',
@@ -191,4 +192,10 @@ STRINGS: dict[str, str] = {
     # ------------------------------------------------------------------ #
     'aria.toggle_nav': 'Toggle navigation',
     'aria.discrepancy': 'Record content differs between catalogues',
+
+    # ------------------------------------------------------------------ #
+    # Cookie consent                                                     #
+    # ------------------------------------------------------------------ #
+    'cookies.title': 'Cookies',
+    'cookies.text': 'This site can store three cookies in your browser to remember your language, your last view and whether the menu is collapsed. They are not used for tracking and are not shared. If you decline, nothing is stored and you will be asked again on your next visit.',
 }
