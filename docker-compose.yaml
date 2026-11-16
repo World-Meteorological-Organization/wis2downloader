@@ -40,7 +40,7 @@ x-run-as: &run-as
 services:
   loki:
     container_name: loki
-    image: grafana/loki:3.6.7
+    image: grafana/loki:3.7.10
     restart: always
     deploy:
       resources:
