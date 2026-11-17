@@ -32,5 +32,5 @@ compactor:
   delete_request_store: filesystem
 
 limits_config:
-  retention_period: 240h
+  retention_period: 72h
   allow_structured_metadata: false

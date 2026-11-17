@@ -126,7 +126,10 @@ services:
     <<: [*hardening, *read-only]
     restart: always
     env_file: *default-env
-    command: ["valkey-server", "--appendonly", "yes", "--protected-mode", "no", "--requirepass", "${VALKEY_PASSWORD}"]
+    # AOF only (RDB snapshots disabled to avoid writing the dataset twice); maxmemory caps RAM/disk growth,
+    # noeviction because evicting queued tasks would silently drop work
+    command: ["valkey-server", "--appendonly", "yes", "--save", "", "--maxmemory", "${VALKEY_MAXMEMORY:-3gb}",
+              "--maxmemory-policy", "noeviction", "--protected-mode", "no", "--requirepass", "${VALKEY_PASSWORD}"]
     volumes:
       - valkey-data:${CONTAINER_DATA_PATH}
     networks:
