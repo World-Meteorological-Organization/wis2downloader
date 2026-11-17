@@ -1,4 +1,4 @@
-FROM zauberzeug/nicegui:3.17.1
+FROM zauberzeug/nicegui:3.19.0
 
 # Pick up Debian security fixes not yet in the base image
 RUN apt-get update && \
@@ -14,9 +14,10 @@ COPY ./modules/ui /app
 # Copy local module to the container
 COPY ./modules/shared /app/shared
 
-# Install extra dependencies; anyio/lxml_html_clean pinned above NiceGUI's minimums for CVE fixes.
+# Install extra dependencies; anyio/lxml_html_clean/pillow/dnspython/soupsieve pinned above the base image for CVE fixes.
 # System pip (vendors old urllib3/msgpack/setuptools) is unused at runtime, so remove it.
-RUN uv pip install --no-cache /app/shared shapely==2.1.2 anyio==4.14.2 lxml_html_clean==0.4.5 && \
+RUN uv pip install --no-cache /app/shared shapely==2.1.2 anyio==4.14.2 lxml_html_clean==0.4.5 \
+        pillow==13.0.0 dnspython==2.9.2 soupsieve==4.0 && \
     /usr/local/bin/python3 -m pip uninstall -y pip
 
 # Non-root user; /app stays root-owned and read-only (the UI writes nothing)
