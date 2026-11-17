@@ -40,7 +40,7 @@ x-run-as: &run-as
 services:
   loki:
     container_name: loki
-    image: grafana/loki:3.6.7
+    image: grafana/loki:3.7.10
     restart: always
     deploy:
       resources:
@@ -60,7 +60,7 @@ services:
 
   prometheus:
     container_name: prometheus
-    image: prom/prometheus:v3.10.0
+    image: prom/prometheus:v3.16.0
     restart: always
     deploy:
       resources:
@@ -86,7 +86,7 @@ services:
 
   grafana:
     container_name: grafana
-    image: grafana/grafana:12.4.1
+    image: grafana/grafana:13.3.1
     restart: always
     deploy:
       resources:
@@ -121,7 +121,7 @@ services:
 
   valkey:
     container_name: valkey
-    image: valkey/valkey:9.1.2-alpine
+    image: valkey/valkey:9.1.3-alpine
     user: valkey  # upstream non-root user; skips the entrypoint's root chown step
     <<: [*hardening, *read-only]
     restart: always

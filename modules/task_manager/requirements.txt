@@ -4,6 +4,6 @@ urllib3
 redis
 celery[redis,gevent]
 prometheus_client>=0.20.0
-certifi>=2024.2.2
+certifi>=2026.10.18
 python-magic>=0.4.27
 shapely>=2.0.0

@@ -16,8 +16,9 @@ permissions:
   contents: read
 
 # All actions are pinned to commit SHAs (trivy-action tags were hijacked in 2026).
-# Scans always gate the build; only the code scanning upload is best-effort on fork PRs,
-# where GITHUB_TOKEN is read-only. Reports are always kept as artifacts.
+# Scans gate the build, except report-only third-party images (only fixable by a newer tag);
+# the code scanning upload is best-effort on fork PRs, where GITHUB_TOKEN is read-only.
+# Reports are always kept as artifacts.
 env:
   TRIVY_SEVERITY: CRITICAL,HIGH
   TRIVY_SKIP_DIRS: # placeholder, include all dirs at the moment
@@ -54,14 +55,14 @@ jobs:
           exit-code: "0"
 
       - name: Save SARIF report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         if: always()
         with:
           name: trivy-fs-${{ matrix.runner }}
           path: trivy-fs.sarif
 
       - name: Upload to code scanning
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066  # v4.39.3
         if: always()
         continue-on-error: ${{ env.IS_FORK_PR == 'true' }}
         with:
@@ -97,6 +98,13 @@ jobs:
           - service: ui
             context: .
           - service: valkey
+          # Monitoring stack: upstream images, reported but not gated
+          - service: loki
+            report_only: true
+          - service: prometheus
+            report_only: true
+          - service: grafana
+            report_only: true
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -142,21 +150,21 @@ jobs:
           exit-code: "0"
 
       - name: Save SARIF report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         if: always()
         with:
           name: trivy-image-${{ matrix.service }}
           path: trivy-image.sarif
 
       - name: Upload to code scanning
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066  # v4.39.3
         if: always()
         continue-on-error: ${{ env.IS_FORK_PR == 'true' }}
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image-${{ matrix.service }}
 
-      - name: Fail on fixable high/critical findings
+      - name: ${{ matrix.report_only && 'List' || 'Fail on' }} fixable high/critical findings
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: ${{ steps.image.outputs.ref }}
@@ -165,7 +173,7 @@ jobs:
           severity: ${{ env.TRIVY_SEVERITY }}
           ignore-unfixed: true
           format: table
-          exit-code: "1"
+          exit-code: ${{ matrix.report_only && '0' || '1' }}
           skip-setup-trivy: true
 
   codeql:
@@ -178,11 +186,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066  # v4.39.3
         with:
           languages: python, actions
 
-      - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066  # v4.39.3
 
   # Weekly: scan the images of the latest release (what users run) and track findings in one issue.
   # Not a gate: fixing them needs a patch release (bump __version__, tag), which rebuilds the images.
@@ -214,8 +222,10 @@ jobs:
             exit 0
           fi
           gh release download "$tag" -p docker-compose.images.yml
-          images=$(sed -n 's|^ *image: *\(.*/wis2downloader-[^ ]*\)$|\1|p' docker-compose.images.yml | sort -u)
-          [ -n "$images" ] || { echo "::error::No wis2downloader images in the ${tag} images file"; exit 1; }
+          # All services, incl. third-party images (digest-pinned in the release, as users run them)
+          images=$(sed -n 's|^ *image: *\([^ ]*\)$|\1|p' docker-compose.images.yml | sort -u)
+          echo "$images" | grep -q '/wis2downloader-' \
+            || { echo "::error::No wis2downloader images in the ${tag} images file"; exit 1; }
           : > findings.md
           for ref in $images; do
             trivy image --quiet --scanners vuln --severity "$TRIVY_SEVERITY" --ignore-unfixed \
@@ -240,7 +250,8 @@ jobs:
               --description "Fixable HIGH/CRITICAL CVEs in the latest release images"
             {
               echo "The weekly Trivy scan of the **${TAG}** release images found fixable HIGH/CRITICAL vulnerabilities."
-              echo "A patch release rebuilds the images with OS fixes; library fixes need a dependency bump first."
+              echo "A patch release rebuilds our images with OS fixes; library fixes need a dependency bump first."
+              echo "Third-party images (valkey, loki, prometheus, grafana) need a newer tag in docker-compose.yaml; the patch release pins it in docker-compose.images.yml."
               echo
               cat findings.md
               echo

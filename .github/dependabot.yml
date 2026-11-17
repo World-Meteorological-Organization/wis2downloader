@@ -1,9 +1,12 @@
+# Version-update PRs disabled (limit 0); updates are applied by hand.
+# Security-update PRs are a repo setting (Settings > Advanced Security).
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
 
   - package-ecosystem: pip
     directories:
@@ -12,6 +15,7 @@ updates:
       - /modules/task_manager
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
     groups:
       python:
         patterns: ["*"]
@@ -23,9 +27,11 @@ updates:
       - /containers/ui
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
 
   # Upstream images in docker-compose.yaml (valkey, loki, prometheus, grafana)
   - package-ecosystem: docker-compose
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0

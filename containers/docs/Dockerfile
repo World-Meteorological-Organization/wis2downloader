@@ -1,5 +1,5 @@
 # Builds the HTML docs; export with: docker build -f containers/docs/Dockerfile --output site .
-FROM asciidoctor/docker-asciidoctor:1.103.0 AS build
+FROM asciidoctor/docker-asciidoctor:1.108.1 AS build
 WORKDIR /repo
 COPY docs/ ./docs/
 RUN bash docs/build.sh site
