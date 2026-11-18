@@ -14,6 +14,7 @@ NAV_ITEMS = [
     ('tree',      'nav.tree',      'account_tree'),
     ('manual',    'nav.manual',    'edit_note'),
     ('manage',    'nav.manage',    'manage_history'),
+    ('downloads', 'nav.downloads', 'folder_open'),
     ('settings',  'nav.settings',  'settings'),
 ]
 

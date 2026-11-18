@@ -87,7 +87,7 @@ The `.env` file contains sensitive credentials. Ensure it is:
 
 ==== Access Control
 
-WARNING: WIS2 Downloader does not implement authentication or authorisation on the web interface or the subscription manager REST API. Anyone with network access to the UI (port 8080) or the API (port 5002) can view, create, modify, and delete subscriptions.
+WARNING: WIS2 Downloader does not implement authentication or authorisation on the web interface or the subscription manager REST API. Anyone with network access to the UI (port 8080) or the API (port 5002) can view, create, modify, and delete subscriptions. The UI also allows anyone who can reach it to browse and download files in the configured downloads folder.
 
 In a shared or internet-facing environment you *must* restrict access at the network level. Recommended approaches:
 
