@@ -318,6 +318,8 @@ services:
           limits:
             memory: "${UI_MEMORY_LIMIT:-512m}"
       env_file: *default-env
+      volumes:
+        - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}:ro"
       environment:
         - WIS2DOWNLOADER_SUBSCRIPTION_MANAGER_URL=http://subscription-manager:5001
         - WIS2DOWNLOADER_GRAFANA_URL=${WIS2DOWNLOADER_GRAFANA_URL:-http://host.docker.internal:3000}

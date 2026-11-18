@@ -9,8 +9,22 @@ STRINGS: dict[str, str] = {
     'nav.tree':       'Tree View',
     'nav.manual':     'Manual Subscribe',
     'nav.manage':     'Manage Subscriptions',
+    'nav.downloads':  'Downloads',
     'nav.settings':   'Settings',
     'nav.help':       'Documentation',
+    'downloads.title':       'Downloads',
+    'downloads.root':        'Downloads',
+    'downloads.up':          'Up',
+    'downloads.refresh':     'Refresh',
+    'downloads.search':      'Search',
+    'downloads.clear_search': 'Clear search',
+    'downloads.search_hint': 'Filter filenames in all download folders',
+    'downloads.show_newest_first': 'Show newest first',
+    'downloads.show_oldest_first': 'Show oldest first',
+    'downloads.search_results': 'Search results for "{query}"',
+    'downloads.empty':       'This folder is empty.',
+    'downloads.no_results':  'No matching files found.',
+    'downloads.unavailable': 'This folder is unavailable or cannot be read.',
 
     # ------------------------------------------------------------------ #
     # Buttons                                                              #

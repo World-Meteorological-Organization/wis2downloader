@@ -119,6 +119,21 @@ body, .q-layout {
     color: #4A72C3;
 }
 
+.downloads-controls .downloads-search-input.q-input,
+.downloads-controls .downloads-search-input .q-field__control,
+.downloads-controls .downloads-search-input .q-field__native {
+    min-width: 0;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.downloads-controls .downloads-search-input .q-field__control:focus-within {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
 
 .no-results-label {
     margin-top: 10px;

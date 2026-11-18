@@ -13,8 +13,22 @@ STRINGS: dict[str, str] = {
     'nav.tree':       'العرض الشجري',
     'nav.manual':     'اشتراك يدوي',
     'nav.manage':     'إدارة الاشتراكات',
+    'nav.downloads':  'التنزيلات',
     'nav.settings':   'الإعدادات',
     'nav.help':       'التوثيق',
+    'downloads.title':       'التنزيلات',
+    'downloads.root':        'التنزيلات',
+    'downloads.up':          'للأعلى',
+    'downloads.refresh':     'تحديث',
+    'downloads.search':      'بحث',
+    'downloads.clear_search': 'مسح البحث',
+    'downloads.search_hint': 'تصفية أسماء الملفات في جميع مجلدات التنزيلات',
+    'downloads.show_newest_first': 'عرض الأحدث أولاً',
+    'downloads.show_oldest_first': 'عرض الأقدم أولاً',
+    'downloads.search_results': 'نتائج البحث عن "{query}"',
+    'downloads.empty':       'هذا المجلد فارغ.',
+    'downloads.no_results':  'لم يتم العثور على ملفات مطابقة.',
+    'downloads.unavailable': 'هذا المجلد غير متاح أو يتعذر قراءته.',
 
     # ------------------------------------------------------------------ #
     # Buttons                                                              #

@@ -13,8 +13,22 @@ STRINGS: dict[str, str] = {
     'nav.tree':       '树形视图',
     'nav.manual':     '手动订阅',
     'nav.manage':     '管理订阅',
+    'nav.downloads':  '下载',
     'nav.settings':   '设置',
     'nav.help':       '文档',
+    'downloads.title':       '下载',
+    'downloads.root':        '下载',
+    'downloads.up':          '上一级',
+    'downloads.refresh':     '刷新',
+    'downloads.search':      '搜索',
+    'downloads.clear_search': '清除搜索',
+    'downloads.search_hint': '筛选所有下载文件夹中的文件名',
+    'downloads.show_newest_first': '显示最新优先',
+    'downloads.show_oldest_first': '显示最早优先',
+    'downloads.search_results': '“{query}”的搜索结果',
+    'downloads.empty':       '此文件夹为空。',
+    'downloads.no_results':  '未找到匹配的文件。',
+    'downloads.unavailable': '此文件夹不可用或无法读取。',
 
     # ------------------------------------------------------------------ #
     # Buttons                                                              #

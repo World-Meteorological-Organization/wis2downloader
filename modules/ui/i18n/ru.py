@@ -13,8 +13,22 @@ STRINGS: dict[str, str] = {
     'nav.tree':       'Древовидная структура',
     'nav.manual':     'Ручная подписка',
     'nav.manage':     'Управление подписками',
+    'nav.downloads':  'Загрузки',
     'nav.settings':   'Настройки',
     'nav.help':       'Документация',
+    'downloads.title':       'Загрузки',
+    'downloads.root':        'Загрузки',
+    'downloads.up':          'Вверх',
+    'downloads.refresh':     'Обновить',
+    'downloads.search':      'Поиск',
+    'downloads.clear_search': 'Очистить поиск',
+    'downloads.search_hint': 'Поиск имён во всех папках загрузок',
+    'downloads.show_newest_first': 'Сначала показать новые',
+    'downloads.show_oldest_first': 'Сначала показать старые',
+    'downloads.search_results': 'Результаты поиска: «{query}»',
+    'downloads.empty':       'Эта папка пуста.',
+    'downloads.no_results':  'Совпадающие файлы не найдены.',
+    'downloads.unavailable': 'Эта папка недоступна или не может быть прочитана.',
 
     # ------------------------------------------------------------------ #
     # Buttons                                                              #

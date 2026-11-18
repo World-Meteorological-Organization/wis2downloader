@@ -1,13 +1,16 @@
 import asyncio
+from fastapi import HTTPException
 from nicegui import app, ui, Client
 from nicegui.events import KeyEventArguments
+from starlette.responses import FileResponse
 
 from shared import setup_logging
 from shared.config_check import Setting, require_settings
 from layout import build_layout
 import data as data_module
 from data import scrape_all
-from views import dashboard, catalogue, tree, subscriptions, settings, manual_subscription
+from download_files import resolve_download_path
+from views import dashboard, catalogue, tree, subscriptions, settings, manual_subscription, downloads
 from components.navigation_drawer import NAV_ITEMS
 from i18n import current_lang, is_rtl
 from prefs import declined, get_pref, has_consent, prefs_url, set_pref
@@ -25,6 +28,19 @@ app.add_static_files('/assets', 'assets')
 ui.add_head_html('<link rel="stylesheet" type="text/css" href="/assets/base.css">', shared=True)
 
 _startup_done = False
+
+
+@app.get('/downloads/{file_path:path}')
+def download_file(file_path: str):
+    try:
+        path = resolve_download_path(file_path)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail='Download is not readable') from exc
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail='Download not found') from exc
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail='Download not found')
+    return FileResponse(path, filename=path.name)
 
 
 async def _startup():
@@ -86,6 +102,8 @@ def main_page(client: Client):
                 manual_subscription.render(layout.content)
             elif name == 'manage':
                 subscriptions.render(layout.content)
+            elif name == 'downloads':
+                downloads.render(layout.content)
             elif name == 'settings':
                 settings.render(layout.content)
 

@@ -53,7 +53,7 @@ NOTE: The interface translations are machine-generated.  If you notice an inaccu
 
 === Navigation
 
-The navigation drawer on the left (right in Arabic RTL mode) gives access to seven views. Each can also be reached with a keyboard shortcut:
+The navigation drawer on the left (right in Arabic RTL mode) gives access to seven application views and the online documentation. Each application view can also be reached with a keyboard shortcut:
 
 [cols="1,1,3"]
 |===
@@ -80,6 +80,10 @@ The navigation drawer on the left (right in Arabic RTL mode) gives access to sev
 |List all active subscriptions, edit their settings, and unsubscribe from topics
 
 |kbd:[Alt+6]
+|*Downloads*
+|Browse downloaded files and folders, search filenames, sort by modification time, and download files
+
+|kbd:[Alt+7]
 |*Settings*
 |View GDC record counts per catalogue and trigger a manual data refresh
 
@@ -87,6 +91,12 @@ The navigation drawer on the left (right in Arabic RTL mode) gives access to sev
 |*Documentation*
 |Opens the online documentation for this version in a new tab
 |===
+
+=== Downloads
+
+The Downloads view lets you browse the configured downloads folder, search filenames recursively, and sort files and folders by modification time. Select a file to download it through your browser. The view is read-only and reflects the contents of the folder configured by `HOST_DATA_PATH`.
+
+Access to the Downloads view follows the same network access controls as the rest of the web interface; see the *Access Control* section in the administration guide.
 
 === Catalogue View
 

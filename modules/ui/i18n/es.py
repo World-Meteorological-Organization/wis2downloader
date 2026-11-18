@@ -11,8 +11,22 @@ STRINGS: dict[str, str] = {
     'nav.tree':       'Vista de árbol',
     'nav.manual':     'Suscripción manual',
     'nav.manage':     'Gestionar suscripciones',
+    'nav.downloads':  'Descargas',
     'nav.settings':   'Configuración',
     'nav.help':       'Documentación',
+    'downloads.title':       'Descargas',
+    'downloads.root':        'Descargas',
+    'downloads.up':          'Subir',
+    'downloads.refresh':     'Actualizar',
+    'downloads.search':      'Buscar',
+    'downloads.clear_search': 'Borrar búsqueda',
+    'downloads.search_hint': 'Filtrar nombres en todas las carpetas de descargas',
+    'downloads.show_newest_first': 'Mostrar más recientes primero',
+    'downloads.show_oldest_first': 'Mostrar más antiguos primero',
+    'downloads.search_results': 'Resultados para "{query}"',
+    'downloads.empty':       'Esta carpeta está vacía.',
+    'downloads.no_results':  'No se encontraron archivos coincidentes.',
+    'downloads.unavailable': 'Esta carpeta no está disponible o no se puede leer.',
 
     # ------------------------------------------------------------------ #
     # Buttons                                                              #

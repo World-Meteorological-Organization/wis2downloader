@@ -13,8 +13,22 @@ STRINGS: dict[str, str] = {
     'nav.tree':       'Vue arborescente',
     'nav.manual':     'Abonnement manuel',
     'nav.manage':     'Gérer les abonnements',
+    'nav.downloads':  'Téléchargements',
     'nav.settings':   'Paramètres',
     'nav.help':       'Documentation',
+    'downloads.title':       'Téléchargements',
+    'downloads.root':        'Téléchargements',
+    'downloads.up':          'Remonter',
+    'downloads.refresh':     'Actualiser',
+    'downloads.search':      'Rechercher',
+    'downloads.clear_search': 'Effacer la recherche',
+    'downloads.search_hint': 'Filtrer les noms dans tous les dossiers de téléchargement',
+    'downloads.show_newest_first': 'Afficher les plus récents en premier',
+    'downloads.show_oldest_first': 'Afficher les plus anciens en premier',
+    'downloads.search_results': 'Résultats pour « {query} »',
+    'downloads.empty':       'Ce dossier est vide.',
+    'downloads.no_results':  'Aucun fichier correspondant.',
+    'downloads.unavailable': 'Ce dossier est indisponible ou illisible.',
 
     # ------------------------------------------------------------------ #
     # Buttons                                                              #
